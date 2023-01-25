@@ -52,6 +52,14 @@ jobs:
           path: deps
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.os_name }}-${{ hashFiles('rockspec/apisix-master-0.rockspec') }}
 
+      - name: Extract branch name
+        if: ${{ startsWith(github.ref, 'refs/heads/release/') }}
+        id: branch_env
+        shell: bash
+        run: |
+          echo "version=${GITHUB_REF##*/}" >>$GITHUB_OUTPUT
+          echo "fullname=apache-apisix-${GITHUB_REF##*/}-src.tgz" >>$GITHUB_OUTPUT
+
       - name: Extract test type
         shell: bash
         id: test_env
@@ -200,3 +208,8 @@ jobs:
         run: |
           sudo --preserve-env=OPENRESTY_VERSION \
           ./ci/${{ matrix.os_name }}_runner.sh do_install
+          
+      - name: Linux Script
+        env:
+          TEST_FILE_SUB_DIR: ${{ matrix.test_dir }}
+        run: sudo -E ./ci/${{ matrix.os_name }}_runner.sh script
