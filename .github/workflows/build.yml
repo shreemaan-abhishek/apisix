@@ -88,6 +88,11 @@ jobs:
           make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
           sudo ./ci/init-common-test-service.sh
 
+      - name: Create tarball
+        if: ${{ startsWith(github.ref, 'refs/heads/release/') }}
+        run: |
+          make compress-tar VERSION=${{ steps.branch_env.outputs.version }}
+
       - name: Cache images
         id: cache-images
         uses: actions/cache@v3
@@ -219,6 +224,3 @@ jobs:
         env:
           TEST_FILE_SUB_DIR: ${{ matrix.test_dir }}
         run: sudo -E ./ci/${{ matrix.os_name }}_runner.sh script
-      - name: Setup tmate session
-        if: always()
-        uses: mxschmitt/action-tmate@v3
