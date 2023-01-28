@@ -82,7 +82,12 @@ jobs:
           if [[ $test_dir =~ ' t/xrpc' ]]; then
             echo "type=last" >>$GITHUB_OUTPUT
           fi
-      
+
+      - name: Linux launch common services
+        run: |
+          make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
+          sudo ./ci/init-common-test-service.sh
+
       - name: Cache images
         id: cache-images
         uses: actions/cache@v3
@@ -116,10 +121,6 @@ jobs:
       - if: ${{ steps.cache-images.outputs.cache-hit != 'true' }}
         name: Linux lanuch services
         run: |
-          echo "start common service..., time: $(date)"
-          make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
-          sudo ./ci/init-common-test-service.sh
-          echo "start common service done, time: $(date)"
           if [[ ${{ steps.test_env.outputs.type }} == 'first' ]]; then
             # launch deps env
             echo "start first service ..., time: $(date)"
