@@ -93,6 +93,12 @@ jobs:
         run: |
           make compress-tar VERSION=${{ steps.branch_env.outputs.version }}
 
+      - name: Remove source code
+        if: ${{ startsWith(github.ref, 'refs/heads/release/') }}
+        run: |
+          rm -rf $(ls -1 --ignore=*.tgz --ignore=ci --ignore=t --ignore=utils --ignore=.github)
+          tar zxvf ${{ steps.branch_env.outputs.fullname }}
+
       - name: Cache images
         id: cache-images
         uses: actions/cache@v3
@@ -184,11 +190,6 @@ jobs:
           
           docker save $common_tag $special_tag $openwhisk_tag -o docker-images-buckup/apisix-images.tar
           echo "docker save done, time: $(date)"
-      - name: Remove source code
-        if: ${{ startsWith(github.ref, 'refs/heads/release/') }}
-        run: |
-          rm -rf $(ls -1 --ignore=*.tgz --ignore=ci --ignore=t --ignore=utils --ignore=.github)
-          tar zxvf ${{ steps.branch_env.outputs.fullname }}
 
       - name: Start Dubbo Backend
         if: matrix.os_name == 'linux_openresty' && steps.test_env.outputs.type == 'plugin'
