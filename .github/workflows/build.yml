@@ -138,7 +138,7 @@ jobs:
             make ci-env-up project_compose_ci=ci/pod/docker-compose.${{ steps.test_env.outputs.type }}.yml
             echo "start first service done, time: $(date)"
           fi
-          
+
           if [[ ${{ steps.test_env.outputs.type }} == 'plugin' ]]; then
             echo "start plugin service ..., time: $(date)"
             # download keycloak cas provider
@@ -187,7 +187,7 @@ jobs:
           then
           echo $to_pull | xargs -P10 -n1 docker pull
           fi
-          
+
           docker save $common_tag $special_tag $openwhisk_tag -o docker-images-buckup/apisix-images.tar
           echo "docker save done, time: $(date)"
 
