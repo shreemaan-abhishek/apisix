@@ -22,7 +22,7 @@ images_built=$2
 if [[ "$test_type" == 'plugin' ]]; then
   # download keycloak cas provider
   sudo wget https://github.com/jacekkow/keycloak-protocol-cas/releases/download/18.0.2/keycloak-protocol-cas-18.0.2.jar -O /opt/keycloak-protocol-cas-18.0.2.jar
-  ! [ "$images_built" ] && bash ci/pod/openfunction/build-function-image.sh
+  [ "$images_built" == false ] && bash ./ci/pod/openfunction/build-function-image.sh
 fi
 if [[ "$test_type" == 'last' ]]; then
   # generating SSL certificates for Kafka
