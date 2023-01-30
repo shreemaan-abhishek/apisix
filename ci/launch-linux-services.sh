@@ -18,5 +18,5 @@
 
 test_type=$1
 
-make ci-env-up project_compose_ci=ci/pod/docker-compose.$test_type.yml
-[ $test_type != "first" ] && sudo ./ci/init-$test_type-test-service.sh
+make ci-env-up project_compose_ci=ci/pod/docker-compose."$test_type".yml
+[ "$test_type" != "first" ] && sudo ./ci/init-"$test_type"-test-service.sh
