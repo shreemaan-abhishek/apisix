@@ -110,7 +110,7 @@ jobs:
             docker load --input docker-images-backup/apisix-images.tar
 
             bash ./ci/before-launch-linux-services.sh ${{ steps.test_env.outputs.type }} true
-            bash ./ci/launch-linux-services.sh
+            bash ./ci/launch-linux-services.sh ${{ steps.test_env.outputs.type }}
 
           fi
       - if: ${{ steps.cache-images.outputs.cache-hit != 'true' }}
@@ -121,7 +121,7 @@ jobs:
           sudo ./ci/init-common-test-service.sh
 
           bash ./ci/before-launch-linux-services.sh ${{ steps.test_env.outputs.type }} false
-          bash ./ci/launch-linux-services.sh
+          bash ./ci/launch-linux-services.sh ${{ steps.test_env.outputs.type }}
 
           bash ./ci/backup-docker-images.sh ${{ steps.test_env.outputs.type }}
 
