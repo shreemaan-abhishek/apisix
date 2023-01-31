@@ -118,7 +118,7 @@ jobs:
 
           # cache hit means images are already loaded
           bash ./ci/before-launch-linux-services.sh ${{ steps.test_env.outputs.type }} $cache_hit
-          bash ./ci/launch-linux-services.sh ${{ steps.test_env.outputs.type }
+          bash ./ci/launch-linux-services.sh ${{ steps.test_env.outputs.type }}
 
           echo "start backing up"
           echo test_type is ${{ steps.test_env.outputs.type }}
