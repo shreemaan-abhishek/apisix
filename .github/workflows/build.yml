@@ -103,26 +103,26 @@ jobs:
           path: docker-images-backup
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.os_name }}-${{ steps.test_env.outputs.type }}-${{ hashFiles('./ci/pod/*.yml') }}
 
-      - if: ${{ steps.cache-images.outputs.cache-hit == 'true' }}
-        name: Load saved docker images
+      - name: Launch linux services
         run: |
-          if [[ -f docker-images-backup/apisix-images.tar ]]; then
-            docker load --input docker-images-backup/apisix-images.tar
-            bash ./ci/before-launch-linux-services.sh ${{ steps.test_env.outputs.type }} true
-            bash ./ci/launch-linux-services.sh ${{ steps.test_env.outputs.type }}
+          cache_hit=$([[ ${{ steps.cache-images.outputs.cache-hit }} == 'true' ]])
+          if $cache_hit; then
+            if [[ -f docker-images-backup/apisix-images.tar ]]; then
+              docker load --input docker-images-backup/apisix-images.tar
+            fi
+          else
+            # Launch common services
+            make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
+            sudo ./ci/init-common-test-service.sh
           fi
-      - if: ${{ steps.cache-images.outputs.cache-hit != 'true' }}
-        name: Linux launch services
-        run: |
-          # Launch common services
-          make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
-          sudo ./ci/init-common-test-service.sh
-          bash ./ci/before-launch-linux-services.sh ${{ steps.test_env.outputs.type }} false
-          bash ./ci/launch-linux-services.sh ${{ steps.test_env.outputs.type }}
+
+          # cache hit means images are already loaded
+          bash ./ci/before-launch-linux-services.sh ${{ steps.test_env.outputs.type }} $cache_hit
+          bash ./ci/launch-linux-services.sh ${{ steps.test_env.outputs.type }
 
           echo "start backing up"
           echo test_type is ${{ steps.test_env.outputs.type }}
-          bash ./ci/backup-docker-images.sh ${{ steps.test_env.outputs.type }}
+          [[ $cache_hit != 'true' ]] bash ./ci/backup-docker-images.sh ${{ steps.test_env.outputs.type }}
 
       - name: Start Dubbo Backend
         if: matrix.os_name == 'linux_openresty' && steps.test_env.outputs.type == 'plugin'
