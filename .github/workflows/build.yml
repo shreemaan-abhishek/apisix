@@ -123,7 +123,7 @@ jobs:
 
           echo "start backing up"
           echo test_type is ${{ steps.test_env.outputs.type }}
-          [[ $cache_hit != 'true' ]] bash ./ci/backup-docker-images.sh ${{ steps.test_env.outputs.type }}
+          [[ $cache_hit != 'true' ]] && bash ./ci/backup-docker-images.sh ${{ steps.test_env.outputs.type }}
 
       - name: Start Dubbo Backend
         if: matrix.os_name == 'linux_openresty' && steps.test_env.outputs.type == 'plugin'
