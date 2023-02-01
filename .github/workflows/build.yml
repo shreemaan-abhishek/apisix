@@ -105,8 +105,9 @@ jobs:
 
       - name: Launch linux services
         run: |
-          cache_hit=$([[ ${{ steps.cache-images.outputs.cache-hit }} == 'true' ]])
-          if $cache_hit; then
+          cache_output=${{ steps.cache-images.outputs.cache-hit }}
+          cache_hit=$([[ $cache_output == 'true' || -z $cache_output ]])
+          if [[ $cache_hit == 'true' ]]; then
             if [[ -f docker-images-backup/apisix-images.tar ]]; then
               docker load --input docker-images-backup/apisix-images.tar
             fi
