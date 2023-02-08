@@ -42,10 +42,10 @@ ENV_NGINX_EXEC         := $(shell command -v openresty 2>/dev/null || command -v
 ENV_OPENSSL_PREFIX     ?= $(addprefix $(ENV_NGINX_PREFIX), openssl)
 ENV_LUAROCKS           ?= luarocks
 ## These variables can be injected by luarocks
-ENV_INST_PREFIX        ?= /usr
+ENV_INST_PREFIX        ?= /opt/homebrew
 ENV_INST_LUADIR        ?= $(ENV_INST_PREFIX)/share/lua/5.1
 ENV_INST_BINDIR        ?= $(ENV_INST_PREFIX)/bin
-ENV_HOMEBREW_PREFIX    ?= /usr/local
+ENV_HOMEBREW_PREFIX    ?= /opt/homebrew
 
 ifneq ($(shell whoami), root)
 	ENV_LUAROCKS_FLAG_LOCAL := --local
@@ -120,11 +120,11 @@ endef
 .PHONY: runtime
 runtime:
 ifeq ($(ENV_NGINX_EXEC), )
-ifeq ("$(wildcard /usr/local/openresty-debug/bin/openresty)", "")
+ifeq ("$(wildcard /opt/homebrew/openresty-debug/bin/openresty)", "")
 	@$(call func_echo_warn_status, "WARNING: OpenResty not found. You have to install OpenResty and add the binary file to PATH before install Apache APISIX.")
 	exit 1
 else
-	$(eval ENV_NGINX_EXEC := /usr/local/openresty-debug/bin/openresty)
+	$(eval ENV_NGINX_EXEC := /opt/homebrew/openresty-debug/bin/openresty)
 	@$(call func_echo_status, "Use openresty-debug as default runtime")
 endif
 endif
@@ -250,14 +250,14 @@ reload: runtime
 ### install : Install the apisix (only for luarocks)
 .PHONY: install
 install: runtime
-	$(ENV_INSTALL) -d /usr/local/apisix/
-	$(ENV_INSTALL) -d /usr/local/apisix/logs/
-	$(ENV_INSTALL) -d /usr/local/apisix/conf/cert
-	$(ENV_INSTALL) conf/mime.types /usr/local/apisix/conf/mime.types
-	$(ENV_INSTALL) conf/config.yaml /usr/local/apisix/conf/config.yaml
-	$(ENV_INSTALL) conf/config-default.yaml /usr/local/apisix/conf/config-default.yaml
-	$(ENV_INSTALL) conf/debug.yaml /usr/local/apisix/conf/debug.yaml
-	$(ENV_INSTALL) conf/cert/* /usr/local/apisix/conf/cert/
+	$(ENV_INSTALL) -d /opt/homebrew/apisix/
+	$(ENV_INSTALL) -d /opt/homebrew/apisix/logs/
+	$(ENV_INSTALL) -d /opt/homebrew/apisix/conf/cert
+	$(ENV_INSTALL) conf/mime.types /opt/homebrew/apisix/conf/mime.types
+	$(ENV_INSTALL) conf/config.yaml /opt/homebrew/apisix/conf/config.yaml
+	$(ENV_INSTALL) conf/config-default.yaml /opt/homebrew/apisix/conf/config-default.yaml
+	$(ENV_INSTALL) conf/debug.yaml /opt/homebrew/apisix/conf/debug.yaml
+	$(ENV_INSTALL) conf/cert/* /opt/homebrew/apisix/conf/cert/
 
 	# directories listed in alphabetical order
 	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix
@@ -383,7 +383,7 @@ install: runtime
 .PHONY: uninstall
 uninstall:
 	@$(call func_echo_status, "$@ -> [ Start ]")
-	$(ENV_RM) -r /usr/local/apisix
+	$(ENV_RM) -r /opt/homebrew/apisix
 	$(ENV_RM) -r $(ENV_INST_LUADIR)/apisix
 	$(ENV_RM) $(ENV_INST_BINDIR)/apisix
 	@$(call func_echo_success_status, "$@ -> [ Done ]")
