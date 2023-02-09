@@ -42,6 +42,9 @@ jobs:
       OPENRESTY_VERSION: default
 
     steps:
+      - name: Setup tmate session
+        if: always()
+        uses: mxschmitt/action-tmate@v3
       - name: Check out code
         uses: actions/checkout@v3.2.0
         with:
@@ -173,7 +176,3 @@ jobs:
           echo "start backing up, $(date)"
           bash ./ci/backup-docker-images.sh ${{ steps.test_env.outputs.type }}
           echo "backup done, $(date)"
-
-      - name: Setup tmate session
-        if: always()
-        uses: mxschmitt/action-tmate@v3
