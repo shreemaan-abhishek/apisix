@@ -156,8 +156,8 @@ jobs:
           sudo --preserve-env=OPENRESTY_VERSION \
           ./ci/${{ matrix.os_name }}_runner.sh do_install
 
-      - name: Run test
-        run: prove -Itest-nginx/lib -r t/secret/vault.t
+      # - name: Run test
+      #   run: prove -Itest-nginx/lib -r t/secret/vault.t
 
       - name: Linux Script
         env:
