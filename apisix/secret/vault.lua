@@ -50,7 +50,7 @@ local function make_request_to_vault(conf, method, key, data)
 
     print("dibag")
 
-    print(conf)
+    -- print(conf)
     print(conf.token)
 
     print(env.fetch_by_uri(conf.token))
