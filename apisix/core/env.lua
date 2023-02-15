@@ -67,18 +67,18 @@ local function parse_env_uri(env_uri)
         return nil, "error env_uri type: " .. type(env_uri)
     end
 
-    print("dibag, passed string test")
+    print("luadibag, passed string test")
 
     if not string.has_prefix(upper(env_uri), ENV_PREFIX) then
         return nil, "error env_uri prefix: " .. env_uri
     end
-    print("dibag, passed prefix test")
+    print("luadibag, passed prefix test")
     local path = sub(env_uri, #ENV_PREFIX + 1)
     local idx = find(path, "/")
     if not idx then
         return {key = path, sub_key = ""}
     end
-    print("dibag, passed idx test")
+    print("luadibag, passed idx test")
     local key = sub(path, 1, idx - 1)
     local sub_key = sub(path, idx + 1)
     print(key, sub_key)
@@ -96,8 +96,8 @@ function _M.fetch_by_uri(env_uri)
     if not opts then
         return nil, err
     end
-    print("dibag")
-    print(opts)
+    print("luadibag")
+    -- print(opts)
 
     local main_value = apisix_env_vars[opts.key] or os.getenv(opts.key)
     print(main_value)

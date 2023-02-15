@@ -48,7 +48,7 @@ local _M = {
 
 local function make_request_to_vault(conf, method, key, data)
 
-    print("dibag")
+    print("luadibag")
 
     -- print(conf)
     print(conf.token)
