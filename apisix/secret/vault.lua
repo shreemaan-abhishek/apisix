@@ -47,6 +47,14 @@ local _M = {
 }
 
 local function make_request_to_vault(conf, method, key, data)
+
+    print("dibag")
+
+    print(conf)
+    print(conf.token)
+
+    print(env.fetch_by_uri(conf.token))
+
     local httpc = http.new()
     -- config timeout or default to 5000 ms
     httpc:set_timeout((conf.timeout or 5)*1000)
@@ -61,6 +69,7 @@ local function make_request_to_vault(conf, method, key, data)
         },
         body = core.json.encode(data or {}, true)
     })
+    print(err)
 
     if not res then
         return nil, err
