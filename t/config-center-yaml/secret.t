@@ -133,7 +133,7 @@ GET /t
 len: 1
 id: vault/1
 prefix: kv/apisix
-token: "$ENV://VAULT_TOKEN"
+token: $ENV://VAULT_TOKEN
 uri: http://127.0.0.1:8200
 
 
@@ -270,7 +270,7 @@ no secret conf, secret_uri: $secret://vault/2/bar
 secrets:
   - id: vault/1
     prefix: kv/apisix
-    token: "$ENV://VAULT_TOKEN"
+    token: root
     uri: http://127.0.0.1:8200
 #END
 --- config
