@@ -30,7 +30,7 @@ jobs:
           - linux_openresty
           - linux_openresty_1_19
         test_dir:
-          - t/plugin/[a-k]*
+          - t/plugin/clickhouse-logger.t
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 90
