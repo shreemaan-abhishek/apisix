@@ -319,7 +319,7 @@ qr/clickhouse body: INSERT INTO t FORMAT JSONEachRow \{.*"vip":"127.0.0.1".*\}/
     }
 --- response_body
 passed
---- wait: 1
+--- wait: 5
 
 
 === TEST 10: access log
