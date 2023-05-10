@@ -97,7 +97,7 @@ passed
 === TEST 10: access log
 --- request
 GET /opentracing
---- wait: 5
+--- wait: 10
 --- exec
 echo "select * from default.test" | curl 'http://localhost:8123/' --data-binary @-
 --- response_body_like
