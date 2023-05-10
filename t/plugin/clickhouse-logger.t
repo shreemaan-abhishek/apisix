@@ -94,10 +94,14 @@ __DATA__
 passed
 
 
-=== TEST 10: access log
+=== TEST 10: hit route
 --- request
 GET /opentracing
---- wait: 10
+--- error_code: 200
+--- wait: 5
+
+
+=== TEST 11: get log
 --- exec
 echo "select * from default.test" | curl 'http://localhost:8123/' --data-binary @-
 --- response_body_like
