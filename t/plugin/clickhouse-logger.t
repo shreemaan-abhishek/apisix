@@ -55,6 +55,233 @@ run_tests();
 
 __DATA__
 
+=== TEST 1: Full configuration verification
+--- config
+    location /t {
+        content_by_lua_block {
+            local plugin = require("apisix.plugins.clickhouse-logger")
+            local ok, err = plugin.check_schema({timeout = 3,
+                                                 retry_delay = 1,
+                                                 batch_max_size = 500,
+                                                 user = "default",
+                                                 password = "a",
+                                                 database = "default",
+                                                 logtable = "t",
+                                                 endpoint_addr = "http://127.0.0.1:1980/clickhouse_logger_server",
+                                                 max_retry_count = 1,
+                                                 name = "clickhouse logger",
+                                                 ssl_verify = false
+                                                 })
+
+            if not ok then
+                ngx.say(err)
+            else
+                ngx.say("passed")
+            end
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 2: Basic configuration verification
+--- config
+    location /t {
+        content_by_lua_block {
+            local plugin = require("apisix.plugins.clickhouse-logger")
+            local ok, err = plugin.check_schema({user = "default",
+                                                 password = "a",
+                                                 database = "default",
+                                                 logtable = "t",
+                                                 endpoint_addr = "http://127.0.0.1:1980/clickhouse_logger_server"
+                                                 })
+
+            if not ok then
+                ngx.say(err)
+            else
+                ngx.say("passed")
+            end
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 3: auth configure undefined
+--- config
+    location /t {
+        content_by_lua_block {
+            local plugin = require("apisix.plugins.clickhouse-logger")
+            local ok, err = plugin.check_schema({user = "default",
+                                                 password = "a",
+                                                 database = "default",
+                                                 logtable = "t"
+                                                 })
+
+            if not ok then
+                ngx.say(err)
+            else
+                ngx.say("passed")
+            end
+        }
+    }
+--- response_body
+value should match only one schema, but matches none
+
+
+
+=== TEST 4: add plugin on routes
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "plugins": {
+                            "clickhouse-logger": {
+                                "user": "default",
+                                "password": "a",
+                                "database": "default",
+                                "logtable": "t",
+                                "endpoint_addr": "http://127.0.0.1:1980/clickhouse_logger_server",
+                                "batch_max_size":1,
+                                "inactive_timeout":1
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1982": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/opentracing"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 5: add plugin on routes using multi clickhouse-logger
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "plugins": {
+                            "clickhouse-logger": {
+                                "user": "default",
+                                "password": "a",
+                                "database": "default",
+                                "logtable": "t",
+                                "endpoint_addrs": ["http://127.0.0.1:1980/clickhouse_logger_server",
+                                                  "http://127.0.0.1:10420/clickhouse-logger/test1"],
+                                "batch_max_size":1,
+                                "inactive_timeout":1
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1982": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/opentracing"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- error_code: 200
+--- response_body
+passed
+
+
+
+=== TEST 6: access local server
+--- request
+GET /opentracing
+--- response_body
+opentracing
+--- error_log
+clickhouse body: INSERT INTO t FORMAT JSONEachRow
+clickhouse headers: x-clickhouse-key:a
+clickhouse headers: x-clickhouse-user:default
+clickhouse headers: x-clickhouse-database:default
+--- wait: 5
+
+
+
+=== TEST 7: log format in plugin
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "plugins": {
+                            "clickhouse-logger": {
+                                "user": "default",
+                                "password": "a",
+                                "database": "default",
+                                "logtable": "t",
+                                "endpoint_addrs": ["http://127.0.0.1:10420/clickhouse-logger/test1"],
+                                "log_format": {
+                                    "vip": "$remote_addr"
+                                },
+                                "batch_max_size":1,
+                                "inactive_timeout":1
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/hello"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 8: hit route and report logger
+--- request
+GET /hello
+--- response_body
+hello world
+--- wait: 1.5
+--- error_log eval
+qr/clickhouse body: INSERT INTO t FORMAT JSONEachRow \{.*"vip":"127.0.0.1".*\}/
+
 
 
 === TEST 9: real clickhouse server
@@ -94,11 +321,13 @@ __DATA__
 passed
 
 
+
 === TEST 10: hit route
 --- request
 GET /opentracing
 --- error_code: 200
 --- wait: 5
+
 
 
 === TEST 11: get log
