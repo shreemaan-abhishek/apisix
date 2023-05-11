@@ -172,9 +172,6 @@ jobs:
         env:
           TEST_FILE_SUB_DIR: ${{ matrix.test_dir }}
         run: sudo -E ./ci/${{ matrix.os_name }}_runner.sh script
-      - name: Setup tmate session
-        if: always()
-        uses: mxschmitt/action-tmate@v3
 
       - if: ${{ steps.cache-images.outputs.cache-hit != 'true' }}
         name: Save docker images
