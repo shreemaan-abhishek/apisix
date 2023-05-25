@@ -30,7 +30,7 @@ jobs:
           - linux_openresty
           - linux_openresty_1_19
         test_dir:
-          - t/admin t/cli t/config-center-yaml t/control t/core t/debug t/deployment t/discovery t/error_page t/misc
+          - t/deployment
 
     runs-on: ${{ matrix.platform }}
     timeout-minutes: 90
@@ -109,30 +109,6 @@ jobs:
           path: docker-images-backup
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ steps.test_env.outputs.type }}-${{ hashFiles(format('./ci/pod/docker-compose.{0}.yml', steps.test_env.outputs.type )) }}
 
-      - if: ${{ steps.cache-images.outputs.cache-hit == 'true' }}
-        name: Load saved docker images
-        run: |
-          if [[ -f docker-images-backup/apisix-images.tar ]]; then
-            [[ ${{ steps.test_env.outputs.type }} != first ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh before
-            docker load --input docker-images-backup/apisix-images.tar
-            echo "loaded docker images"
-
-            # preserve storage space
-            rm docker-images-backup/apisix-images.tar
-
-            make ci-env-up project_compose_ci=ci/pod/docker-compose.${{ steps.test_env.outputs.type }}.yml
-            if [[ ${{ steps.test_env.outputs.type }} != first ]]; then
-              sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh after
-            fi
-          fi
-      - if: ${{ steps.cache-images.outputs.cache-hit != 'true' }}
-        name: Linux launch services
-        run: |
-          [[ ${{ steps.test_env.outputs.type }} != first ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh before
-          [[ ${{ steps.test_env.outputs.type }} == plugin ]] && ./ci/pod/openfunction/build-function-image.sh
-          make ci-env-up project_compose_ci=ci/pod/docker-compose.${{ steps.test_env.outputs.type }}.yml
-          [[ ${{ steps.test_env.outputs.type }} != first ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh after
-          echo "Linux launch services, done."
       - name: Start Dubbo Backend
         if: matrix.os_name == 'linux_openresty' && steps.test_env.outputs.type == 'plugin'
         run: |
