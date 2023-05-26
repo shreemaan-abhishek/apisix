@@ -106,10 +106,10 @@ hello1 world
 --- config
     location /t {
         content_by_lua_block {
-            ngx.sleep(3)
+            ngx.sleep(1.5)
             local core = require("apisix.core")
             local value = ngx.shared["xds-config"]:flush_all()
-            ngx.sleep(3)
+            ngx.sleep(1.5)
             local http = require "resty.http"
             local httpc = http.new()
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
@@ -135,7 +135,7 @@ hello world
             ngx.shared["xds-config"]:flush_all()
             ngx.update_time()
             ngx.shared["xds-config-version"]:set("version", ngx.now())
-            ngx.sleep(3)
+            ngx.sleep(1.5)
 
             local http = require "resty.http"
             local httpc = http.new()
@@ -172,7 +172,7 @@ hello world
             ngx.shared["xds-config"]:set("/routes/3", data)
             ngx.update_time()
             ngx.shared["xds-config-version"]:set("version", ngx.now())
-            ngx.sleep(3)
+            ngx.sleep(1.5)
 
             local http = require "resty.http"
             local httpc = http.new()
@@ -210,7 +210,7 @@ decode the conf of [/routes/3] failed, err: Expected object key string but found
             ngx.shared["xds-config"]:set("/routes/3", data_str)
             ngx.update_time()
             ngx.shared["xds-config-version"]:set("version", ngx.now())
-            ngx.sleep(3)
+            ngx.sleep(1.5)
         }
     }
 --- no_error_log
@@ -229,7 +229,7 @@ failed to check the conf of [/routes/3] err:allOf 1 failed: value should match o
             ngx.shared["xds-config"]:set("/routes/3", data)
             ngx.update_time()
             ngx.shared["xds-config-version"]:set("version", ngx.now())
-            ngx.sleep(3)
+            ngx.sleep(1.5)
         }
     }
 --- no_error_log

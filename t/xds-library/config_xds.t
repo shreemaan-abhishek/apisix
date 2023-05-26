@@ -95,7 +95,7 @@ qr/can not load xDS library/
     location /t {
         content_by_lua_block {
             -- wait for xds library sync data
-            ngx.sleep(3)
+            ngx.sleep(1.5)
             local core = require("apisix.core")
             local value = ngx.shared["xds-config"]:get("/routes/1")
             local route_conf, err = core.json.decode(value)
@@ -113,7 +113,7 @@ qr/can not load xDS library/
     location /t {
         content_by_lua_block {
             -- wait for xds library sync data
-            ngx.sleep(3)
+            ngx.sleep(1.5)
             local core = require("apisix.core")
             local version = ngx.shared["xds-config-version"]:get("version")
             ngx.say(version)
