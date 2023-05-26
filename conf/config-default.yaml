@@ -81,10 +81,10 @@ apisix:
                                   #   see https://github.com/api7/lua-resty-radixtree/#parameters-in-path for
                                   #   more details.
     ssl: radixtree_sni          # radixtree_sni: match route by SNI(base on radixtree)
-  #stream_proxy:                  # TCP/UDP proxy
+  stream_proxy:                  # TCP/UDP proxy
   #  only: true                   # use stream proxy only, don't enable HTTP stuff
-  #  tcp:                         # TCP proxy port list
-  #    - addr: 9100
+   tcp:                         # TCP proxy port list
+     - addr: 9100
   #      tls: true
   #    - addr: "127.0.0.1:9101"
   #  udp:                         # UDP proxy port list
@@ -510,9 +510,9 @@ stream_plugins: # sorted by priority
       #priority: 7999
       #file: t/wasm/log/main.go.wasm
 
-#xrpc:
-  #protocols:
-    #- name: pingpong
+xrpc:
+  protocols:
+    - name: redis
 
 plugin_attr:
   log-rotate:
