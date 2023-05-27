@@ -87,11 +87,27 @@ local mt = {
     end
 }
 
+local function dump(o)
+    if type(o) == 'table' then
+       local s = '{ '
+       for k,v in pairs(o) do
+          if type(k) ~= 'number' then k = '"'..k..'"' end
+          s = s .. '['..k..'] = ' .. dump(v) .. ','
+       end
+       return s .. '} '
+    else
+       return tostring(o)
+    end
+  end
 
 -- todo: refactor this function in chash.lua and radixtree.lua
 local function load_shared_lib(lib_name)
+    log.warn("\n\n\n\n\n", dump(lib_name))
     local cpath = package.cpath
+    -- log.warn(dump(package))
+    log.warn(dump(cpath))
     local tried_paths = new_tab(32, 0)
+    log.warn(dump(tried_paths))
     local i = 1
 
     local iter, err = ngx_re_gmatch(cpath, "[^;]+", "jo")
@@ -101,8 +117,11 @@ local function load_shared_lib(lib_name)
 
     while true do
         local it = iter()
+        log.warn("dibag xds: ", dump(it))
+        log.warn("dibag xds: ", dump(it[0]))
         local fpath
         fpath, err = ngx_re_match(it[0], "(.*/)",  "jo")
+        log.warn("dibag xds: ", dump(fpath))
         if err then
             error("failed to match: " .. err)
         end
@@ -120,7 +139,7 @@ local function load_shared_lib(lib_name)
             break
         end
     end
-
+    log.warn("\n\n\n\n\n\n")
     return nil, tried_paths
 end
 
