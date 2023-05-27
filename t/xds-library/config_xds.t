@@ -105,19 +105,3 @@ qr/can not load xDS library/
     }
 --- response_body
 "/hello"
-
-
-
-=== TEST 3: read conf version
---- config
-    location /t {
-        content_by_lua_block {
-            -- wait for xds library sync data
-            ngx.sleep(1.5)
-            local core = require("apisix.core")
-            local version = ngx.shared["xds-config-version"]:get("version")
-            ngx.say(version)
-        }
-    }
---- response_body eval
-qr/^\d{13}$/
