@@ -115,7 +115,3 @@ jobs:
       run: |
         docker exec centos7Instance bash -c "cd apisix && ./ci/centos7-ci.sh run_case"
 
-    - name: Setup tmate session
-      if: always()
-      uses: mxschmitt/action-tmate@v3
-
