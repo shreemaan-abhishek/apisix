@@ -11,6 +11,7 @@ add_block_preprocessor(sub {
     my $extra_yaml_config = $block->extra_yaml_config // <<_EOC_;
 plugins:
     - demo
+    - public-api
 _EOC_
 
     $block->set_value("extra_yaml_config", $extra_yaml_config);
@@ -83,8 +84,33 @@ GET /demo
 {"message":"test"}
 
 
+=== TEST 4: create public API route (demo plugin)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/2',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "plugins": {
+                            "public-api": {}
+                        },
+                        "uri": "/apisix/plugin/demo/public_api"
+                 }]]
+                )
 
-=== TEST 4: test public api
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 5: test public api
 --- request
 GET /apisix/plugin/demo/public_api
 --- response_body
@@ -92,7 +118,7 @@ GET /apisix/plugin/demo/public_api
 
 
 
-=== TEST 5: test control api
+=== TEST 6: test control api
 --- pipelined_requests eval
 ["GET /v1/plugin/demo/control_api?json=test", "GET /v1/plugin/demo/control_api"]
 --- response_body eval
