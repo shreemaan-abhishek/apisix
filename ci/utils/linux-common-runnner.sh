@@ -58,7 +58,8 @@ run_case() {
     ./bin/apisix init_etcd
 
     git submodule update --init --recursive
-    FLUSH_ETCD=1 prove -I../test-nginx/lib -I./ -r -s t/demo t/admin/routes2.t t/node/service-path-prefix.t
+    FLUSH_ETCD=1 prove -I../test-nginx/lib -I./ -r -s t/demo t/admin/routes2.t t/node/service-path-prefix.t \
+        t/admin/disable-patch-sub-path.t
 }
 
 # =======================================
