@@ -2,6 +2,8 @@ local require       = require
 local type          = type
 local core          = require("apisix.core")
 local config_local  = require("apisix.core.config_local")
+local plugin        = require("apisix.plugin")
+local http          = require("resty.http")
 
 
 local _M = {}
@@ -87,6 +89,26 @@ function _M.get_conf_server_revision()
     end
 
     return "unknown"
+end
+
+
+local metric_url
+function _M.fetch_metrics()
+    if not metric_url then
+        local attr = plugin.plugin_attr("prometheus")
+        local metric_host = attr.export_addr and attr.export_addr.host or "127.0.0.1"
+        local metric_port = attr.export_addr and attr.export_addr.port or "9091"
+        local metric_uri = attr.export_addr and attr.export_uri or "/apisix/prometheus/metrics"
+        metric_url = "http://" .. metric_host .. ":" .. metric_port .. metric_uri
+    end
+
+    local httpc, err = http.new()
+    if err then
+        return nil, err
+    end
+
+    httpc:set_timeout(3 * 1000)
+    return httpc:request_uri(metric_url, { method="GET" })
 end
 
 

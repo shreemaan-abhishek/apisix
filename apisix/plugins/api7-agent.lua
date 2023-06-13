@@ -21,6 +21,11 @@ local plugin_attr_schema = {
         endpoint = {
             type = "string",
         },
+        max_metrics_size = {
+            type = "integer",
+            minimum = 1,
+            default = 1024 * 1024 * 32,
+        },
     },
 }
 
@@ -33,12 +38,18 @@ local _M = {
 }
 
 local heartbeat_timer_name = "plugin#api7-agent#heartbeat"
+local telemetry_timer_name = "plugin#api7-agent#telemetry"
 
 local api7_agent
 
 
 local heartbeat = function()
     api7_agent:heartbeat()
+end
+
+
+local upload_metrics = function()
+    api7_agent:upload_metrics()
 end
 
 
@@ -75,10 +86,12 @@ function _M.init()
     end
 
     api7_agent = agent.new({
-        endpoint = endpoint,
+        endpoint         = endpoint,
+        max_metrics_size = plugin_attr.max_metrics_size,
     })
 
     timers.register_timer(heartbeat_timer_name, heartbeat, true)
+    timers.register_timer(telemetry_timer_name, upload_metrics, true)
 end
 
 

@@ -27,8 +27,6 @@ local headers = {
 
 
 function _M.heartbeat(self)
-    local first_heartbeat = not self.last_heartbeat_time
-
     local current_time = ngx_time()
     if self.last_heartbeat_time and
             current_time - self.last_heartbeat_time < self.heartbeat_interval then
@@ -50,7 +48,6 @@ function _M.heartbeat(self)
         ssl_verify = false,
     })
 
-    local resp_body
     if not res then
         core.log.error("heartbeat failed ", err)
         return
@@ -68,12 +65,79 @@ function _M.heartbeat(self)
 end
 
 
+function _M.upload_metrics(self)
+    local current_time = ngx_time()
+    if self.last_metrics_uploading_time and
+            current_time - self.last_metrics_uploading_time < self.telemetry_collect_interval then
+        return
+    end
+
+    local payload = {
+        instance_id = core.id.get(),
+    }
+
+    -- Since we should get the metrics of nginx status,
+    -- and we can't start sub-request in timer,
+    -- so we should send request to APISIX metrics port.
+    local res, err = utils.fetch_metrics()
+    if err then
+        core.log.error("fetch prometheus metrics error ", err)
+        return
+    end
+    if res.status ~= 200 then
+        core.log.error("failed to fetch prometheus metrics, status: ", res.status)
+        return
+    end
+
+    local metrics = res.body
+
+    if #metrics > self.max_metrics_size then
+        core.log.warn("metrics size is too large, truncating it, size: ", #metrics, ", after truncated: ", self.max_metrics_size)
+        payload.truncated = true
+        metrics = string.sub(metrics, 1, self.max_metrics_size)
+    end
+
+    payload.metrics = metrics
+
+    local http_cli = http.new()
+
+    http_cli:set_timeout(3 * 1000)
+
+    local res, err = http_cli:request_uri(self.metrics_url, {
+        method =  "POST",
+        body = core.json.encode(payload),
+        headers = headers,
+        keepalive = true,
+        ssl_verify = false,
+    })
+
+    local resp_body
+    if not res then
+        core.log.error("upload metrics failed ", err)
+        return
+    end
+
+    self.last_metrics_uploading_time = current_time
+
+    if res.status ~= 200 then
+        core.log.warn("upload metrics failed, status: " .. res.status .. ", body: ", res.body)
+        return
+    end
+
+    local msg = str_format("dp instance \'%s\' upload metrics to control plane successfully", payload.instance_id)
+    core.log.info(msg)
+end
+
+
 function _M.new(agent_conf)
     local self = {
-        heartbeat_url = agent_conf.endpoint .. "/dataplane/heartbeat",
-        metrics_url = agent_conf.endpoint .. "/dataplane/metrics",
+        heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
+        metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
         heartbeat_interval = 10,
+        telemetry_collect_interval = 15,
+        max_metrics_size = agent_conf.max_metrics_size,
         last_heartbeat_time = nil,
+        last_metrics_uploading_time = nil,
     }
 
     return setmetatable(self, mt)

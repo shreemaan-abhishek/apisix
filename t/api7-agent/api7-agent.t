@@ -15,6 +15,68 @@ _EOC_
 
     $block->set_value("extra_yaml_config", $extra_yaml_config);
 
+    my $extra_init_by_lua = <<_EOC_;
+    local server = require("lib.server")
+    server.api_dataplane_heartbeat = function()
+        ngx.req.read_body()
+        local data = ngx.req.get_body_data()
+        ngx.log(ngx.NOTICE, "receive data plane heartbeat: ", data)
+
+        local json_decode = require("toolkit.json").decode
+        local payload = json_decode(data)
+
+        if not payload.instance_id then
+            ngx.log(ngx.ERR, "missing instance_id")
+            return ngx.exit(400)
+        end
+        if not payload.hostname then
+            ngx.log(ngx.ERR, "missing hostname")
+            return ngx.exit(400)
+        end
+        if not payload.ip then
+            ngx.log(ngx.ERR, "missing ip")
+            return ngx.exit(400)
+        end
+        if not payload.version then
+            ngx.log(ngx.ERR, "missing version")
+            return ngx.exit(400)
+        end
+        if not payload.conf_server_revision then
+            ngx.log(ngx.ERR, "missing conf_server_revision")
+            return ngx.exit(400)
+        end
+        if not payload.ports then
+            ngx.log(ngx.ERR, "missing ports")
+            return ngx.exit(400)
+        end
+    end
+
+    server.api_dataplane_metrics = function()
+        ngx.req.read_body()
+        local data = ngx.req.get_body_data()
+        ngx.log(ngx.NOTICE, "receive data plane metrics: ", data)
+
+        local json_decode = require("toolkit.json").decode
+        local payload = json_decode(data)
+
+        if not payload.instance_id then
+            ngx.log(ngx.ERR, "missing instance_id")
+            return ngx.exit(400)
+        end
+        if not payload.metrics then
+            ngx.log(ngx.ERR, "missing metrics")
+            return ngx.exit(400)
+        end
+        ngx.log(ngx.NOTICE, "metrics size: ", #payload.metrics)
+    end
+
+    server.apisix_prometheus_metrics = function()
+        ngx.say('apisix_http_status{code="200",route="httpbin",matched_uri="/*",matched_host="nic.httpbin.org",service="",consumer="",node="172.30.5.135"} 61')
+    end
+_EOC_
+
+    $block->set_value("extra_init_by_lua", $extra_init_by_lua);
+
     if (!$block->request) {
         $block->set_value("request", "GET /t");
     }
@@ -72,42 +134,73 @@ plugin_attr:
             ngx.say("ok")
         }
     }
---- extra_init_by_lua
-    local server = require("lib.server")
-    server.dataplane_heartbeat = function()
-	    ngx.req.read_body()
-	    local data = ngx.req.get_body_data()
-	    ngx.log(ngx.NOTICE, "receive data plane heartbeat: ", data)
-
-	    local json_decode = require("toolkit.json").decode
-	    local payload = json_decode(data)
-
-	    if not payload.instance_id then
-		ngx.log(ngx.ERR, "missing instance_id")
-		return ngx.exit(400)
-	    end
-	    if not payload.hostname then
-		ngx.log(ngx.ERR, "missing hostname")
-		return ngx.exit(400)
-	    end
-	    if not payload.ip then
-		ngx.log(ngx.ERR, "missing ip")
-		return ngx.exit(400)
-	    end
-	    if not payload.version then
-		ngx.log(ngx.ERR, "missing version")
-		return ngx.exit(400)
-	    end
-	    if not payload.conf_server_revision then
-		ngx.log(ngx.ERR, "missing conf_server_revision")
-		return ngx.exit(400)
-	    end
-	    if not payload.ports then
-		ngx.log(ngx.ERR, "missing ports")
-		return ngx.exit(400)
-	    end
-    end
 --- wait: 12
 --- error_log
 receive data plane heartbeat
 heartbeat successfully
+
+
+
+=== TEST 4: upload metrics success
+--- yaml_config
+plugin_attr:
+  api7-agent:
+    endpoint: http://127.0.0.1:1980
+  prometheus:
+    export_addr:
+      port: 1980
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("ok")
+        }
+    }
+--- wait: 17
+--- error_log
+receive data plane metrics
+metrics size: 141
+upload metrics to control plane successfully
+
+
+
+=== TEST 5: upload truncated metrics success
+--- yaml_config
+plugin_attr:
+  api7-agent:
+    endpoint: http://127.0.0.1:1980
+    max_metrics_size: 8
+  prometheus:
+    export_addr:
+      port: 1980
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("ok")
+        }
+    }
+--- wait: 17
+--- error_log
+metrics size is too large, truncating it
+receive data plane metrics
+metrics size: 8
+upload metrics to control plane successfully
+
+
+
+=== TEST 6: fetch prometheus metrics failed
+--- yaml_config
+plugin_attr:
+  api7-agent:
+    endpoint: http://127.0.0.1:1980
+  prometheus:
+    export_addr:
+      port: 1234
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("ok")
+        }
+    }
+--- wait: 17
+--- error_log
+fetch prometheus metrics error
