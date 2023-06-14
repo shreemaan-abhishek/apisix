@@ -1,0 +1,36 @@
+name: Build docker images on commit and push them to registry
+on:
+  push:
+    branches:
+      - main
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+permissions: read-all
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set image tag
+        run: |
+          echo "IMAGE_TAG=`git rev-parse --short HEAD`-`TZ=Asia/Shanghai date '+%m%d%H%M'`" >> $GITHUB_ENV
+      - name: Build Images
+        run: |
+          docker build -t api7-ee-3-gateway:dev .
+      - name: Login to Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ secrets.PRIVATE_DOCKER_REGISTRY }}
+          username: ${{ secrets.PRIVATE_DOCKER_USERNAME }}
+          password: ${{ secrets.PRIVATE_DOCKER_PASSWORD }}
+      - name: Push Images
+        env:
+          REGISTRY: ${{ secrets.PRIVATE_DOCKER_REGISTRY }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG }}
+        run: |
+          docker tag api7-ee-3-gateway:dev $REGISTRY/api7/api7-ee-3-gateway:$IMAGE_TAG
+          docker tag api7-ee-3-gateway:dev $REGISTRY/api7/api7-ee-3-gateway:dev
+          docker push $REGISTRY/api7/api7-ee-3-gateway:$IMAGE_TAG
+          docker push $REGISTRY/api7/api7-ee-3-gateway:dev
