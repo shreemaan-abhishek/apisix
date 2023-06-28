@@ -48,6 +48,8 @@ install_module() {
 
     # copy test case to origin apisix
     cp -av "${VAR_CUR_HOME}/t" "${VAR_APISIX_HOME}"
+
+    cp -av "${VAR_CUR_HOME}/conf" "${VAR_APISIX_HOME}"
 }
 
 
@@ -58,6 +60,15 @@ run_case() {
     ./bin/apisix init_etcd
 
     git submodule update --init --recursive
+
+    # test proxy-buffering plugin
+    apt -y install python3
+    pip3 install sseclient-py aiohttp-sse
+    ./bin/apisix start
+    sleep 2
+    t/plugin/test_proxy_buffering.sh
+    ./bin/apisix stop
+
     FLUSH_ETCD=1 prove -I../test-nginx/lib -I./ -r -s t/demo t/admin/routes2.t t/node/service-path-prefix.t \
         t/admin/disable-patch-sub-path.t t/api7-agent
 }
