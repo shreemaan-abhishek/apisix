@@ -83,7 +83,14 @@ local function resolve_conf_var(conf)
                     end
 
                     exported_vars[var] = v
-                    var_used = true
+                    if tonumber(v) ~= nil then
+                        v = tonumber(v)
+                    elseif v == "true" then
+                        v = true
+                    elseif v == "false" then
+                        v = false
+                    end
+                    conf[key] = v
                     return v
                 end
 
@@ -95,18 +102,6 @@ local function resolve_conf_var(conf)
             if err then
                 return nil, err
             end
-
-            if var_used then
-                if tonumber(new_val) ~= nil then
-                    new_val = tonumber(new_val)
-                elseif new_val == "true" then
-                    new_val = true
-                elseif new_val == "false" then
-                    new_val = false
-                end
-            end
-
-            conf[key] = new_val
         end
     end
 
