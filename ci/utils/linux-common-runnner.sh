@@ -72,7 +72,8 @@ run_case() {
     FLUSH_ETCD=1 prove -I../test-nginx/lib -I./ -r -s t/demo t/admin/routes2.t t/node/service-path-prefix.t \
         t/admin/disable-patch-sub-path.t t/api7-agent \
         t/plugin/graphql-proxy-cache \
-        t/plugin/traffic-label.t t/plugin/traffic-label2.t
+        t/plugin/traffic-label.t t/plugin/traffic-label2.t \
+        t/plugin/limit-count-redis-cluster3.t t/plugin/limit-count-redis4.t t/plugin/limit-count5.t
 }
 
 # =======================================
