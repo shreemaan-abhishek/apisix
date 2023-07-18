@@ -37,6 +37,7 @@ jobs:
       - name: Launch APISIX common services
         run: |
           sudo make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
+          sudo make ci-env-up project_compose_ci=ci/pod/docker-compose.yml
         working-directory: workbench
 
       - name: Linux Get dependencies

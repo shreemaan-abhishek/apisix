@@ -1,0 +1,7 @@
+version: "3.8"
+
+services:
+  graphql-demo:
+    image: npalm/graphql-java-demo
+    ports:
+      - "8888:8080"
