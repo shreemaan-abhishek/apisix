@@ -212,8 +212,6 @@ make -j`nproc`
 sudo make install
 cd ..
 
-nginx -V
-
 cd apisix-nginx-module-${apisix_nginx_module_ver} || exit 1
 sudo OPENRESTY_PREFIX="$OR_PREFIX" make install
 cd ..
@@ -229,6 +227,9 @@ cd ..
 cd amesh-${amesh_ver} || exit 1
 sudo OPENRESTY_PREFIX="$OR_PREFIX" sh -c 'PATH="${PATH}:/usr/local/go/bin" make install'
 cd ..
+
+nginx -V
+ldd $(which nginx)
 
 # package etcdctl
 ETCD_ARCH="amd64"
