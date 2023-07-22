@@ -146,9 +146,9 @@ cd bundle/nginx-1.21.4/
 patch -f -p1 < ${prev_workdir}/quic.patch
 cd -
 patch -f -p0 < ${prev_workdir}/quic-fix.patch
-z ..
+cd ..
 patch -f -p1 < ${prev_workdir}/quic-fix2.patch
-z -
+cd -
 set -e
 
 export_openresty_variables()
