@@ -74,7 +74,12 @@ if [ "$OPENRESTY_VERSION" == "source" ]; then
     echo $PWD
     cd ..
 
-    sudo apt-get install openresty-openssl111-debug-dev
+    sudo apt-get install openresty-openssl111-debug-dev openresty-pcre-dev
+find / -name '*pcre*.so'
+find / -name '*pcre*.h'
+dpkg -l |grep pcre
+exit 1
+
     exit 0
 fi
 

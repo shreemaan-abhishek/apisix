@@ -162,11 +162,6 @@ export_openresty_variables()
 
 export_openresty_variables
 
-find / -name '*pcre*.so'
-find / -name '*pcre*.h'
-dpkg -l |grep pcre
-exit 1
-
 ./configure --prefix="$OR_PREFIX" \
     --with-cc-opt="-DAPISIX_BASE_VER=$version $grpc_engine_path $cc_opt" \
     --with-ld-opt="-Wl,-rpath,$OR_PREFIX/wasmtime-c-api/lib $ld_opt" \
