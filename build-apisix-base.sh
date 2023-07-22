@@ -162,7 +162,10 @@ export_openresty_variables()
 
 export_openresty_variables
 
-find / -name '*pcre*'
+find / -name '*pcre*.so'
+find / -name '*pcre*.h'
+dpkg -l |grep pcre
+exit 1
 
 ./configure --prefix="$OR_PREFIX" \
     --with-cc-opt="-DAPISIX_BASE_VER=$version $grpc_engine_path $cc_opt" \
