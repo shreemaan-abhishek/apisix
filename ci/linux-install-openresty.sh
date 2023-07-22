@@ -67,6 +67,8 @@ if [ "$OPENRESTY_VERSION" == "source" ]; then
         export ld_opt="-L${zlib_prefix}/lib -L${pcre_prefix}/lib -L${openssl_prefix}/lib64 -Wl,-rpath,${zlib_prefix}/lib:${pcre_prefix}/lib:${openssl_prefix}/lib64"
     fi
 
+    sudo apt-get install openresty-openssl111-debug-dev openresty-pcre-dev
+
     #wget -q https://raw.githubusercontent.com/api7/apisix-build-tools/$abt_branch/build-apisix-base.sh
     #chmod +x build-apisix-base.sh
     ./build-apisix-base.sh latest
@@ -74,11 +76,10 @@ if [ "$OPENRESTY_VERSION" == "source" ]; then
     echo $PWD
     cd ..
 
-    sudo apt-get install openresty-openssl111-debug-dev openresty-pcre-dev
-find / -name '*pcre*.so'
-find / -name '*pcre*.h'
-dpkg -l |grep pcre
-exit 1
+#find / -name '*pcre*.so'
+#find / -name '*pcre*.h'
+#dpkg -l |grep pcre
+#exit 1
 
     exit 0
 fi
