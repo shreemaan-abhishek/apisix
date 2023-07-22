@@ -91,7 +91,8 @@ function install_dependencies_with_apt() {
     sudo apt-get update
 
     # install OpenResty and some compilation tools
-    sudo apt-get install -y git openresty curl openresty-openssl111-dev make gcc openresty-pcre-dev libpcre2-dev libpcre3 libpcre3-dev libldap2-dev unzip
+    #sudo apt-get install -y git openresty curl openresty-openssl111-dev make gcc openresty-pcre-dev libpcre2-dev libpcre3 libpcre3-dev libldap2-dev unzip
+    sudo apt-get install -y git openresty curl openresty-openssl111-dev make gcc openresty-pcre-dev libldap2-dev unzip
 
     install_rust
 }
