@@ -616,6 +616,7 @@ http {
         {% if proxy_protocol and proxy_protocol.listen_https_port then %}
         listen {* proxy_protocol.listen_https_port *} ssl default_server proxy_protocol;
         {% end %}
+        listen 9443 quic reuseport;
 
         server_name _;
 
@@ -671,6 +672,9 @@ http {
 
             set $upstream_scheme             'http';
             set $upstream_host               $http_host;
+            if ($http_host ~ "^$") {
+                set $upstream_host           $host:$server_port;
+            }
             set $upstream_uri                '';
             set $ctx_ref                     '';
 

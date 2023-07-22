@@ -1,0 +1,12 @@
+diff -aNur --exclude .git ../ngx_multi_upstream_module-master.orig/ngx_http_multi_upstream_module.c ../ngx_multi_upstream_module-master/ngx_http_multi_upstream_module.c
+--- ../ngx_multi_upstream_module-master.orig/ngx_http_multi_upstream_module.c	2023-07-21 13:59:48.182979894 +0800
++++ ../ngx_multi_upstream_module-master/ngx_http_multi_upstream_module.c	2023-07-20 21:11:07.430290005 +0800
+@@ -453,7 +453,7 @@
+ #if (NGX_HAVE_FILE_AIO || NGX_COMPAT)
+     fake_u->output.aio_handler = u->output.aio_handler;
+ #if (NGX_HAVE_AIO_SENDFILE || NGX_COMPAT)
+-    fake_u->output.aio_preload = u->output.aio_preload;
++    //fake_u->output.aio_preload = u->output.aio_preload;
+ #endif
+ #endif
+ 
