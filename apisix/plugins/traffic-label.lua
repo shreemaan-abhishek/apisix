@@ -63,7 +63,7 @@ local plugin_name = "traffic-label"
 local _M = {
     version = 0.1,
     -- priority: fault-injection proxy-mirror *-auth > traffic-label > traffic-split
-    priority = 1004,
+    priority = 996,
     name = plugin_name,
     schema = schema
 }
