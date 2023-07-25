@@ -89,6 +89,7 @@ end
 
 local function resolve_conf_var(conf)
     for key, val in pairs(conf) do
+        local new_conf = conf
         -- substitute environment variables from conf keys
         if type(key) == "string" then
             local new_key, _, err = var_sub(key)
@@ -96,8 +97,8 @@ local function resolve_conf_var(conf)
                 return nil, err
             end
             if new_key ~= key then
-                conf.key = nil
-                conf[new_key] = val
+                new_conf.key = nil
+                new_conf[new_key] = val
                 key = new_key
             end
         end
@@ -124,7 +125,7 @@ local function resolve_conf_var(conf)
                 end
             end
 
-            conf[key] = new_val
+            new_conf[key] = new_val
         end
     end
 
