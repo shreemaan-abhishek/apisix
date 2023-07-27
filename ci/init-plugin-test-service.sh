@@ -23,7 +23,7 @@ after() {
 
     # prepare openwhisk env
     docker pull openwhisk/action-nodejs-v20
-    docker run --rm -d --name openwhisk -p 3233:3233 -p 3232:3232 -v /var/run/docker.sock:/var/run/docker.sock openwhisk/standalone:nightly
+    docker run --rm -d --name openwhisk -p 3233:3233 -p 3232:3232 -v /var/run/docker.sock:/var/run/docker.sock openwhisk/standalone:9633043
     docker exec -i openwhisk waitready
     docker exec -i openwhisk bash -c "wsk package create pkg"
     docker exec -i openwhisk bash -c "wsk action update /guest/pkg/testpkg <(echo 'function main(args){return {\"hello\": \"world\"}}') --kind nodejs:20"
