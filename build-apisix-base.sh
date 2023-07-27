@@ -142,13 +142,30 @@ make
 )
 
 set +e
-cd bundle/nginx-1.21.4/
+(
+dir=$PWD
+
+cd $dir/bundle/nginx-1.21.4/
 patch -f -p1 < ${prev_workdir}/quic.patch
-cd -
-patch -f -p0 < ${prev_workdir}/quic-fix.patch
-cd ..
-patch -f -p1 < ${prev_workdir}/quic-fix2.patch
-cd -
+
+cd $dir/../grpc-client-nginx-module-main
+patch -p1 < ${prev_workdir}/grpc-client-nginx-module-main.patch
+
+cd $dir/../ngx_multi_upstream_module-master
+patch -p1 < ${prev_workdir}/ngx_multi_upstream_module.patch
+
+cd $dir/../wasm-nginx-module-main
+patch -p1 < ${prev_workdir}/wasm-nginx-module-main.patch
+
+cd $dir/bundle/headers-more-nginx-module-0.33/src
+patch -p2 < ${prev_workdir}/headers-more-nginx-module.patch
+
+cd $dir/bundle/nginx-1.21.4
+patch -p2 < ${prev_workdir}/nginx-1.21.4.patch
+
+cd $dir/bundle/ngx_lua-0.10.21
+patch -p1 < ${prev_workdir}/ngx_lua.patch
+)
 set -e
 
 export_openresty_variables()
@@ -227,9 +244,6 @@ cd ..
 cd amesh-${amesh_ver} || exit 1
 sudo OPENRESTY_PREFIX="$OR_PREFIX" sh -c 'PATH="${PATH}:/usr/local/go/bin" make install'
 cd ..
-
-nginx -V
-ldd $(which nginx)
 
 # package etcdctl
 ETCD_ARCH="amd64"
