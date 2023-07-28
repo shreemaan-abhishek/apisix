@@ -19,6 +19,7 @@ local yaml = require("tinyyaml")
 local profile = require("apisix.core.profile")
 local util = require("apisix.cli.util")
 local dkjson = require("dkjson")
+local table = require("apisix.core.table")
 
 local pairs = pairs
 local type = type
@@ -88,7 +89,8 @@ end
 
 
 local function resolve_conf_var(conf)
-    for key, val in pairs(conf) do
+    local conf_copy = table.deepcopy(conf)
+    for key, val in pairs(conf_copy) do
         -- substitute environment variables from conf keys
         if type(key) == "string" then
             local new_key, _, err = var_sub(key)
@@ -96,8 +98,8 @@ local function resolve_conf_var(conf)
                 return nil, err
             end
             if new_key ~= key then
-                conf.key = nil
-                conf[new_key] = val
+                conf_copy.key = nil
+                conf_copy[new_key] = val
                 key = new_key
             end
         end
@@ -124,10 +126,11 @@ local function resolve_conf_var(conf)
                 end
             end
 
-            conf[key] = new_val
+            conf_copy[key] = new_val
         end
     end
-
+    conf = conf_copy
+    table.clear(conf)
     return true
 end
 
