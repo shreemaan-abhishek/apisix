@@ -53,9 +53,11 @@ local schema = {
                     },
                 },
                 required = {"actions"}
-            }
+            },
+            minItems = 1,
         }
-    }
+    },
+    required = {"rules"}
 }
 
 local plugin_name = "traffic-label"
