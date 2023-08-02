@@ -35,7 +35,7 @@ function _M.prefix_uris(route, service)
     if service and service.value.path_prefix then
         local uri, uris
         if route.value.uris then
-            uris = core.table.new(#route.value.uris)
+            uris = core.table.new(#route.value.uris, 0)
             for _, uri in ipairs(route.value.uris) do
                 core.table.insert(uris, service.value.path_prefix .. uri)
             end

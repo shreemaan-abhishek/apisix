@@ -96,7 +96,7 @@ function test_strip_path_prefix()
         ngx.HTTP_PUT,
         [[
             {
-                \"uri\": \"/hello\",
+                \"uris\": [\"/hello\"],
                 \"service_id\": \"1\",
                 \"strip_path_prefix\": true
             }
