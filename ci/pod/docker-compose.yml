@@ -7,8 +7,38 @@ services:
     restart: unless-stopped
     ports:
       - "6379:6379"
+    networks:
+      - api7
 
   graphql-demo:
     image: npalm/graphql-java-demo
     ports:
       - "8888:8080"
+    networks:
+      - api7
+
+  soap-server:
+    hostname: soap-server
+    image: api7/soap-server-demo:0.2.0
+    ports:
+      - "18080:8080"
+    restart: always
+    networks:
+      - api7
+
+  soap-proxy:
+    hostname: soap-proxy
+    build:
+      context: ci/pod/soap-proxy
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "15001:5001"
+    networks:
+      - api7
+
+networks:
+  api7:
+    driver: bridge
+    ipam:
+      driver: default
