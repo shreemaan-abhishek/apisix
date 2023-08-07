@@ -19,9 +19,9 @@ services:
 
   soap-server:
     hostname: soap-server
-    image: api7/soap-server-demo:0.2.0
-    ports:
-      - "18080:8080"
+    build:
+      context: ci/pod/soap-server
+      dockerfile: Dockerfile
     restart: always
     networks:
       - api7
@@ -33,7 +33,7 @@ services:
       dockerfile: Dockerfile
     restart: always
     ports:
-      - "15001:5001"
+      - "15001:5000"
     networks:
       - api7
 

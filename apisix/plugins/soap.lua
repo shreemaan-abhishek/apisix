@@ -10,9 +10,7 @@ local pairs = pairs
 local schema = {
     type = "object",
     properties = {
-        wsdl_url = {
-            type = "string"
-        }
+        wsdl_url = core.schema.uri_def,
     },
     required = {"wsdl_url"},
 }
@@ -53,7 +51,7 @@ local HOP_BY_HOP_HEADERS = {
 
 local _M = {
     version = 0.1,
-    priority = 0,
+    priority = 554,
     name = plugin_name,
     schema = schema,
     attr_schema = attr_schema,

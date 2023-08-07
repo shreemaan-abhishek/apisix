@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-# copy from: https://github.com/api7/api7-soap-proxy/blob/master/soap_proxy.py
-# TODO: use submodule of api7-soap-proxy
 
 from flask import Flask, request
 import cachetools
@@ -19,10 +17,8 @@ clients = cachetools.TTLCache(maxsize=64, ttl=60)
 
 def to_json(obj):
     return json.dumps(
-        obj,
-        default=lambda o: hasattr(o, "__values__") and o.__values__ or o.__dict__,
-        ensure_ascii=False,
-    ).encode("utf8")
+        obj, default=lambda o: hasattr(o, "__values__") and o.__values__ or o.__dict__
+    )
 
 
 @app.post("/<operation>")
@@ -33,7 +29,7 @@ def soap_post(operation, svc=None, filename=None):
         wsdl_url = request.headers.get("X-WSDL-URL")
         if wsdl_url is None or not wsdl_url:
             return {"error": "Missing header: X-WSDL-URL"}, 400
-        logger.info(f"user request wsdl_url={wsdl_url} operation={operation}")
+        logger.info(f"user request {wsdl_url=} {operation=}")
 
         with clients_lock:
             try:
@@ -55,19 +51,11 @@ def soap_post(operation, svc=None, filename=None):
             status = 502
             body = fault
         logger.info(f"resp: {jsonpickle.encode(body)}")
-        return (
-            to_json(body),
-            status,
-            {"content-type": "application/json; charset=utf-8"},
-        )
+        return to_json(body), status, {"content-type": "application/json"}
     except Exception as exc:
         tb = traceback.format_exc()
         logging.error(tb)
-        return (
-            jsonpickle.encode(exc),
-            500,
-            {"content-type": "application/json; charset=utf-8"},
-        )
+        return jsonpickle.encode(exc), 500, {"content-type": "application/json"}
 
 
 if __name__ == "__main__":
@@ -77,7 +65,7 @@ if __name__ == "__main__":
         level=logging.DEBUG,
     )
     logger = logging.getLogger(__name__)
-    app.run(host="0.0.0.0", port=5001, debug=True)
+    app.run(host="0.0.0.0", port=5000, debug=True)
 else:
     gunicorn_logger = logging.getLogger("gunicorn.error")
     root_logger = logging.getLogger()

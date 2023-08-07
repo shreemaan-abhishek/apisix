@@ -1,0 +1,4 @@
+cachetools==5.2.0
+Flask==2.3.0
+jsonpickle==3.0.1
+zeep==4.2.1
