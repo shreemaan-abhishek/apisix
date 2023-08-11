@@ -11,6 +11,22 @@ local schema = {
     type = "object",
     properties = {
         wsdl_url = core.schema.uri_def,
+        keepalive = {
+            type = "object",
+            properties = {
+                enable = {type = "boolean", default = true},
+                timeout = {
+                    type = "integer", -- in second
+                    default = 30,
+                    minimum = 10,
+                },
+                pool = {
+                    type = "integer", -- pool size
+                    default = 30,
+                    minimum = 5,
+                },
+            },
+        },
     },
     required = {"wsdl_url"},
 }
@@ -103,10 +119,10 @@ local function get_request_params(conf, ctx)
     end
 
     return {
-        -- TODO: support configured
-        keepalive = true,
-        keepalive_timeout = 60000,
-        keepalive_pool = 5,
+        keepalive = conf.keepalive and conf.keepalive.enable or true,
+        keepalive_timeout = conf.keepalive and
+            (conf.keepalive.timeout * 1000) or 50000,
+        keepalive_pool = conf.keepalive and conf.keepalive.pool or 10,
 
         path = uri,
         query = args or ctx.var.args,
