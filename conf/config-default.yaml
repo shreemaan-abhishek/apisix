@@ -533,6 +533,7 @@ plugin_attr:
     endpoint_addr: http://127.0.0.1:12800
   soap:
     endpoint: http://127.0.0.1:5000
+    timeout: 30000
   opentelemetry:
     trace_id_source: x-request-id
     resource:
