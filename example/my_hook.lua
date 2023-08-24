@@ -16,14 +16,22 @@
 --
 local apisix = require("apisix")
 
+local fun = function()
+    require("apisix.core").ctx.register_var("lol", function(ctx)
+        return "haha"
+    end)
+end
+
 local old_http_init = apisix.http_init
 apisix.http_init = function (...)
+    fun()
     ngx.log(ngx.EMERG, "my hook works in http")
     old_http_init(...)
 end
 
 local old_stream_init = apisix.stream_init
 apisix.stream_init = function (...)
+    fun()
     ngx.log(ngx.EMERG, "my hook works in stream")
     old_stream_init(...)
 end
