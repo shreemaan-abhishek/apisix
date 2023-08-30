@@ -698,6 +698,12 @@ _M.service = {
             maxLength   = 4096,
             pattern     = [[^/.+]],
         },
+        status = {
+            description = "service status, 1 to enable, 0 to disable",
+            type = "integer",
+            enum = {1, 0},
+            default = 1
+        },
     },
 }
 
