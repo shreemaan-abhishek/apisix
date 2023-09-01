@@ -34,7 +34,7 @@ jobs:
           REGISTRY: ${{ secrets.PRIVATE_DOCKER_REGISTRY }}
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
         run: |
-          docker tag api7-ee-3-gateway:dev $REGISTRY/api7/api7-ee-3-gateway:$IMAGE_TAG
-          docker tag api7-ee-3-gateway:dev $REGISTRY/api7/api7-ee-3-gateway:dev
-          docker push $REGISTRY/api7/api7-ee-3-gateway:$IMAGE_TAG
-          docker push $REGISTRY/api7/api7-ee-3-gateway:dev
+          docker tag api7-ee-3-gateway:dev $REGISTRY/api7-dev/api7-ee-3-gateway:$IMAGE_TAG
+          docker tag api7-ee-3-gateway:dev $REGISTRY/api7-dev/api7-ee-3-gateway:dev
+          docker push $REGISTRY/api7-dev/api7-ee-3-gateway:$IMAGE_TAG
+          docker push $REGISTRY/api7-dev/api7-ee-3-gateway:dev
