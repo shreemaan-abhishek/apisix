@@ -52,6 +52,43 @@ install_module() {
     cp -av "${VAR_CUR_HOME}/conf" "${VAR_APISIX_HOME}"
 }
 
+test_env() {
+    export_or_prefix
+
+    ./bin/apisix init
+
+    failed_msg="failed: failed to configure etcd host with reserved environment variable"
+
+    # should failed
+    out=$(API7_CONTROL_PLANE_ENDPOINTS='["http://127.0.0.1:2333"]' ./bin/apisix init_etcd 2>&1 || true)
+    if ! echo "$out" | grep "connection refused"; then
+        echo $failed_msg
+        exit 1
+    fi
+
+    # should success
+    out=$(API7_CONTROL_PLANE_ENDPOINTS='["http://127.0.0.1:2379"]' ./bin/apisix init_etcd 2>&1 || true)
+    if echo "$out" | grep "connection refused" > /dev/null; then
+        echo $failed_msg
+        exit 1
+    fi
+
+    # user and password
+    out=$(API7_CONTROL_PLANE_USER=error_user API7_CONTROL_PLANE_PASSWORD=error_password ./bin/apisix init_etcd 2>&1 || true)
+    if ! echo "$out" | grep "etcdserver: authentication is not enabled"; then
+        echo $failed_msg
+        exit 1
+    fi
+
+    # prefix
+    out=$(API7_CONTROL_PLANE_KEY_PREFIX="/testapisix" ./bin/apisix init_etcd 2>&1 || true)
+    if echo "$out" | grep "connection refused" > /dev/null; then
+        echo $failed_msg
+        exit 1
+    fi
+
+}
+
 
 run_case() {
     export_or_prefix
@@ -96,6 +133,9 @@ install_module)
     ;;
 run_case)
     run_case "$@"
+    ;;
+test_env)
+    test_env "$@"
     ;;
 *)
     func_echo_error_status "Unknown method: ${case_opt}"

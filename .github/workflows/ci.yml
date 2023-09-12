@@ -56,5 +56,6 @@ jobs:
 
       - name: Run test case
         run: |
+          sudo ./ci/utils/linux-common-runnner.sh test_env
           sudo ./ci/utils/linux-common-runnner.sh run_case
         working-directory: workbench

@@ -119,11 +119,12 @@ _M.resolve_conf_var = resolve_conf_var
 
 local function replace_by_reserved_env_vars(conf)
     -- TODO: support more reserved environment variables
-    local v = getenv("APISIX_DEPLOYMENT_ETCD_HOST")
+    -- change APISIX_DEPLOYMENT_ETCD_HOST to API7_CONTROL_PLANE_ENDPOINTS
+    local v = getenv("API7_CONTROL_PLANE_ENDPOINTS")
     if v and conf["deployment"] and conf["deployment"]["etcd"] then
         local val, _, err = dkjson.decode(v)
         if err or not val then
-            print("parse ${APISIX_DEPLOYMENT_ETCD_HOST} failed, error:", err)
+            print("parse ${API7_CONTROL_PLANE_ENDPOINTS} failed, error:", err)
             return
         end
 
@@ -300,6 +301,15 @@ function _M.read_yaml_conf(apisix_home)
         end
     end
 
+    -- reset etcd user and password if empty
+    if default_conf.etcd then
+        if default_conf.etcd.user == "" then
+            default_conf.etcd.user = nil
+        end
+        if default_conf.etcd.password == "" then
+            default_conf.etcd.password = nil
+        end
+    end
     replace_by_reserved_env_vars(default_conf)
 
     return default_conf
