@@ -1,4 +1,5 @@
 -- local common libs
+local getenv  = os.getenv
 local require = require
 local core    = require("apisix.core")
 local plugin  = require("apisix.plugin")
@@ -85,9 +86,15 @@ function _M.init()
         endpoint = etcd_cli.endpoints[1].http_host
     end
 
+    -- get gateway group id, set default if nil or empty
+    local gateway_group_id = getenv("API7_CONTROL_PLANE_GATEWAY_GROUP_ID")
+    if not gateway_group_id or gateway_group_id == "" then
+        gateway_group_id = "default"
+    end
     api7_agent = agent.new({
         endpoint         = endpoint,
         max_metrics_size = plugin_attr.max_metrics_size,
+        gateway_group_id = gateway_group_id,
     })
 
     timers.register_timer(heartbeat_timer_name, heartbeat, true)

@@ -34,6 +34,8 @@ function _M.heartbeat(self)
     end
 
     payload.conf_server_revision = utils.get_conf_server_revision()
+
+    payload["gateway_group_id"] = self.gateway_group_id
     local post_heartbeat_payload = core.json.encode(payload)
 
     local http_cli = http.new()
@@ -60,7 +62,8 @@ function _M.heartbeat(self)
         return
     end
 
-    local msg = str_format("dp instance \'%s\' heartbeat successfully", payload.instance_id)
+    local msg = str_format("gateway_group \'%s\', dp instance \'%s\' heartbeat successfully",
+                           payload.gateway_group_id, payload.instance_id)
     core.log.info(msg)
 end
 
@@ -131,6 +134,7 @@ end
 
 function _M.new(agent_conf)
     local self = {
+        gateway_group_id = agent_conf.gateway_group_id,
         heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
         metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
         heartbeat_interval = 10,
