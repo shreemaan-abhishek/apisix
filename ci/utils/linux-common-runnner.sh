@@ -112,7 +112,8 @@ run_case() {
         t/plugin/traffic-label.t t/plugin/traffic-label2.t \
         t/plugin/limit-count-redis-cluster3.t t/plugin/limit-count-redis4.t t/plugin/limit-count5.t \
         t/plugin/soap.t \
-        t/plugin/graphql-limit-count
+        t/plugin/graphql-limit-count \
+        t/plugin/api7-traffic-split*
 }
 
 # =======================================

@@ -372,9 +372,17 @@ local private_key_schema = {
 }
 
 
+local upstream_name = {
+    type = "string",
+    minLength = 1,
+    maxLength = 1024,
+}
+
+
 local upstream_schema = {
     type = "object",
     properties = {
+        name = upstream_name,
         create_time = timestamp_def,
         update_time = timestamp_def,
         nodes = nodes_schema,
@@ -727,6 +735,7 @@ _M.consumer = {
 
 
 _M.upstream = upstream_schema
+_M.upstream_name = upstream_name
 
 
 _M.ssl = {

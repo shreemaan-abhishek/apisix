@@ -462,6 +462,7 @@ plugins:                          # plugin list (sorted by priority)
   - traffic-label                  # priority: 996
   - gzip                           # priority: 995
   - server-info                    # priority: 990
+  - api7-traffic-split             # priority: 966
   - traffic-split                  # priority: 966
   - redirect                       # priority: 900
   - response-rewrite               # priority: 899
