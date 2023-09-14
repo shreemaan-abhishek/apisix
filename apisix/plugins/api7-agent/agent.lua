@@ -77,6 +77,7 @@ function _M.upload_metrics(self)
 
     local payload = {
         instance_id = core.id.get(),
+        gateway_group_id = self.gateway_group_id,
     }
 
     -- Since we should get the metrics of nginx status,
@@ -127,7 +128,8 @@ function _M.upload_metrics(self)
         return
     end
 
-    local msg = str_format("dp instance \'%s\' upload metrics to control plane successfully", payload.instance_id)
+    local msg = str_format("gateway_group \'%s\', dp instance \'%s\' upload metrics to control plane successfully",
+                           payload.gateway_group_id, payload.instance_id)
     core.log.info(msg)
 end
 
