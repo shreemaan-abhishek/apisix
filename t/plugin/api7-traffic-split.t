@@ -262,7 +262,85 @@ failed to fetch rules[1].canary_upstreams[1].upstream_name: [not-exist-upstream-
 
 
 
-=== TEST 7: api7-traffic-split - sanity test
+=== TEST 7: api7-traffic-split - schema check - weight is zero
+--- config
+    location /t {
+        content_by_lua_block {
+            local plugin = require("apisix.plugins.api7-traffic-split")
+
+            --
+            local conf = {
+                rules = {
+                    {
+                        canary_upstreams = {
+                            {
+                                upstream_name = "not-exist-upstream-name",
+                                weight = 0,
+                            },
+                        },
+                    },
+                },
+                upstreams = {
+                    {
+                        name = "test",
+                        type = "roundrobin",
+                        id = "1",
+                    },
+                },
+            }
+
+            local ok, err = plugin.check_schema(conf)
+
+            if not ok then
+                ngx.say(err)
+                return
+            end
+
+            ngx.say("passed")
+        }
+    }
+--- response_body
+property "rules" validation failed: failed to validate item 1: property "canary_upstreams" validation failed: failed to validate item 1: property "weight" validation failed: expected 0 to be at least 1
+
+
+
+=== TEST 8: api7-traffic-split - schema check - without upstream
+--- config
+    location /t {
+        content_by_lua_block {
+            local plugin = require("apisix.plugins.api7-traffic-split")
+
+            --
+            local conf = {
+                disable = true,
+                upstreams = {},
+                rules = {
+                    {
+                        canary_upstreams = {
+                            {
+                                upstream_name = "not-exist-upstream-name",
+                            },
+                        },
+                    },
+                },
+            }
+
+            local ok, err = plugin.check_schema(conf)
+
+            if not ok then
+                ngx.say(err)
+                return
+            end
+
+            ngx.say("passed")
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 9: api7-traffic-split - sanity test
 --- config
     location /t {
         content_by_lua_block {
@@ -325,7 +403,7 @@ passed
 
 
 
-=== TEST 8: api7-traffic-split - hit different canary_upstreams by rules
+=== TEST 10: api7-traffic-split - hit different canary_upstreams by rules
 --- config
     location /t {
         content_by_lua_block {
@@ -367,7 +445,7 @@ passed
 
 
 
-=== TEST 9: api7-traffic-split - pick different nodes by weight
+=== TEST 11: api7-traffic-split - pick different nodes by weight
 --- config
     location /t {
         content_by_lua_block {
@@ -400,7 +478,7 @@ passed
 
 
 
-=== TEST 10: api7-traffic-split - set upstream(multiple rules, the first rule has the match attribute and the second rule does not) and add route
+=== TEST 12: api7-traffic-split - set upstream(multiple rules, the first rule has the match attribute and the second rule does not) and add route
 --- config
     location /t {
         content_by_lua_block {
@@ -465,7 +543,7 @@ passed
 
 
 
-=== TEST 11: api7-traffic-split - first rule match failed and the second rule match success
+=== TEST 13: api7-traffic-split - first rule match failed and the second rule match success
 --- config
     location /t {
         content_by_lua_block {
@@ -497,7 +575,7 @@ passed
 
 
 
-=== TEST 12: api7-traffic-split - set route(id: 1, upstream_id: 1, upstream_id in plugin: 2), and `weighted_upstreams` does not have a structure with only `weight`
+=== TEST 14: api7-traffic-split - set route(id: 1, upstream_id: 1, upstream_id in plugin: 2), and `weighted_upstreams` does not have a structure with only `weight`
 --- config
     location /t {
         content_by_lua_block {
@@ -550,7 +628,7 @@ passed
 
 
 
-=== TEST 13: api7-traffic-split - when `match` rule passed, use the `upstream_id` in plugin, and when it failed, use the `upstream_id` in route
+=== TEST 15: api7-traffic-split - when `match` rule passed, use the `upstream_id` in plugin, and when it failed, use the `upstream_id` in route
 --- config
 location /t {
     content_by_lua_block {
@@ -577,7 +655,7 @@ location /t {
 
 
 
-=== TEST 14: api7-traffic-split - update upstream(id: 2) - add not-exist upstream node
+=== TEST 16: api7-traffic-split - update upstream(id: 2) - add not-exist upstream node
 --- config
     location /t {
         content_by_lua_block {
@@ -619,7 +697,7 @@ passed
 
 
 
-=== TEST 15: api7-traffic-split - healthcheck
+=== TEST 17: api7-traffic-split - healthcheck
 --- config
 location /t {
     content_by_lua_block {

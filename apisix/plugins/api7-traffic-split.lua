@@ -53,7 +53,7 @@ local canary_upstreams_schema = {
                               .. "upstreams for plugin configuration",
                 type = "integer",
                 default = 1,
-                minimum = 0,
+                minimum = 1,
                 maximum = 100,
             },
         },
@@ -92,7 +92,6 @@ local schema = {
                     },
                 }),
             },
-            minItems = 1,
             maxItems = 5,
         },
     },
@@ -163,6 +162,10 @@ function _M.check_schema(conf)
 
     if not ok then
         return false, err
+    end
+
+    if conf.disable then
+        return true
     end
 
     -- upstream name unique validation
