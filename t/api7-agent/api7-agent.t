@@ -53,6 +53,10 @@ _EOC_
             ngx.log(ngx.ERR, "missing ports")
             return ngx.exit(400)
         end
+        if not payload.cores then
+            ngx.log(ngx.ERR, "missing cores")
+            return ngx.exit(400)
+        end
     end
 
     server.api_dataplane_metrics = function()

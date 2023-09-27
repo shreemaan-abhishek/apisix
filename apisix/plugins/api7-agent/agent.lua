@@ -36,6 +36,7 @@ function _M.heartbeat(self)
     payload.conf_server_revision = utils.get_conf_server_revision()
 
     payload["gateway_group_id"] = self.gateway_group_id
+    payload.cores = ngx.worker.count()
     local post_heartbeat_payload = core.json.encode(payload)
 
     local http_cli = http.new()
