@@ -49,6 +49,8 @@ function _M.heartbeat(self)
         headers = headers,
         keepalive = true,
         ssl_verify = false,
+        ssl_cert_path = self.ssl_cert_path,
+        ssl_key_path = self.ssl_key_path,
     })
 
     if not res then
@@ -114,6 +116,8 @@ function _M.upload_metrics(self)
         headers = headers,
         keepalive = true,
         ssl_verify = false,
+        ssl_cert_path = self.ssl_cert_path,
+        ssl_key_path = self.ssl_key_path,
     })
 
     local resp_body
@@ -140,6 +144,8 @@ function _M.new(agent_conf)
         gateway_group_id = agent_conf.gateway_group_id,
         heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
         metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
+        ssl_cert_path = agent_conf.ssl_cert_path,
+        ssl_key_path = agent_conf.ssl_key_path,
         heartbeat_interval = 10,
         telemetry_collect_interval = 15,
         max_metrics_size = agent_conf.max_metrics_size,

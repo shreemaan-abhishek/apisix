@@ -67,16 +67,14 @@ function _M.init()
     core.log.info("plugin attribute: ", core.json.delay_encode(plugin_attr))
 
     local endpoint
-
+    local etcd_cli = core.etcd.get_etcd_cli()
+    if not etcd_cli then
+        core.log.error("failed to get etcd_cli")
+        return
+    end
     if plugin_attr.endpoint then
         endpoint = plugin_attr.endpoint
     else
-        local etcd_cli = core.etcd.get_etcd_cli()
-        if not etcd_cli then
-            core.log.error("failed to get etcd_cli")
-            return
-        end
-
         if not etcd_cli.endpoints or #etcd_cli.endpoints == 0 or
             not etcd_cli.endpoints[1].http_host then
             core.log.error("failed to get etcd endpoint")
@@ -93,6 +91,8 @@ function _M.init()
     end
     api7_agent = agent.new({
         endpoint         = endpoint,
+        ssl_cert_path    = etcd_cli.ssl_cert_path,
+        ssl_key_path     = etcd_cli.ssl_key_path,
         max_metrics_size = plugin_attr.max_metrics_size,
         gateway_group_id = gateway_group_id,
     })
