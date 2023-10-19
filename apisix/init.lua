@@ -75,7 +75,7 @@ end
 
 local load_balancer
 local local_conf
-local ver_header = "APISIX/" .. core.version.VERSION
+local ver_header = "API7/" .. core.version.VERSION
 
 
 local _M = {version = 0.4}
