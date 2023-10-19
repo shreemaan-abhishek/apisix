@@ -32,7 +32,7 @@ local plugin_attr_schema = {
 
 local _M = {
     version     = 0.1,            -- plugin version
-    priority    = 0,              -- the priority of this plugin will be 0
+    priority    = 1,              -- the priority of this plugin will be 0
     name        = plugin_name,    -- plugin name
     schema      = plugin_schema,  -- plugin schema
     attr_schema = plugin_attr_schema,

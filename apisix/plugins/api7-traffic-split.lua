@@ -102,7 +102,7 @@ local plugin_name = "api7-traffic-split"
 
 local _M = {
     name = plugin_name,
-    priority = 966,
+    priority = 967,
     schema = schema,
     version = 0.1,
 }
