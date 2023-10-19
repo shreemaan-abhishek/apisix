@@ -1,3 +1,3 @@
 return {
-    VERSION = "dev"
+    VERSION = "3.2.2"
 }
