@@ -319,9 +319,44 @@ services:
     ports:
       - '8888:8080'
 
+  vector:
+    image: timberio/vector:0.29.1-debian
+    container_name: vector
+    volumes:
+      - ./ci/pod/vector:/etc/vector/
+      - ./t/certs:/certs
+    ports:
+      - '3000:3000'
+      - '43000:43000'
+      - '5140:5140'
+      - '5150:5150/udp'
+    networks:
+      vector_net:
+
+  soap-server:
+    hostname: soap-server
+    build:
+      context: ci/pod/soap-server
+      dockerfile: Dockerfile
+    restart: always
+    networks:
+      - apisix_net
+
+  soap-proxy:
+    hostname: soap-proxy
+    build:
+      context: ci/pod/soap-proxy
+      dockerfile: Dockerfile
+    restart: always
+    ports:
+      - "15001:5000"
+    networks:
+      - apisix_net
+
 networks:
   apisix_net:
   kafka_net:
   skywalk_net:
   rocketmq_net:
   opa_net:
+  vector_net:
