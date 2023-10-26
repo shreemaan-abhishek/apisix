@@ -68,7 +68,6 @@ deployment:
     password: ${{API7_CONTROL_PLANE_PASSWORD:=}}                    # password for etcd
 
 plugins:    # plugin list
-  - api7-agent
   - real-ip
   - ai
   - client-control

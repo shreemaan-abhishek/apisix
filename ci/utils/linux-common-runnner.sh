@@ -50,6 +50,8 @@ install_module() {
     cp -av "${VAR_CUR_HOME}/t" "${VAR_APISIX_HOME}"
 
     cp -av "${VAR_CUR_HOME}/conf" "${VAR_APISIX_HOME}"
+
+    cp -av "${VAR_CUR_HOME}/agent" "${VAR_APISIX_HOME}"
 }
 
 test_env() {

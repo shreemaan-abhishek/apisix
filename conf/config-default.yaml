@@ -48,7 +48,7 @@ apisix:
   # configurations to load third party code and/or override the builtin one.
   extra_lua_path: ""                # extend lua_package_path to load third party code
   extra_lua_cpath: ""               # extend lua_package_cpath to load third party code
-  #lua_module_hook: "my_project.my_hook"  # the hook module which will be used to inject third party code into APISIX
+  lua_module_hook: "agent.hook"  # the hook module which will be used to inject third party code into APISIX
 
   proxy_cache:                      # Proxy Caching configuration
     cache_ttl: 10s                  # The default caching time in disk if the upstream does not specify the cache time
@@ -211,8 +211,9 @@ nginx_config:                     # config for render the template to generate n
     real_ip_from:                  # http://nginx.org/en/docs/http/ngx_http_realip_module.html#set_real_ip_from
       - 127.0.0.1
       - "unix:"
-    #custom_lua_shared_dict:       # add custom shared cache to nginx.conf
+    custom_lua_shared_dict:       # add custom shared cache to nginx.conf
     #  ipc_shared_dict: 100m       # custom shared cache, format: `cache-key: cache-size`
+      config: 5m
 
     # Enables or disables passing of the server name through TLS Server Name Indication extension (SNI, RFC 6066)
     # when establishing a connection with the proxied HTTPS server.

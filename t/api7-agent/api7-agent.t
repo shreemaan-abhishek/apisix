@@ -6,14 +6,17 @@ no_root_location();
 
 add_block_preprocessor(sub {
     my ($block) = @_;
-
-    # setup default conf.yaml
-    my $extra_yaml_config = $block->extra_yaml_config // <<_EOC_;
-plugins:
-    - api7-agent
+    my $extra_init_by_lua_start = <<_EOC_;
+require "agent.hook";
 _EOC_
 
-    $block->set_value("extra_yaml_config", $extra_yaml_config);
+    $block->set_value("extra_init_by_lua_start", $extra_init_by_lua_start);
+
+    my $http_config = $block->http_config // <<_EOC_;
+lua_shared_dict config 5m;
+_EOC_
+
+    $block->set_value("http_config", $http_config);
 
     my $extra_init_by_lua = <<_EOC_;
     local server = require("lib.server")
@@ -53,10 +56,22 @@ _EOC_
             ngx.log(ngx.ERR, "missing ports")
             return ngx.exit(400)
         end
-        if not payload.cores then
-            ngx.log(ngx.ERR, "missing cores")
-            return ngx.exit(400)
-        end
+
+        local resp_payload = {
+            config = {
+                config_version = 1,
+                config_payload = {
+                    apisix = {
+                        ssl = {
+                            key_encrypt_salt = {"1234567890abcdef"},
+                        }
+                    }
+                }
+            }
+        }
+
+        local core = require("apisix.core")
+        ngx.say(core.json.encode(resp_payload))
     end
 
     server.api_dataplane_metrics = function()
@@ -102,27 +117,9 @@ run_tests;
 
 __DATA__
 
-=== TEST 1: plugin attr schema check
---- yaml_config
-plugin_attr:
-  api7-agent:
-    endpoint: 123
---- config
-    location /t {
-        content_by_lua_block {
-            ngx.say("ok")
-        }
-    }
---- error_log
-failed to check the plugin_attr[api7-agent]
-
-
-
-=== TEST 2: heartbeat failed
---- yaml_config
-plugin_attr:
-  api7-agent:
-    endpoint: http://127.0.0.1:1234
+=== TEST 1: heartbeat failed
+--- main_config
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1234;
 --- config
     location /t {
         content_by_lua_block {
@@ -135,11 +132,10 @@ heartbeat failed
 
 
 
-=== TEST 3: heartbeat success with gateway group id env
---- yaml_config
-plugin_attr:
-  api7-agent:
-    endpoint: http://127.0.0.1:1980
+=== TEST 2: heartbeat success with gateway group id env
+--- main_config
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -154,13 +150,11 @@ gateway_group 'default'
 
 
 
-=== TEST 4: heartbeat success with gateway group id env
+=== TEST 3: heartbeat success with gateway group id env
 --- main_config
 env API7_CONTROL_PLANE_GATEWAY_GROUP_ID=a8db303a-8019-427a-bd01-9946d097e471;
---- yaml_config
-plugin_attr:
-  api7-agent:
-    endpoint: http://127.0.0.1:1980
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -176,10 +170,11 @@ gateway_group 'a8db303a-8019-427a-bd01-9946d097e471'
 
 
 === TEST 5: upload metrics success
+--- main_config
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
-  api7-agent:
-    endpoint: http://127.0.0.1:1980
   prometheus:
     export_addr:
       port: 1980
@@ -201,10 +196,10 @@ gateway_group 'default'
 === TEST 6: upload metrics success
 --- main_config
 env API7_CONTROL_PLANE_GATEWAY_GROUP_ID=a8db303a-8019-427a-bd01-9946d097e471;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
-  api7-agent:
-    endpoint: http://127.0.0.1:1980
   prometheus:
     export_addr:
       port: 1980
@@ -224,11 +219,12 @@ gateway_group 'a8db303a-8019-427a-bd01-9946d097e471'
 
 
 === TEST 7: upload truncated metrics success
+--- main_config
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_MAX_METRICS_SIZE_DEBUG=8;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
-  api7-agent:
-    endpoint: http://127.0.0.1:1980
-    max_metrics_size: 8
   prometheus:
     export_addr:
       port: 1980
@@ -248,10 +244,10 @@ upload metrics to control plane successfully
 
 
 === TEST 8: fetch prometheus metrics failed
+--- main_config
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
-  api7-agent:
-    endpoint: http://127.0.0.1:1980
   prometheus:
     export_addr:
       port: 1234
@@ -264,3 +260,25 @@ plugin_attr:
 --- wait: 17
 --- error_log
 fetch prometheus metrics error
+
+
+
+=== TEST 9: get new config
+--- main_config
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_MAX_METRICS_SIZE_DEBUG=8;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- yaml_config
+plugin_attr:
+  prometheus:
+    export_addr:
+      port: 1980
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("ok")
+        }
+    }
+--- wait: 17
+--- error_log
+config version changed, old version: 0, new version: 1

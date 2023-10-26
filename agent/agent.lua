@@ -1,11 +1,17 @@
 local core    = require("apisix.core")
 local socket  = require("socket")
-local http    = require("resty.http")
-local utils   = require("apisix.plugins.api7-agent.utils")
+local utils   = require("agent.utils")
+local ltn12   = require("ltn12")
+local https   = require("ssl.https")
+local http    = require("socket.http")
+local ssl     = require("ssl")
+local resty_http    = require("resty.http")
+
 
 local setmetatable  = setmetatable
 local ngx_time      = ngx.time
 local str_format    = string.format
+local get_phase     = ngx.get_phase
 
 local _M = {}
 
@@ -26,7 +32,65 @@ local headers = {
 }
 
 
-function _M.heartbeat(self)
+local function request(req_params, conf, https)
+    if not https then
+        return http.request(req_params)
+    end
+
+    req_params.certificate = conf.cert
+    req_params.key = conf.key
+    req_params.cafile = conf.cafile
+    req_params.verify = "peer"
+
+    return https.request(req_params)
+end
+
+local function send_request(url, opts)
+    if get_phase() == "init" or get_phase() == "init_worker" then
+        local response_body = {}
+        local https = false
+        if string.sub(url, 1, 5) == "https" then
+            https = true
+        end
+
+        local resp_status, http_status = request({
+            url = url,
+            method = opts.method,
+            source = ltn12.source.string(opts.body),
+            sink = ltn12.sink.table(response_body),
+            headers = opts.headers,
+        }, {
+            cert = opts.ssl_cert_path,
+            key = opts.ssl_key_path,
+        }, https)
+
+        if not resp_status then
+            return nil, "request " .. url .. " error ", http_status
+        end
+
+        return {
+            body = response_body,
+            status = http_status,
+        }, nil
+    end
+
+    local http_cli = resty_http.new()
+
+    http_cli:set_timeout(3 * 1000)
+    local res, err = http_cli:request_uri(url, {
+        method = opts.method,
+        body = opts.body,
+        headers = opts.headers,
+        keepalive = true,
+        ssl_verify = false,
+        ssl_cert_path = opts.ssl_cert_path,
+        ssl_key_path = opts.ssl_key_path,
+    })
+
+    return res, err
+end
+
+function _M.heartbeat(self, first)
     local current_time = ngx_time()
     if self.last_heartbeat_time and
             current_time - self.last_heartbeat_time < self.heartbeat_interval then
@@ -34,39 +98,56 @@ function _M.heartbeat(self)
     end
 
     payload.conf_server_revision = utils.get_conf_server_revision()
-
-    payload["gateway_group_id"] = self.gateway_group_id
+    payload.gateway_group_id = self.gateway_group_id
     payload.cores = ngx.worker.count()
+
     local post_heartbeat_payload = core.json.encode(payload)
-
-    local http_cli = http.new()
-
-    http_cli:set_timeout(3 * 1000)
-
-    local res, err = http_cli:request_uri(self.heartbeat_url, {
+    local res, err = send_request(self.heartbeat_url, {
         method =  "POST",
         body = post_heartbeat_payload,
         headers = headers,
-        keepalive = true,
-        ssl_verify = false,
         ssl_cert_path = self.ssl_cert_path,
         ssl_key_path = self.ssl_key_path,
     })
-
     if not res then
         core.log.error("heartbeat failed ", err)
         return
     end
 
-    self.last_heartbeat_time = current_time
-
     if res.status ~= 200 then
-        core.log.warn("heartbeat failed, status: " .. res.status .. ", body: ", res.body)
+        core.log.warn("heartbeat failed, status: " .. res.status .. ", body: ", core.json.encode(res.body))
         return
+    end
+
+    local resp_payload = core.json.decode(res.body)
+    local config = resp_payload.config or {}
+    if config.config_version and config.config_version > self.config_version then
+        core.log.info("config version changed, old version: ", self.config_version, ", new version: ", config.config_version)
+
+        self.config_version = config.config_version
+        config_dict:set("config_version", config.config_version)
+        config_dict:set("config_payload", core.json.encode(config.config_payload))
+
+        if not first then
+            local discovery = require("apisix.discovery.init").discovery
+            if discovery["kubernetes"] then
+                ok, res = pcall(discovery["kubernetes"].init_worker)
+                if ok then
+                    core.log.info("kubernetes service discovery re-init successfully")
+                else
+                    core.log.error("failed to re-init kubernetes service discovery: ", res)
+                end
+            end
+        end
     end
 
     local msg = str_format("gateway_group \'%s\', dp instance \'%s\' heartbeat successfully",
                            payload.gateway_group_id, payload.instance_id)
+
+    if not first then
+        self.last_heartbeat_time = current_time
+    end
+
     core.log.info(msg)
 end
 
@@ -106,7 +187,7 @@ function _M.upload_metrics(self)
 
     payload.metrics = metrics
 
-    local http_cli = http.new()
+    local http_cli = resty_http.new()
 
     http_cli:set_timeout(3 * 1000)
 
@@ -129,7 +210,7 @@ function _M.upload_metrics(self)
     self.last_metrics_uploading_time = current_time
 
     if res.status ~= 200 then
-        core.log.warn("upload metrics failed, status: " .. res.status .. ", body: ", res.body)
+        core.log.warn("upload metrics failed, status: " .. res.status .. ", body: ", core.json.encode(res.body))
         return
     end
 
@@ -148,9 +229,11 @@ function _M.new(agent_conf)
         ssl_key_path = agent_conf.ssl_key_path,
         heartbeat_interval = 10,
         telemetry_collect_interval = 15,
-        max_metrics_size = agent_conf.max_metrics_size,
+        max_metrics_size = agent_conf.max_metrics_size or 1024 * 1024 * 32,
         last_heartbeat_time = nil,
         last_metrics_uploading_time = nil,
+
+        config_version = 0
     }
 
     return setmetatable(self, mt)
