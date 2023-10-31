@@ -7,7 +7,7 @@ SHELL := /bin/bash -o pipefail
 project_name      ?= apisix-plugin-template
 project_version   ?= 0.0.1
 project_ci_runner ?= $(CURDIR)/ci/utils/linux-common-runnner.sh
-
+ENV_LUAROCKS           ?= luarocks
 
 # Hyper-converged Infrastructure
 ENV_OS_NAME          ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
@@ -17,6 +17,15 @@ ENV_HELP_AWK_RULE    ?= '{ if(match($$0, /^\s*\#{3}\s*([^:]+)\s*:\s*(.*)$$/, res
 # ENV patch for darwin
 ifeq ($(ENV_OS_NAME), darwin)
 	ENV_HELP_AWK_RULE := '{ if(match($$0, /^\#{3}([^:]+):(.*)$$/)){ split($$0, res, ":"); gsub(/^\#{3}[ ]*/, "", res[1]); _desc=$$0; gsub(/^\#{3}([^:]+):[ \t]*/, "", _desc); printf("    make %-$(ENV_HELP_PREFIX_SIZE)s : %-10s\n", res[1], _desc) } }'
+	ENV_LUAROCKS := $(ENV_LUAROCKS) --lua-dir=$(ENV_HOMEBREW_PREFIX)/opt/lua@5.1
+endif
+
+ifneq ($(shell whoami), root)
+	ENV_LUAROCKS_FLAG_LOCAL := --local
+endif
+
+ifdef ENV_LUAROCKS_SERVER
+	ENV_LUAROCKS_SERVER_OPT := --server $(ENV_LUAROCKS_SERVER)
 endif
 
 
@@ -81,3 +90,19 @@ install:
 	@$(call func_echo_status, "$@ -> [ Start ]")
 	$(project_ci_runner) install_module
 	@$(call func_echo_success_status, "$@ -> [ Done ]")
+
+
+### deps : Installing dependencies
+.PHONY: deps
+deps:
+	$(eval ENV_LUAROCKS_VER := $(shell $(ENV_LUAROCKS) --version | grep -E -o "luarocks [0-9]+."))
+	@if [ '$(ENV_LUAROCKS_VER)' = 'luarocks 3.' ]; then \
+		mkdir -p ~/.luarocks; \
+		$(ENV_LUAROCKS) config $(ENV_LUAROCKS_FLAG_LOCAL) variables.OPENSSL_LIBDIR $(addprefix $(ENV_OPENSSL_PREFIX), /lib); \
+		$(ENV_LUAROCKS) config $(ENV_LUAROCKS_FLAG_LOCAL) variables.OPENSSL_INCDIR $(addprefix $(ENV_OPENSSL_PREFIX), /include); \
+		[ '$(ENV_OS_NAME)' == 'darwin' ] && $(ENV_LUAROCKS) config $(ENV_LUAROCKS_FLAG_LOCAL) variables.PCRE_INCDIR $(addprefix $(ENV_PCRE_PREFIX), /include); \
+		$(ENV_LUAROCKS) install api7-master-0.rockspec --tree deps --only-deps $(ENV_LUAROCKS_SERVER_OPT); \
+	else \
+		$(call func_echo_warn_status, "WARNING: You're not using LuaRocks 3.x; please remove the luarocks and reinstall it via https://raw.githubusercontent.com/apache/apisix/master/utils/linux-install-luarocks.sh"); \
+		exit 1; \
+	fi

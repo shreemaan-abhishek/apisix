@@ -16,7 +16,7 @@ ARG APISIX_VERSION=3.2.1
 RUN set -ex; \
     arch=$(dpkg --print-architecture); \
     apt update; \
-    apt-get -y install --no-install-recommends wget gnupg ca-certificates curl;\
+    apt-get -y install --no-install-recommends wget gnupg ca-certificates curl unzip make;\
     codename=`grep -Po 'VERSION="[0-9]+ \(\K[^)]+' /etc/os-release`; \
     wget -O - https://openresty.org/package/pubkey.gpg | apt-key add -; \
     case "${arch}" in \
@@ -38,8 +38,6 @@ RUN set -ex; \
     && rm /usr/local/openresty/bin/etcdctl \
     && openresty -V \
     && apisix version
-
-RUN apt-get -y purge --auto-remove curl wget gnupg ca-certificates --allow-remove-essential
 
 WORKDIR /usr/local/apisix
 
@@ -77,6 +75,9 @@ COPY --chown=apisix:apisix ./apisix /usr/local/apisix/apisix
 COPY --chown=apisix:apisix ./conf/config.yaml /usr/local/apisix/conf/config.yaml
 COPY --chown=apisix:apisix ./conf/config-default.yaml /usr/local/apisix/conf/config-default.yaml
 COPY --chown=apisix:apisix ./ci/utils/api7-ljbc.sh /usr/local/apisix/api7-ljbc.sh
+COPY --chown=apisix:apisix ./ci/utils/linux-install-luarocks.sh /usr/local/apisix/linux-install-luarocks.sh
+COPY --chown=apisix:apisix ./Makefile /usr/local/apisix/Makefile
+COPY --chown=apisix:apisix ./api7-master-0.rockspec /usr/local/apisix/api7-master-0.rockspec
 
 WORKDIR /usr/local/api7-soap-proxy
 
@@ -88,4 +89,10 @@ WORKDIR /usr/local/apisix
 
 RUN bash /usr/local/apisix/api7-ljbc.sh && rm /usr/local/apisix/api7-ljbc.sh
 
+RUN bash /usr/local/apisix/linux-install-luarocks.sh && rm /usr/local/apisix/linux-install-luarocks.sh
+
+RUN make deps && rm /usr/local/apisix/Makefile && rm /usr/local/apisix/api7-master-0.rockspec
+
 COPY --from=builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
+
+RUN apt-get -y purge --auto-remove curl wget gnupg unzip make luarocks ca-certificates --allow-remove-essential
