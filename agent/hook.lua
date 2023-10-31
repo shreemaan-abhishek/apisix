@@ -109,14 +109,23 @@ local function hook()
         max_metrics_size = tonumber(max_metrics_size_str)
     end
 
+    local ssl_cert_path
+    local ssl_key_path
+    if etcd_conf.tls and etcd_conf.tls.cert then
+        ssl_cert_path = etcd_conf.tls.cert
+    end
+
+    if etcd_conf.tls and etcd_conf.tls.key then
+        ssl_key_path = etcd_conf.tls.key
+    end
+
     api7_agent = agent.new({
         endpoint = endpoint,
-        ssl_cert_path = etcd_conf.ssl_cert_path,
-        ssl_key_path = etcd_conf.ssl_key_path,
+        ssl_cert_path = ssl_cert_path,
+        ssl_key_path = ssl_key_path,
         gateway_group_id = gateway_group_id,
         max_metrics_size = max_metrics_size,
     })
-
 
     local skip_first_heartbeat = getenv("API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG")
     if skip_first_heartbeat == "true" then
