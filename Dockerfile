@@ -72,6 +72,7 @@ COPY ./api7-soap-proxy/requirements.txt /usr/local/api7-soap-proxy/requirements.
 COPY ./api7-soap-proxy/logging.conf /usr/local/api7-soap-proxy/logging.conf
 
 COPY --chown=apisix:apisix ./apisix /usr/local/apisix/apisix
+COPY --chown=apisix:apisix ./agent /usr/local/apisix/agent
 COPY --chown=apisix:apisix ./conf/config.yaml /usr/local/apisix/conf/config.yaml
 COPY --chown=apisix:apisix ./conf/config-default.yaml /usr/local/apisix/conf/config-default.yaml
 COPY --chown=apisix:apisix ./ci/utils/api7-ljbc.sh /usr/local/apisix/api7-ljbc.sh

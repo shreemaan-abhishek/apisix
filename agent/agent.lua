@@ -12,6 +12,7 @@ local setmetatable  = setmetatable
 local ngx_time      = ngx.time
 local str_format    = string.format
 local get_phase     = ngx.get_phase
+local config_dict   = ngx.shared.config
 
 local _M = {}
 
@@ -119,8 +120,8 @@ function _M.heartbeat(self, first)
         return
     end
 
-    local resp_payload = core.json.decode(res.body)
-    local config = resp_payload.config or {}
+    local resp_body = utils.parse_resp(res.body)
+    local config = resp_body.config or {}
     if config.config_version and config.config_version > self.config_version then
         core.log.info("config version changed, old version: ", self.config_version, ", new version: ", config.config_version)
 

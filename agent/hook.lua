@@ -36,6 +36,10 @@ end
 -- config_payload means the config from control plane.The format is same as the local file.
 -- @param force: force to reload the config from control plane.
 local config_local = require("apisix.core.config_local")
+local json = require("apisix.core.json")
+local file = require("agent.file")
+local log = require("apisix.core.log")
+local config_version = 0
 local config_data
 local old_local_conf = config_local.local_conf
 config_local.local_conf = function(force)
@@ -51,7 +55,8 @@ config_local.local_conf = function(force)
         return nil, err
     end
 
-    local latest_config_payload = get_config_from_dict("config_payload", nil)
+    --- Enable the kubernetes discovery by default.
+    local latest_config_payload = get_config_from_dict("config_payload", "{\"discovery\": {\"kubernetes\": []}}")
     if not latest_config_payload then
         return default_conf
     end
@@ -81,7 +86,6 @@ local core = require("apisix.core")
 core.id.init()
 
 local agent = require("agent.agent")
-local apisix = require("apisix")
 local getenv = os.getenv
 local api7_agent
 
@@ -144,6 +148,7 @@ local upload_metrics = function()
     api7_agent:upload_metrics()
 end
 
+local apisix = require("apisix")
 local old_http_init_worker = apisix.http_init_worker
 apisix.http_init_worker = function(...)
     local pcall = pcall

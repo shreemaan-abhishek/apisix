@@ -251,6 +251,10 @@ local function watch(httpc, apiserver, informer)
                 end
                 return false, reason, err
             end
+            if informer.stop then
+                core.log.info("informer stop watch: ", informer.kind)
+                return true
+            end
         end
     end
 
@@ -370,7 +374,8 @@ function _M.new(group, version, kind, plural, namespace)
         overtime = "1800",
         version = "",
         continue = "",
-        list_watch = list_watch
+        list_watch = list_watch,
+        stop = false,
     }
 end
 

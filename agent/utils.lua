@@ -112,4 +112,20 @@ function _M.fetch_metrics()
 end
 
 
+function _M.parse_resp(response_body)
+    local resp, err
+    if type(response_body) == "string" then
+        resp, err = core.json.decode(response_body)
+    elseif type(response_body) == "table" then
+        resp, err = core.json.decode(table.concat(response_body))
+    end
+
+    if err or not resp or type(resp) ~= "table" then
+        return nil, err
+    end
+
+    return resp, nil
+end
+
+
 return _M
