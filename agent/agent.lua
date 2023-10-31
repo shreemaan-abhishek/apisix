@@ -33,8 +33,8 @@ local headers = {
 }
 
 
-local function request(req_params, conf, https)
-    if not https then
+local function request(req_params, conf, ssl)
+    if not ssl then
         return http.request(req_params)
     end
 
@@ -49,9 +49,9 @@ end
 local function send_request(url, opts)
     if get_phase() == "init" or get_phase() == "init_worker" then
         local response_body = {}
-        local https = false
+        local ssl = false
         if string.sub(url, 1, 5) == "https" then
-            https = true
+            ssl = true
         end
 
         local resp_status, http_status = request({
@@ -63,7 +63,7 @@ local function send_request(url, opts)
         }, {
             cert = opts.ssl_cert_path,
             key = opts.ssl_key_path,
-        }, https)
+        }, ssl)
 
         if not resp_status then
             return nil, "request " .. url .. " error ", http_status
