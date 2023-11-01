@@ -89,7 +89,7 @@ local function on_endpoint_modified(handle, endpoint)
                 end
 
                 -- Different from Apache APISIX, we both set nodes to port_name and port.port
-                endpoint_buffer[tostring(port.port)] = nodes
+                endpoint_buffer[tostring(port.port)] = core.table.clone(nodes)
             end
         end
     end
