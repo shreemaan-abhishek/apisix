@@ -1,6 +1,6 @@
 # --- Build etcdctl ---
 # we can delete this part after etcd release a new version with go1.20+
-FROM golang:1.21.2 AS builder
+FROM golang:1.21.3 AS builder
 
 WORKDIR /go
 
