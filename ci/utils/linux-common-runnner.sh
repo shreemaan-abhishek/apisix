@@ -52,6 +52,11 @@ install_module() {
     cp -av "${VAR_CUR_HOME}/conf" "${VAR_APISIX_HOME}"
 
     cp -av "${VAR_CUR_HOME}/agent" "${VAR_APISIX_HOME}"
+
+    # use ee's rockspec
+    cp -av "${VAR_CUR_HOME}/api7-master-0.rockspec" "${VAR_APISIX_HOME}/rockspec/"
+    sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/g' "${VAR_APISIX_HOME}/Makefile"
+
 }
 
 test_env() {
