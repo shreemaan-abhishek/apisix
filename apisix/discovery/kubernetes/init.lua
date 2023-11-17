@@ -22,7 +22,6 @@ local string = string
 local tonumber = tonumber
 local tostring = tostring
 local os = os
-local error = error
 local pcall = pcall
 local setmetatable = setmetatable
 local is_http = ngx.config.subsystem == "http"
@@ -382,13 +381,13 @@ local function multiple_mode_init(confs)
 
         local endpoint_dict = get_endpoint_dict()
         if not endpoint_dict then
-            error(string.format("failed to get lua_shared_dict: ngx.shared.kubernetes, ") ..
+            core.log.error(string.format("failed to get lua_shared_dict: ngx.shared.kubernetes, ") ..
                     "please check your APISIX version")
         end
 
         local apiserver, err = get_apiserver(conf)
         if err then
-            error(err)
+            core.log.error(err)
             return
         end
 
@@ -396,7 +395,7 @@ local function multiple_mode_init(confs)
 
         local endpoints_informer, err = informer_factory.new("", "v1", "Endpoints", "endpoints", "")
         if err then
-            error(err)
+            core.log.error(err)
             return
         end
 
@@ -480,6 +479,47 @@ local function multiple_mode_nodes(service_name)
 
     return endpoint_lrucache(service_name, endpoint_version,
             create_endpoint_lrucache, endpoint_dict, endpoint_key, endpoint_port)
+end
+
+function _M.list_all_services()
+    local endpoint_dict = get_endpoint_dict()
+    local keys = endpoint_dict:get_keys()
+    if not keys then
+        return {}
+    end
+
+    local result = {}
+    for _, key in ipairs(keys) do
+        if not core.string.find(key, "#version") then
+            goto CONTINUE
+        end
+
+        local pattern = "^(.*)/(.*)/(.*)#version$" -- id/namespace/name#version
+        local match = ngx.re.match(key, pattern, "jo")
+        if not match then
+            core.log.error("get unexpected upstream service_name:　", service_name)
+            goto CONTINUE
+        end
+
+        local service_registry_id = match[1]
+        local namespace = match[2]
+        local service_name = match[3]
+        if result[service_registry_id] == nil then
+            result[service_registry_id] = {}
+        end
+
+        if result[service_registry_id][namespace] == nil then
+            result[service_registry_id][namespace] = {}
+        end
+
+        local len = #result[service_registry_id][namespace]
+        result[service_registry_id][namespace][len+1] = service_name
+
+        ::CONTINUE::
+
+    end
+
+    return result
 end
 
 

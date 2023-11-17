@@ -102,6 +102,14 @@ function _M.heartbeat(self, first)
     payload.gateway_group_id = self.gateway_group_id
     payload.cores = ngx.worker.count()
 
+    -- TODO: support more service registry
+    local kubernetes = require("apisix.discovery.init").discovery["kubernetes"]
+    local internal_services = kubernetes.list_all_services()
+
+    payload.probe_result = {
+        service_registries = internal_services,
+    }
+
     local post_heartbeat_payload = core.json.encode(payload)
     local res, err = send_request(self.heartbeat_url, {
         method =  "POST",
