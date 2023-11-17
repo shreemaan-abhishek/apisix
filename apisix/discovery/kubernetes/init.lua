@@ -31,6 +31,7 @@ local core = require("apisix.core")
 local util = require("apisix.cli.util")
 local local_conf = require("apisix.core.config_local").local_conf()
 local informer_factory = require("apisix.discovery.kubernetes.informer_factory")
+local health_check = require("resty.healthcheck")
 
 
 local ctx
@@ -315,6 +316,10 @@ local _M = {
 
 
 local function start_fetch(handle)
+    if handle.checker ~= nil then
+        handle.checker:start()
+    end
+
     local timer_runner
     timer_runner = function(premature)
         if premature then
@@ -405,12 +410,30 @@ local function multiple_mode_init(confs)
         endpoints_informer.post_list = post_list
         endpoints_informer.registry_id = id
 
+        local checker
+        if conf.check then
+            checker = health_check.new({
+                name = conf.id,
+                shm_name = "kubernetes",
+                checks = conf.check,
+            })
+
+            local ok, err = checker:add_target(conf.check.active.host, conf.check.active.port, nil, false)
+            if not ok then
+                core.log.error("failed to add health check target", core.json.encode(conf))
+                goto CONTINUE
+            end
+
+            core.log.info("success to add health checker, conf.id ", conf.id, " host ", conf.check.active.host, " port ", conf.check.active.port)
+        end
+
         ctx[id] = setmetatable({
             endpoint_dict = endpoint_dict,
             apiserver = apiserver,
             default_weight = default_weight,
             version = version,
             informer = endpoints_informer,
+            checker = checker,
         }, { __index = endpoints_informer })
 
         ::CONTINUE::
@@ -424,6 +447,7 @@ local function multiple_mode_init(confs)
           --- So we should stop the informer
           local old = ctx[id]
           old.informer.stop = true
+          old.checker:clear()
           ctx[id] = nil
         end
     end
@@ -473,6 +497,23 @@ function _M.init_worker()
 
     _M.nodes = multiple_mode_nodes
     multiple_mode_init(discovery_conf)
+end
+
+
+function _M.get_health_checkers()
+    local result = core.table.new(0, 4)
+    if ctx == nil then
+        return result
+    end
+
+    for id in pairs(ctx) do
+        local list = health_check.get_target_list(id, "kubernetes")
+        if list then
+            result[id] = list
+        end
+    end
+
+    return result
 end
 
 return _M

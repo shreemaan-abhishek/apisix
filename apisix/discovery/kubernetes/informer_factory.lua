@@ -251,6 +251,7 @@ local function watch(httpc, apiserver, informer)
                 end
                 return false, reason, err
             end
+
             if informer.stop then
                 core.log.info("informer stop watch: ", informer.kind)
                 return true

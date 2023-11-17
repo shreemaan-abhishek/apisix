@@ -39,6 +39,8 @@ local get_protos = require("apisix.plugins.grpc-transcode.proto").protos
 local service_fetch = require("apisix.http.service").get
 local latency_details = require("apisix.utils.log-util").latency_details_in_ms
 local xrpc = require("apisix.stream.xrpc")
+local service_registry = require("apisix.discovery.kubernetes")
+
 local unpack = unpack
 local next = next
 
@@ -157,6 +159,10 @@ function _M.http_init(prometheus_enabled_in_stream)
     metrics.shared_dict_free_space_bytes = prometheus:gauge("shared_dict_free_space_bytes",
             "The free space of each nginx shared DICT since APISIX start",
             {"name"})
+
+    metrics.service_registry_status = prometheus:gauge("service_registry_status",
+            "Service registry status from health check",
+            {"service_registry_id", "ip", "port", "hostname"})
 
     -- per service
 
@@ -457,6 +463,16 @@ local function collect(ctx, stream_only)
     end
 
     metrics.node_info:set(1, gen_arr(hostname))
+
+    -- update service_registry_status metrics
+    metrics.service_registry_status:reset()
+    local stats = service_registry.get_health_checkers()
+    for id, nodes in pairs(stats) do
+        for _, stat in ipairs(nodes) do
+            metrics.service_registry_status:set((stat.status == "healthy") and 1 or 0,
+                gen_arr(id, stat.ip, stat.port, stat.hostname))
+        end
+    end
 
     core.response.set_header("content_type", "text/plain")
     return 200, core.table.concat(prometheus:metric_data())
