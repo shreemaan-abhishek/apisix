@@ -108,6 +108,7 @@ traffic-split
 redirect
 response-rewrite
 soap
+oas-validator
 degraphql
 kafka-proxy
 grpc-transcode

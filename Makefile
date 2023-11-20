@@ -106,3 +106,4 @@ deps:
 		$(call func_echo_warn_status, "WARNING: You're not using LuaRocks 3.x; please remove the luarocks and reinstall it via https://raw.githubusercontent.com/apache/apisix/master/utils/linux-install-luarocks.sh"); \
 		exit 1; \
 	fi
+	./ci/utils/install-lua-resty-openapi-validate.sh
