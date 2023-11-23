@@ -37,6 +37,7 @@ make run
 sleep 0.1
 
 times=1
+code=000
 while [ $code -eq 000 ] && [ $times -lt 10 ]
 do
   code=$(curl -v -k -i -m 20 -o /dev/null -s -w %{http_code} http://127.0.0.1:9090/v1/schema)
@@ -77,6 +78,7 @@ make run
 sleep 0.1
 
 times=1
+code=000
 while [ $code -eq 000 ] && [ $times -lt 10 ]
 do
   code=$(curl -v -k -i -m 20 -o /dev/null -s -w %{http_code} http://127.0.0.2:9090/v1/schema)
@@ -110,6 +112,7 @@ make run
 sleep 0.1
 
 times=1
+code=000
 while [ $code -eq 000 ] && [ $times -lt 10 ]
 do
   code=$(curl -v -k -i -m 20 -o /dev/null -s -w %{http_code} http://127.0.0.1:9092/v1/schema)
