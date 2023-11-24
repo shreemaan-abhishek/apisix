@@ -12,4 +12,4 @@ LIB_NAME=lua-resty-openapi-validate
 cd $LIB_NAME
 
 # install lua-lib to directories under the lua_package_path and lua_package_cpath
-sudo make INST_LUADIR="../$PARENT_DIR/deps/share/lua/5.1/" OUTPUT_NAME="../../$PARENT_DIR/deps/lib/lua/5.1/validate.so" install
+sudo "PATH=$PATH" make INST_LUADIR="../$PARENT_DIR/deps/share/lua/5.1/" OUTPUT_NAME="../../$PARENT_DIR/deps/lib/lua/5.1/validate.so" install

@@ -16,7 +16,7 @@ ARG APISIX_VERSION=3.2.1
 RUN set -ex; \
     arch=$(dpkg --print-architecture); \
     apt update; \
-    apt-get -y install --no-install-recommends wget gnupg ca-certificates curl unzip make;\
+    apt-get -y install --no-install-recommends wget gnupg ca-certificates curl unzip make build-essential sudo;\
     codename=`grep -Po 'VERSION="[0-9]+ \(\K[^)]+' /etc/os-release`; \
     wget -O - https://openresty.org/package/pubkey.gpg | apt-key add -; \
     case "${arch}" in \
@@ -70,12 +70,14 @@ USER root
 COPY ./api7-soap-proxy/soap_proxy.py /usr/local/api7-soap-proxy/soap_proxy.py
 COPY ./api7-soap-proxy/requirements.txt /usr/local/api7-soap-proxy/requirements.txt
 COPY ./api7-soap-proxy/logging.conf /usr/local/api7-soap-proxy/logging.conf
+COPY ./lua-resty-openapi-validate /usr/local/apisix/lua-resty-openapi-validate
 
 COPY --chown=apisix:apisix ./apisix /usr/local/apisix/apisix
 COPY --chown=apisix:apisix ./agent /usr/local/apisix/agent
 COPY --chown=apisix:apisix ./conf/config.yaml /usr/local/apisix/conf/config.yaml
 COPY --chown=apisix:apisix ./conf/config-default.yaml /usr/local/apisix/conf/config-default.yaml
 COPY --chown=apisix:apisix ./ci/utils/api7-ljbc.sh /usr/local/apisix/api7-ljbc.sh
+COPY --chown=apisix:apisix ./ci/utils/install-lua-resty-openapi-validate.sh /usr/local/apisix/ci/utils/install-lua-resty-openapi-validate.sh
 COPY --chown=apisix:apisix ./ci/utils/linux-install-luarocks.sh /usr/local/apisix/linux-install-luarocks.sh
 COPY --chown=apisix:apisix ./Makefile /usr/local/apisix/Makefile
 COPY --chown=apisix:apisix ./api7-master-0.rockspec /usr/local/apisix/api7-master-0.rockspec
@@ -92,8 +94,25 @@ RUN bash /usr/local/apisix/api7-ljbc.sh && rm /usr/local/apisix/api7-ljbc.sh
 
 RUN bash /usr/local/apisix/linux-install-luarocks.sh && rm /usr/local/apisix/linux-install-luarocks.sh
 
-RUN make deps && rm /usr/local/apisix/Makefile && rm /usr/local/apisix/api7-master-0.rockspec
+# install go
+RUN case $(dpkg --print-architecture) in \
+    amd64) export GO_ARCH='amd64' ;; \
+    armhf) export GO_ARCH='armv6l' ;; \
+    arm64) export GO_ARCH='arm64' ;; \
+    *) export GO_ARCH='amd64' ;; \
+    esac && \
+    export GOLANG_DOWNLOAD_URL=https://golang.org/dl/go1.21.3.linux-$GO_ARCH.tar.gz; \
+    wget -q "$GOLANG_DOWNLOAD_URL" -O go.tar.gz && \
+    tar -C /usr/local -xzf go.tar.gz && \
+    rm go.tar.gz
+
+ENV PATH=$PATH:/usr/local/go/bin
+
+# CGO_ENABLED=1 for compiling cgo code in lua-resty-openapi-validate
+RUN export CGO_ENABLED=1 && make deps && rm /usr/local/apisix/Makefile && rm /usr/local/apisix/api7-master-0.rockspec
+
+RUN rm -rf /usr/local/go
 
 COPY --from=builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
 
-RUN apt-get -y purge --auto-remove curl wget gnupg unzip make luarocks ca-certificates --allow-remove-essential
+RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove curl wget gnupg unzip make luarocks ca-certificates build-essential sudo --allow-remove-essential
