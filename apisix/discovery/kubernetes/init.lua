@@ -388,7 +388,7 @@ local function multiple_mode_init(confs)
         local apiserver, err = get_apiserver(conf)
         if err then
             core.log.error(err)
-            return
+            goto CONTINUE
         end
 
         local default_weight = conf.default_weight or 50

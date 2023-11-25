@@ -41,7 +41,7 @@ local function request(req_params, conf, ssl)
     req_params.certificate = conf.cert
     req_params.key = conf.key
     req_params.cafile = conf.cafile
-    req_params.verify = "peer"
+    req_params.verify = "none"
 
     return https.request(req_params)
 end
