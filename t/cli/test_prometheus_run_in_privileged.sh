@@ -37,7 +37,14 @@ nginx_config:
 make run
 sleep 0.1
 
-curl -s -o /dev/null http://127.0.0.1:9091/apisix/prometheus/metrics
+times=1
+code=000
+while [ $code -eq 000 ] && [ $times -lt 10 ]
+do
+  curl -s -o /dev/null http://127.0.0.1:9091/apisix/prometheus/metrics
+  sleep 0.2
+  times=$(($times+1))
+done
 
 if ! grep -E "process type: privileged agent" logs/error.log; then
     echo "failed: prometheus run in privileged can't work when only http is enabled"
@@ -70,7 +77,14 @@ nginx_config:
 make run
 sleep 0.1
 
-curl -s -o /dev/null http://127.0.0.1:9091/apisix/prometheus/metrics
+times=1
+code=000
+while [ $code -eq 000 ] && [ $times -lt 10 ]
+do
+  curl -s -o /dev/null http://127.0.0.1:9091/apisix/prometheus/metrics
+  sleep 0.2
+  times=$(($times+1))
+done
 
 if ! grep -E " process type: privileged agent" logs/error.log; then
     echo "failed: prometheus run in privileged can't work when both http & stream are enabled"
@@ -103,7 +117,14 @@ nginx_config:
 make run
 sleep 0.1
 
-curl -s -o /dev/null http://127.0.0.1:9091/apisix/prometheus/metrics
+times=1
+code=000
+while [ $code -eq 000 ] && [ $times -lt 10 ]
+do
+  curl -s -o /dev/null http://127.0.0.1:9091/apisix/prometheus/metrics
+  sleep 0.2
+  times=$(($times+1))
+done
 
 if ! grep -E " process type: privileged agent" logs/error.log; then
     echo "failed: prometheus run in privileged can't work when only stream is enabled"
