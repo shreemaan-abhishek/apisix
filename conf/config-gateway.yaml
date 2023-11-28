@@ -116,6 +116,7 @@ plugins:    # plugin list
   - traffic-split
   - redirect
   - response-rewrite
+  - oas-validator
   - degraphql
   - kafka-proxy
   - grpc-transcode
