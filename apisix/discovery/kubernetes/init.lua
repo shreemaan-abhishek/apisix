@@ -257,7 +257,7 @@ local function get_apiserver(conf)
 
     apiserver.port = tonumber(port)
     if not apiserver.port or apiserver.port <= 0 or apiserver.port > 65535 then
-        return nil, "invalid port value: " .. apiserver.port
+        return nil, "invalid port value: " .. (apiserver.port or "nil")
     end
 
     if conf.client.token then
@@ -290,7 +290,7 @@ local function get_apiserver(conf)
     return apiserver
 end
 
-local function create_endpoint_lrucache(endpoint_dict, endpoint_key, endpoint_port)
+local function create_endpoint_lrucache(endpoint_dict, endpoint_key)
     local endpoint_content = endpoint_dict:get_stale(endpoint_key)
     if not endpoint_content then
         core.log.error("get empty endpoint content from discovery DIC, this should not happen ",
@@ -305,7 +305,7 @@ local function create_endpoint_lrucache(endpoint_dict, endpoint_key, endpoint_po
         return nil
     end
 
-    return endpoint[endpoint_port]
+    return endpoint
 end
 
 
@@ -476,8 +476,13 @@ local function multiple_mode_nodes(service_name)
         return nil
     end
 
-    return endpoint_lrucache(service_name, endpoint_version,
-            create_endpoint_lrucache, endpoint_dict, endpoint_key, endpoint_port)
+    local endpoint = endpoint_lrucache(service_name, endpoint_version,
+            create_endpoint_lrucache, endpoint_dict, endpoint_key)
+    if not endpoint then
+        return nil
+    end
+
+    return endpoint[endpoint_port]
 end
 
 function _M.list_all_services()
@@ -503,6 +508,7 @@ function _M.list_all_services()
         local service_registry_id = match[1]
         local namespace = match[2]
         local service_name = match[3]
+        local endpoint_key = service_registry_id .. "/" .. namespace .. "/" .. service_name
         if result[service_registry_id] == nil then
             result[service_registry_id] = {}
         end
@@ -511,8 +517,19 @@ function _M.list_all_services()
             result[service_registry_id][namespace] = {}
         end
 
-        local len = #result[service_registry_id][namespace]
-        result[service_registry_id][namespace][len+1] = service_name
+        local endpoint_version = endpoint_dict:get_stale(endpoint_key)
+        if not endpoint_version then
+            core.log.info("get empty endpoint version from discovery DICT ", endpoint_key)
+            goto CONTINUE
+        end
+
+        local content = endpoint_lrucache(service_name, endpoint_version, create_endpoint_lrucache, endpoint_dict, endpoint_key)
+        for port in pairs(content) do
+            if tonumber(port) then
+                local len = #result[service_registry_id][namespace]
+                result[service_registry_id][namespace][len + 1] = service_name .. ":" .. port
+            end
+        end
 
         ::CONTINUE::
 
