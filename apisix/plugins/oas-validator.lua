@@ -30,8 +30,8 @@ local schema = {
             type = "boolean",
             default = false
         },
-        required = {"spec"}
-    }
+    },
+    required = {"spec"},
 }
 
 local plugin_name = "oas-validator"
