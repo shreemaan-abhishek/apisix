@@ -278,6 +278,7 @@ local function list_watch(informer, apiserver)
         scheme = apiserver.schema,
         host = apiserver.host,
         port = apiserver.port,
+        ssl_server_name = apiserver.host,
         ssl_verify = false
     })
 
