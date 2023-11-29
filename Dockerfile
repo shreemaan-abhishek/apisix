@@ -16,7 +16,7 @@ ARG APISIX_VERSION=3.2.1
 RUN set -ex; \
     arch=$(dpkg --print-architecture); \
     apt update; \
-    apt-get -y install --no-install-recommends wget gnupg ca-certificates curl unzip make build-essential sudo;\
+    apt-get -y install --no-install-recommends wget gnupg ca-certificates unzip make;\
     codename=`grep -Po 'VERSION="[0-9]+ \(\K[^)]+' /etc/os-release`; \
     wget -O - https://openresty.org/package/pubkey.gpg | apt-key add -; \
     case "${arch}" in \
@@ -104,15 +104,9 @@ RUN case $(dpkg --print-architecture) in \
     export GOLANG_DOWNLOAD_URL=https://golang.org/dl/go1.21.3.linux-$GO_ARCH.tar.gz; \
     wget -q "$GOLANG_DOWNLOAD_URL" -O go.tar.gz && \
     tar -C /usr/local -xzf go.tar.gz && \
-    rm go.tar.gz
-
-ENV PATH=$PATH:/usr/local/go/bin
-
-# CGO_ENABLED=1 for compiling cgo code in lua-resty-openapi-validate
-RUN export CGO_ENABLED=1 && make deps && rm /usr/local/apisix/Makefile && rm /usr/local/apisix/api7-master-0.rockspec
-
-RUN rm -rf /usr/local/go
+    rm go.tar.gz && export PATH=$PATH:/usr/local/go/bin && export CGO_ENABLED=1 && apt-get install -y gcc sudo && make deps && go clean -cache &&  \
+    rm -rf /usr/local/go && apt-get -y purge --auto-remove gcc --allow-remove-essential
 
 COPY --from=builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
 
-RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove curl wget gnupg unzip make luarocks ca-certificates build-essential sudo --allow-remove-essential
+RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove wget gnupg unzip make luarocks ca-certificates sudo --allow-remove-essential
