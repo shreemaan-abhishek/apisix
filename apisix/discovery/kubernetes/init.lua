@@ -33,7 +33,7 @@ local informer_factory = require("apisix.discovery.kubernetes.informer_factory")
 local health_check = require("resty.healthcheck")
 
 
-local ctx
+local ctx = {}
 
 local endpoint_lrucache = core.lrucache.new({
     ttl = 300,
@@ -352,7 +352,6 @@ end
 
 
 local function multiple_mode_init(confs)
-    ctx = core.table.new(#confs, 0)
 
     if process.type() ~= "privileged agent" then
         return
