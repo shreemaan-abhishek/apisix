@@ -6,6 +6,7 @@ local https   = require("ssl.https")
 local http    = require("socket.http")
 local ssl     = require("ssl")
 local resty_http    = require("resty.http")
+local discovery = require("agent.discovery")
 
 
 local setmetatable  = setmetatable
@@ -102,9 +103,7 @@ function _M.heartbeat(self, first)
     payload.gateway_group_id = self.gateway_group_id
     payload.cores = ngx.worker.count()
 
-    -- TODO: support more service registry
-    local kubernetes = require("apisix.discovery.init").discovery["kubernetes"]
-    local internal_services = kubernetes.list_all_services()
+    local internal_services = discovery.list_all_services()
 
     payload.probe_result = {
         service_registries = internal_services,
@@ -138,14 +137,11 @@ function _M.heartbeat(self, first)
         config_dict:set("config_payload", core.json.encode(config.config_payload))
 
         if not first then
-            local discovery = require("apisix.discovery.init").discovery
-            if discovery["kubernetes"] then
-                ok, res = pcall(discovery["kubernetes"].init_worker)
-                if ok then
-                    core.log.info("kubernetes service discovery re-init successfully")
-                else
-                    core.log.error("failed to re-init kubernetes service discovery: ", res)
-                end
+            ok, res = pcall(discovery.init_worker)
+            if ok then
+                core.log.info("service discovery re-init successfully")
+            else
+                core.log.error("failed to re-init service discovery: ", res)
             end
         end
     end

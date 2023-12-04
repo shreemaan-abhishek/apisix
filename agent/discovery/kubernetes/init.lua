@@ -1,20 +1,3 @@
---
--- Licensed to the Apache Software Foundation (ASF) under one or more
--- contributor license agreements.  See the NOTICE file distributed with
--- this work for additional information regarding copyright ownership.
--- The ASF licenses this file to You under the Apache License, Version 2.0
--- (the "License"); you may not use this file except in compliance with
--- the License.  You may obtain a copy of the License at
---
---     http://www.apache.org/licenses/LICENSE-2.0
---
--- Unless required by applicable law or agreed to in writing, software
--- distributed under the License is distributed on an "AS IS" BASIS,
--- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
--- See the License for the specific language governing permissions and
--- limitations under the License.
---
-
 local ngx = ngx
 local ipairs = ipairs
 local pairs = pairs
@@ -29,7 +12,7 @@ local support_process, process = pcall(require, "ngx.process")
 local core = require("apisix.core")
 local util = require("apisix.cli.util")
 local local_conf = require("apisix.core.config_local").local_conf()
-local informer_factory = require("apisix.discovery.kubernetes.informer_factory")
+local informer_factory = require("agent.discovery.kubernetes.informer_factory")
 local health_check = require("resty.healthcheck")
 
 
@@ -547,7 +530,7 @@ function _M.init_worker()
     end
 
     local local_conf = require("apisix.core.config_local").local_conf(true)
-    local discovery_conf = local_conf.discovery.kubernetes
+    local discovery_conf = local_conf.api7_discovery.kubernetes
 
     core.log.info("kubernetes discovery conf: ", core.json.delay_encode(discovery_conf))
 

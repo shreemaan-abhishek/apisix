@@ -56,7 +56,7 @@ config_local.local_conf = function(force)
     end
 
     --- Enable the kubernetes discovery by default.
-    local latest_config_payload = get_config_from_dict("config_payload", "{\"discovery\": {\"kubernetes\": []}}")
+    local latest_config_payload = get_config_from_dict("config_payload", "{\"api7_discovery\": {\"kubernetes\": []}}")
     if not latest_config_payload then
         return default_conf
     end
@@ -84,6 +84,11 @@ require("apisix.patch").patch()
 
 local core = require("apisix.core")
 core.id.init()
+
+-- replace the apisix.discovery.init to agent.discovery.init
+local discovery = require("agent.discovery.init")
+discovery.init_worker()
+package.loaded["apisix.discovery.init"] = discovery
 
 local agent = require("agent.agent")
 local getenv = os.getenv

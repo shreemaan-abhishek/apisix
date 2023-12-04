@@ -39,7 +39,7 @@ local get_protos = require("apisix.plugins.grpc-transcode.proto").protos
 local service_fetch = require("apisix.http.service").get
 local latency_details = require("apisix.utils.log-util").latency_details_in_ms
 local xrpc = require("apisix.stream.xrpc")
-local service_registry = require("apisix.discovery.kubernetes")
+local discovery = require("agent.discovery")
 
 local unpack = unpack
 local next = next
@@ -466,7 +466,7 @@ local function collect(ctx, stream_only)
 
     -- update service_registry_status metrics
     metrics.service_registry_status:reset()
-    local stats = service_registry.get_health_checkers()
+    local stats = discovery.get_health_checkers()
     for id, nodes in pairs(stats) do
         for _, stat in ipairs(nodes) do
             metrics.service_registry_status:set((stat.status == "healthy") and 1 or 0,
