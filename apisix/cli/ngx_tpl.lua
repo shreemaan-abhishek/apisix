@@ -54,6 +54,7 @@ env PATH; # for searching external plugin runner's binary
 # reserved environment variables for configuration
 env API7_CONTROL_PLANE_ENDPOINTS;
 env API7_CONTROL_PLANE_GATEWAY_GROUP_ID;
+env API7_CONTROL_PLANE_TOKEN;
 
 {% if envs then %}
 {% for _, name in ipairs(envs) do %}

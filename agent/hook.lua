@@ -1,4 +1,7 @@
 local require = require
+
+local getenv = os.getenv
+
 -- set the JIT options before any code, to prevent error "changing jit stack size is not
 -- allowed when some regexs have already been compiled and cached"
 if require("ffi").os == "Linux" then
@@ -16,6 +19,22 @@ if require("ffi").os == "Linux" then
 
         old_ngx_re_opt(option, value)
     end
+end
+
+local AUTH_HEADER = "Control-Plane-Token"
+
+local function update_conf_for_etcd(etcd_conf)
+    if not etcd_conf then
+        return
+    end
+
+    if not etcd_conf.extra_headers then
+        etcd_conf.extra_headers = {}
+    end
+
+    etcd_conf.extra_headers[AUTH_HEADER] = getenv("API7_CONTROL_PLANE_TOKEN")
+
+    return etcd_conf
 end
 
 
@@ -74,6 +93,7 @@ config_local.local_conf = function(force)
         return nil, err
     end
 
+    config_data.etcd = update_conf_for_etcd(config_data.etcd)
     config_version = latest_config_version
 
     log.info("succeed to merge the config from control plane, version: ", config_version)

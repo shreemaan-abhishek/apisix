@@ -8,12 +8,13 @@ local ssl     = require("ssl")
 local resty_http    = require("resty.http")
 local discovery = require("agent.discovery")
 
-
 local setmetatable  = setmetatable
 local ngx_time      = ngx.time
 local str_format    = string.format
 local get_phase     = ngx.get_phase
 local config_dict   = ngx.shared.config
+local getenv = os.getenv
+
 
 local _M = {}
 
@@ -29,8 +30,11 @@ local payload = {
     ports = utils.get_listen_ports(),
 }
 
+local control_plane_token = getenv("API7_CONTROL_PLANE_TOKEN")
+local AUTH_HEADER = "Control-Plane-Token"
 local headers = {
     ["Content-Type"] = "application/json",
+    [AUTH_HEADER] = control_plane_token,
 }
 
 
