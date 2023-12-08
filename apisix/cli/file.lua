@@ -119,8 +119,8 @@ _M.resolve_conf_var = resolve_conf_var
 
 local function replace_by_reserved_env_vars(conf)
     -- TODO: support more reserved environment variables
-    -- change APISIX_DEPLOYMENT_ETCD_HOST to API7_CONTROL_PLANE_ENDPOINTS
-    local v = getenv("API7_CONTROL_PLANE_ENDPOINTS")
+    -- support APISIX_DEPLOYMENT_ETCD_HOST and API7_CONTROL_PLANE_ENDPOINTS
+    local v = getenv("API7_CONTROL_PLANE_ENDPOINTS") or getenv("APISIX_DEPLOYMENT_ETCD_HOST")
     if v and conf["deployment"] and conf["deployment"]["etcd"] then
         local val, _, err = dkjson.decode(v)
         if err or not val then

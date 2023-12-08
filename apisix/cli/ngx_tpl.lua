@@ -52,6 +52,7 @@ env APISIX_PROFILE;
 env PATH; # for searching external plugin runner's binary
 
 # reserved environment variables for configuration
+env APISIX_DEPLOYMENT_ETCD_HOST;
 env API7_CONTROL_PLANE_ENDPOINTS;
 env API7_CONTROL_PLANE_GATEWAY_GROUP_ID;
 env API7_CONTROL_PLANE_TOKEN;
