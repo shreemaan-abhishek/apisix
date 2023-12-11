@@ -366,7 +366,7 @@ Apisix-Cache-Status: BYPASS
                 ngx.status = code
                 return ngx.say(body)
             end
-            
+
             local request = function()
                 return t('/graphql', ngx.HTTP_POST,
                     [[
@@ -446,7 +446,7 @@ passed
                 ngx.status = code
                 return ngx.say(body)
             end
-            
+
             local request = function()
                 return t('/graphql', ngx.HTTP_POST,
                     [[

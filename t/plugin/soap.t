@@ -321,7 +321,7 @@ passed
         }
     }
 --- error_code: 200
---- response_body chomp 
+--- response_body chomp
 [{"capital":"Warsaw","currency":"PLN","name":"Poland","population":38186860},{"capital":"London","currency":"GBP","name":"United Kingdom","population":63705000}]
 
 
@@ -334,4 +334,4 @@ POST /getAllCountries
 Content-Type: application/json
 --- error_code: 500
 --- response_body_like eval
-qr/Failed to decode JSON object: Expecting value/ 
+qr/Failed to decode JSON object: Expecting value/

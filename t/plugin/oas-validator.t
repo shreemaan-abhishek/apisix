@@ -63,7 +63,7 @@ invalid JSON string provided, err: Expected value but found invalid token at cha
             local t = require("lib.test_admin")
             local spec = t.read_file("t/spec/spec.json")
             spec = spec:gsub('\"', '\\"')
-            
+
             local code, body = t.test('/apisix/admin/routes/1',
                  ngx.HTTP_PUT,
                  string.format([[{
