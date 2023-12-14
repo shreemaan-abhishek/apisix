@@ -1,4 +1,4 @@
-name: Build And Push Release Private Docker Image
+name: Internal Release API7 EE
 on:
   workflow_dispatch:
 
