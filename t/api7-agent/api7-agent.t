@@ -28,10 +28,6 @@ _EOC_
         local json_decode = require("toolkit.json").decode
         local payload = json_decode(data)
 
-        if not payload.gateway_group_id then
-            ngx.log(ngx.ERR, "missing gateway_group_id")
-            return ngx.exit(400)
-        end
         if not payload.instance_id then
             ngx.log(ngx.ERR, "missing instance_id")
             return ngx.exit(400)
@@ -82,10 +78,6 @@ _EOC_
         local json_decode = require("toolkit.json").decode
         local payload = json_decode(data)
 
-        if not payload.gateway_group_id then
-            ngx.log(ngx.ERR, "missing gateway_group_id")
-            return ngx.exit(400)
-        end
         if not payload.instance_id then
             ngx.log(ngx.ERR, "missing instance_id")
             return ngx.exit(400)
@@ -132,44 +124,7 @@ heartbeat failed
 
 
 
-=== TEST 2: heartbeat success with gateway group id env
---- main_config
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
---- config
-    location /t {
-        content_by_lua_block {
-            ngx.say("ok")
-        }
-    }
---- wait: 12
---- error_log
-receive data plane heartbeat
-heartbeat successfully
-gateway_group 'default'
-
-
-
-=== TEST 3: heartbeat success with gateway group id env
---- main_config
-env API7_CONTROL_PLANE_GATEWAY_GROUP_ID=a8db303a-8019-427a-bd01-9946d097e471;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
---- config
-    location /t {
-        content_by_lua_block {
-            ngx.say("ok")
-        }
-    }
---- wait: 12
---- error_log
-receive data plane heartbeat
-heartbeat successfully
-gateway_group 'a8db303a-8019-427a-bd01-9946d097e471'
-
-
-
-=== TEST 5: upload metrics success
+=== TEST 2: upload metrics success
 --- main_config
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
@@ -189,13 +144,11 @@ plugin_attr:
 receive data plane metrics
 metrics size: 141
 upload metrics to control plane successfully
-gateway_group 'default'
 
 
 
-=== TEST 6: upload metrics success
+=== TEST 3: upload metrics success
 --- main_config
-env API7_CONTROL_PLANE_GATEWAY_GROUP_ID=a8db303a-8019-427a-bd01-9946d097e471;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
@@ -214,11 +167,10 @@ plugin_attr:
 receive data plane metrics
 metrics size: 141
 upload metrics to control plane successfully
-gateway_group 'a8db303a-8019-427a-bd01-9946d097e471'
 
 
 
-=== TEST 7: upload truncated metrics success
+=== TEST 4: upload truncated metrics success
 --- main_config
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
 env API7_CONTROL_PLANE_MAX_METRICS_SIZE_DEBUG=8;
@@ -243,7 +195,7 @@ upload metrics to control plane successfully
 
 
 
-=== TEST 8: fetch prometheus metrics failed
+=== TEST 5: fetch prometheus metrics failed
 --- main_config
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
@@ -263,7 +215,7 @@ fetch prometheus metrics error
 
 
 
-=== TEST 9: get new config
+=== TEST 6: get new config
 --- main_config
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
 env API7_CONTROL_PLANE_MAX_METRICS_SIZE_DEBUG=8;

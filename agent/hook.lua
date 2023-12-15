@@ -117,11 +117,6 @@ local function hook()
     local local_conf = config_local.local_conf()
     local etcd_conf = core.table.try_read_attr(local_conf, "deployment", "etcd")
 
-    local gateway_group_id = getenv("API7_CONTROL_PLANE_GATEWAY_GROUP_ID")
-    if not gateway_group_id or gateway_group_id == "" then
-        gateway_group_id = "default"
-    end
-
     local endpoint = getenv("API7_CONTROL_PLANE_ENDPOINT_DEBUG")
     if not endpoint or endpoint == "" then
         endpoint = etcd_conf.host[1]
@@ -147,7 +142,6 @@ local function hook()
         endpoint = endpoint,
         ssl_cert_path = ssl_cert_path,
         ssl_key_path = ssl_key_path,
-        gateway_group_id = gateway_group_id,
         max_metrics_size = max_metrics_size,
     })
 

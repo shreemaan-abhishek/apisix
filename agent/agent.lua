@@ -104,7 +104,6 @@ function _M.heartbeat(self, first)
     end
 
     payload.conf_server_revision = utils.get_conf_server_revision()
-    payload.gateway_group_id = self.gateway_group_id
     payload.cores = ngx.worker.count()
 
     local internal_services = discovery.list_all_services()
@@ -150,8 +149,7 @@ function _M.heartbeat(self, first)
         end
     end
 
-    local msg = str_format("gateway_group \'%s\', dp instance \'%s\' heartbeat successfully",
-                           payload.gateway_group_id, payload.instance_id)
+    local msg = str_format("dp instance \'%s\' heartbeat successfully", payload.instance_id)
 
     if not first then
         self.last_heartbeat_time = current_time
@@ -170,7 +168,6 @@ function _M.upload_metrics(self)
 
     local payload = {
         instance_id = core.id.get(),
-        gateway_group_id = self.gateway_group_id,
     }
 
     -- Since we should get the metrics of nginx status,
@@ -223,15 +220,13 @@ function _M.upload_metrics(self)
         return
     end
 
-    local msg = str_format("gateway_group \'%s\', dp instance \'%s\' upload metrics to control plane successfully",
-                           payload.gateway_group_id, payload.instance_id)
+    local msg = str_format("dp instance \'%s\' upload metrics to control plane successfully", payload.instance_id)
     core.log.info(msg)
 end
 
 
 function _M.new(agent_conf)
     local self = {
-        gateway_group_id = agent_conf.gateway_group_id,
         heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
         metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
         ssl_cert_path = agent_conf.ssl_cert_path,
