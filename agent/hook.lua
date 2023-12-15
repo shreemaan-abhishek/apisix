@@ -107,7 +107,6 @@ core.id.init()
 
 -- replace the apisix.discovery.init to agent.discovery.init
 local discovery = require("agent.discovery.init")
-discovery.init_worker()
 package.loaded["apisix.discovery.init"] = discovery
 
 local agent = require("agent.agent")
@@ -189,6 +188,10 @@ apisix.http_init_worker = function(...)
     ok, res = pcall(old_http_init_worker, ...)
     if not ok then
       core.log.error("failed to init worker, the data plane instance will be automatically exited soon, error: ", res)
+    end
+
+    if discovery and discovery.init_worker then
+        discovery.init_worker()
     end
 
     local timers  = require("apisix.timers")
