@@ -312,7 +312,9 @@ property "rules" validation failed: failed to validate item 1: property "canary_
 
             --
             local conf = {
-                disable = true,
+                _meta = {
+                    disable = true,
+                },
                 upstreams = {},
                 rules = {
                     {

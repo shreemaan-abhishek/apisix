@@ -164,7 +164,7 @@ function _M.check_schema(conf)
         return false, err
     end
 
-    if conf.disable then
+    if conf._meta and conf._meta.disable then
         return true
     end
 
