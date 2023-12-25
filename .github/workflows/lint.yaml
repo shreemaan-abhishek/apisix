@@ -26,7 +26,6 @@ jobs:
         working-directory: workbench
         run: |
           sed -i 's/API7\//APISIX\//' apisix/init.lua
-          mv conf/config-gateway.yaml conf/config.yaml
           sed -i 's/lua_module_hook/#lua_module_hook/' conf/config-default.yaml
           sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/' Makefile
           sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/' ci/linux_apisix_current_luarocks_runner.sh
@@ -68,7 +67,6 @@ jobs:
         working-directory: workbench
         run: |
           sed -i 's/API7\//APISIX\//' apisix/init.lua
-          mv conf/config-gateway.yaml conf/config.yaml
           sed -i 's/lua_module_hook/#lua_module_hook/' conf/config-default.yaml
           sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/' Makefile
           sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/' ci/linux_apisix_current_luarocks_runner.sh

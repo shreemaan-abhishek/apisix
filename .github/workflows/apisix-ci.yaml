@@ -56,8 +56,6 @@ jobs:
           make install
           cd workbench
           sed -i 's/API7\//APISIX\//' apisix/init.lua
-          cd conf
-          mv config-gateway.yaml config.yaml
       - name: Setup Go
         uses: actions/setup-go@v3
         with:

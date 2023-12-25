@@ -80,20 +80,6 @@ test_env() {
         exit 1
     fi
 
-    # user and password
-    out=$(API7_CONTROL_PLANE_USER=error_user API7_CONTROL_PLANE_PASSWORD=error_password ./bin/apisix init_etcd 2>&1 || true)
-    if ! echo "$out" | grep "etcdserver: authentication is not enabled"; then
-        echo $failed_msg
-        exit 1
-    fi
-
-    # prefix
-    out=$(API7_CONTROL_PLANE_KEY_PREFIX="/testapisix" ./bin/apisix init_etcd 2>&1 || true)
-    if echo "$out" | grep "connection refused" > /dev/null; then
-        echo $failed_msg
-        exit 1
-    fi
-
 }
 
 

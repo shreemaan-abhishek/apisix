@@ -301,15 +301,6 @@ function _M.read_yaml_conf(apisix_home)
         end
     end
 
-    -- reset etcd user and password if empty
-    if default_conf.etcd then
-        if default_conf.etcd.user == "" then
-            default_conf.etcd.user = nil
-        end
-        if default_conf.etcd.password == "" then
-            default_conf.etcd.password = nil
-        end
-    end
     replace_by_reserved_env_vars(default_conf)
 
     return default_conf
