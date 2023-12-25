@@ -3,8 +3,6 @@ on:
   push:
     branches:
       - main
-    tags:
-      - "**"
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -46,11 +44,3 @@ jobs:
           docker tag api7-ee-3-gateway:dev $REGISTRY/api7-dev/api7-ee-3-gateway:dev
           docker push $REGISTRY/api7-dev/api7-ee-3-gateway:$IMAGE_TAG
           docker push $REGISTRY/api7-dev/api7-ee-3-gateway:dev
-      - name: Push Release Dev Tag Image
-        if: startsWith(github.ref, 'refs/tags/')
-        env:
-          REGISTRY: ${{ secrets.PRIVATE_DOCKER_REGISTRY }}
-          RELEASE_TAG: ${{ steps.version.outputs.GATEWAY_VERSION }}
-        run: |
-          docker tag api7-ee-3-gateway:dev $REGISTRY/api7-dev/api7-ee-3-gateway:$RELEASE_TAG
-          docker push $REGISTRY/api7-dev/api7-ee-3-gateway:$RELEASE_TAG
