@@ -28,7 +28,7 @@ jobs:
           echo "GATEWAY_VERSION=$VERSION" >> $GITHUB_OUTPUT
       - name: Build Images
         run: |
-          docker build -t api7-ee-3-gateway:dev .
+          make build-image
       - name: Login to Registry
         uses: docker/login-action@v3
         with:

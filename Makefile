@@ -107,3 +107,8 @@ deps:
 		exit 1; \
 	fi
 	./ci/utils/install-lua-resty-openapi-validate.sh
+
+build-image: ## Build docker image
+	@sed -i '/- server-info/d' conf/config-default.yaml
+	@docker build -t api7-ee-3-gateway:dev .
+.PHONY: build-image
