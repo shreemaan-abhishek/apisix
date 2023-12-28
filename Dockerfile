@@ -37,7 +37,8 @@ RUN set -ex; \
     && rm -f /etc/apt/sources.list.d/openresty.list /etc/apt/sources.list.d/apisix.list \
     && rm /usr/local/openresty/bin/etcdctl \
     && openresty -V \
-    && apisix version
+    && apisix version \
+    && sed -i '/- server-info/d' conf/config-default.yaml
 
 WORKDIR /usr/local/apisix
 
