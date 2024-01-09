@@ -111,6 +111,7 @@ __DATA__
 
 === TEST 1: heartbeat failed
 --- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1234;
 --- config
     location /t {
@@ -126,6 +127,7 @@ heartbeat failed
 
 === TEST 2: upload metrics success
 --- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
@@ -149,6 +151,7 @@ upload metrics to control plane successfully
 
 === TEST 3: upload metrics success
 --- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
@@ -172,6 +175,7 @@ upload metrics to control plane successfully
 
 === TEST 4: upload truncated metrics success
 --- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
 env API7_CONTROL_PLANE_MAX_METRICS_SIZE_DEBUG=8;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
@@ -197,6 +201,7 @@ upload metrics to control plane successfully
 
 === TEST 5: fetch prometheus metrics failed
 --- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
@@ -217,6 +222,7 @@ fetch prometheus metrics error
 
 === TEST 6: get new config
 --- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
 env API7_CONTROL_PLANE_MAX_METRICS_SIZE_DEBUG=8;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;

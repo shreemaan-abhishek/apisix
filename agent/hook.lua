@@ -2,6 +2,12 @@ local require = require
 
 local getenv = os.getenv
 
+local control_plane_token = getenv("API7_CONTROL_PLANE_TOKEN")
+if not control_plane_token then
+    ngx.log(ngx.WARN, "missing API7_CONTROL_PLANE_TOKEN, the gateway will not connect to control plane")
+    return
+end
+
 -- set the JIT options before any code, to prevent error "changing jit stack size is not
 -- allowed when some regexs have already been compiled and cached"
 if require("ffi").os == "Linux" then
