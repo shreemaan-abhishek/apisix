@@ -24,11 +24,6 @@ add_block_preprocessor(sub {
         my $extra_yaml_config = <<_EOC_;
 plugins:
     - opentelemetry
-plugin_attr:
-    opentelemetry:
-        batch_span_processor:
-            max_export_batch_size: 1
-            inactive_timeout: 0.5
 _EOC_
         $block->set_value("extra_yaml_config", $extra_yaml_config);
     }
@@ -67,7 +62,31 @@ run_tests;
 
 __DATA__
 
-=== TEST 1: add plugin
+=== TEST 1: add plugin metadata
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/plugin_metadata/opentelemetry',
+                ngx.HTTP_PUT,
+                [[{
+                    "batch_span_processor": {
+                        "max_export_batch_size": 1,
+                        "inactive_timeout": 0.5
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+
+
+
+=== TEST 2: add plugin
 --- config
     location /t {
         content_by_lua_block {
@@ -101,7 +120,7 @@ __DATA__
 
 
 
-=== TEST 2: trigger opentelemetry
+=== TEST 3: trigger opentelemetry
 --- request
 GET /opentracing
 --- response_body
@@ -114,7 +133,7 @@ opentelemetry export span
 
 
 
-=== TEST 3: use default always_off sampler
+=== TEST 4: use default always_off sampler
 --- config
     location /t {
         content_by_lua_block {
@@ -145,7 +164,7 @@ opentelemetry export span
 
 
 
-=== TEST 4: not trigger opentelemetry
+=== TEST 5: not trigger opentelemetry
 --- request
 GET /opentracing
 --- response_body
@@ -156,7 +175,7 @@ qr/opentelemetry export span/
 
 
 
-=== TEST 5: use trace_id_ratio sampler, default fraction = 0
+=== TEST 6: use trace_id_ratio sampler, default fraction = 0
 --- config
     location /t {
         content_by_lua_block {
@@ -190,7 +209,7 @@ qr/opentelemetry export span/
 
 
 
-=== TEST 6: not trigger opentelemetry
+=== TEST 7: not trigger opentelemetry
 --- request
 GET /opentracing
 --- response_body
@@ -201,7 +220,7 @@ qr/opentelemetry export span/
 
 
 
-=== TEST 7: use trace_id_ratio sampler, fraction = 1.0
+=== TEST 8: use trace_id_ratio sampler, fraction = 1.0
 --- config
     location /t {
         content_by_lua_block {
@@ -238,7 +257,7 @@ qr/opentelemetry export span/
 
 
 
-=== TEST 8: trigger opentelemetry
+=== TEST 9: trigger opentelemetry
 --- request
 GET /opentracing
 --- response_body
@@ -251,7 +270,7 @@ opentelemetry export span
 
 
 
-=== TEST 9: use parent_base sampler, default root sampler = always_off
+=== TEST 10: use parent_base sampler, default root sampler = always_off
 --- config
     location /t {
         content_by_lua_block {
@@ -285,7 +304,7 @@ opentelemetry export span
 
 
 
-=== TEST 10: not trigger opentelemetry
+=== TEST 11: not trigger opentelemetry
 --- request
 GET /opentracing
 --- response_body
@@ -296,7 +315,7 @@ qr/opentelemetry export span/
 
 
 
-=== TEST 11: use parent_base sampler, root sampler = always_on
+=== TEST 12: use parent_base sampler, root sampler = always_on
 --- config
     location /t {
         content_by_lua_block {
@@ -335,7 +354,7 @@ qr/opentelemetry export span/
 
 
 
-=== TEST 12: trigger opentelemetry
+=== TEST 13: trigger opentelemetry
 --- request
 GET /opentracing
 --- response_body
@@ -348,7 +367,7 @@ opentelemetry export span
 
 
 
-=== TEST 13: use parent_base sampler, root sampler = trace_id_ratio with default fraction = 0
+=== TEST 14: use parent_base sampler, root sampler = trace_id_ratio with default fraction = 0
 --- config
     location /t {
         content_by_lua_block {
@@ -387,7 +406,7 @@ opentelemetry export span
 
 
 
-=== TEST 14: not trigger opentelemetry
+=== TEST 15: not trigger opentelemetry
 --- request
 GET /opentracing
 --- response_body
@@ -398,7 +417,7 @@ qr/opentelemetry export span/
 
 
 
-=== TEST 15: trigger opentelemetry, trace_flag = 1
+=== TEST 16: trigger opentelemetry, trace_flag = 1
 --- request
 GET /opentracing
 --- more_headers
@@ -413,7 +432,7 @@ opentelemetry export span
 
 
 
-=== TEST 16: use parent_base sampler, root sampler = trace_id_ratio with fraction = 1
+=== TEST 17: use parent_base sampler, root sampler = trace_id_ratio with fraction = 1
 --- config
     location /t {
         content_by_lua_block {
@@ -455,7 +474,7 @@ opentelemetry export span
 
 
 
-=== TEST 17: trigger opentelemetry
+=== TEST 18: trigger opentelemetry
 --- request
 GET /opentracing
 --- response_body
@@ -468,7 +487,7 @@ opentelemetry export span
 
 
 
-=== TEST 18: not trigger opentelemetry, trace_flag = 0
+=== TEST 19: not trigger opentelemetry, trace_flag = 0
 --- request
 GET /opentracing
 --- more_headers
@@ -481,7 +500,7 @@ qr/opentelemetry export span/
 
 
 
-=== TEST 19: set additional_attributes
+=== TEST 20: set additional_attributes
 --- config
     location /t {
         content_by_lua_block {
@@ -534,19 +553,36 @@ qr/opentelemetry export span/
 
 
 
-=== TEST 20: trigger opentelemetry, test trace_id_source=x-request-id, custom resource, additional_attributes
---- extra_yaml_config
-plugins:
-    - opentelemetry
-plugin_attr:
-    opentelemetry:
-        trace_id_source: x-request-id
-        resource:
-            service.name: test
-            test_key: test_val
-        batch_span_processor:
-            max_export_batch_size: 1
-            inactive_timeout: 0.5
+=== TEST 21: update plugin metadata
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/plugin_metadata/opentelemetry',
+                ngx.HTTP_PUT,
+                [[{
+                    "trace_id_source": "x-request-id",
+                    "resource": {
+                        "service.name": "test",
+                        "test_key": "test_val"
+                    },
+                    "batch_span_processor": {
+                        "max_export_batch_size": 1,
+                        "inactive_timeout": 0.5
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+
+
+
+=== TEST 22: trigger opentelemetry, test trace_id_source=x-request-id, custom resource, additional_attributes
 --- extra_init_by_lua
     local core = require("apisix.core")
     local otlp = require("opentelemetry.trace.exporter.otlp")
@@ -641,7 +677,7 @@ opentelemetry export span
 
 
 
-=== TEST 21: create route for /specific_status
+=== TEST 23: create route for /specific_status
 --- config
     location /t {
         content_by_lua_block {
@@ -676,7 +712,7 @@ opentelemetry export span
 
 
 
-=== TEST 22: 500 status, test span.status
+=== TEST 24: 500 status, test span.status
 --- extra_init_by_lua
     local otlp = require("opentelemetry.trace.exporter.otlp")
     otlp.export_spans = function(self, spans)
@@ -710,7 +746,7 @@ opentelemetry export span
 
 
 
-=== TEST 23: test response empty body
+=== TEST 25: test response empty body
 --- extra_init_by_lua
     local otlp = require("opentelemetry.trace.exporter.otlp")
     otlp.export_spans = function(self, spans)

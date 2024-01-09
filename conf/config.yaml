@@ -70,6 +70,7 @@ plugins:    # plugin list
   - proxy-control
   - request-id
   - zipkin
+  - opentelemetry
   - ext-plugin-pre-req
   - fault-injection
   - mocking

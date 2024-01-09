@@ -110,5 +110,6 @@ deps:
 
 build-image: ## Build docker image
 	@sed -i '/- server-info/d' conf/config-default.yaml
+	@sed -i 's/#- opentelemetry/- opentelemetry/' conf/config-default.yaml
 	@docker build -t api7-ee-3-gateway:dev .
 .PHONY: build-image
