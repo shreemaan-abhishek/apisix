@@ -1,0 +1,107 @@
+name: CI GM
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+  pull_request:
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/main' && github.run_number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - ubuntu-20.04
+        os_name:
+          - linux_openresty_tongsuo
+        test_dir:
+          - t/gm
+
+    runs-on: ${{ matrix.platform }}
+    timeout-minutes: 90
+    env:
+      SERVER_NAME: ${{ matrix.os_name }}
+      OPENRESTY_VERSION: default
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3.2.0
+        with:
+          token: ${{ secrets.PERSONAL_TOKEN }}
+          submodules: recursive
+
+      - name: Check out APISIX repo
+        run: |
+          make init_apisix
+          make patch_apisix
+          make install
+
+      - name: Install lua-resty-openapi-validate
+        run: |
+          ./ci/utils/install-lua-resty-openapi-validate.sh workbench
+
+      - name: Cache deps
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-deps
+        with:
+          path: deps
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.os_name }}-${{ hashFiles('rockspec/api7-master-0.rockspec') }}
+
+      - name: Cache Tongsuo compilation
+        id: cache-tongsuo
+        uses: actions/cache@v3
+        env:
+          cache-name: cache-tongsuo
+        with:
+          path: ./tongsuo
+          # TODO: use a fixed release once they have created one.
+          # See https://github.com/Tongsuo-Project/Tongsuo/issues/318
+          key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.os_name }}-tongsuo-ver
+
+      - name: Test SSL Env
+        id: test_ssl_env
+        shell: bash
+        if: steps.cache-tongsuo.outputs.cache-hit != 'true'
+        run: |
+          echo "compile_tongsuo=true" >>$GITHUB_OUTPUT
+
+      - name: Linux launch common services
+        working-directory: workbench
+        run: |
+          make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
+
+      - name: Linux Before install
+        working-directory: workbench
+        env:
+          COMPILE_TONGSUO: ${{ steps.test_ssl_env.outputs.compile_tongsuo }}
+        run: |
+          sudo --preserve-env=COMPILE_TONGSUO \
+          ./ci/${{ matrix.os_name }}_runner.sh before_install
+
+      - name: Linux Do install
+        working-directory: workbench
+        run: |
+          sudo --preserve-env=OPENRESTY_VERSION \
+            ./ci/${{ matrix.os_name }}_runner.sh do_install
+
+      - name: Linux Script
+        working-directory: workbench
+        env:
+          TEST_FILE_SUB_DIR: ${{ matrix.test_dir }}
+        run: |
+          sudo -E ./ci/${{ matrix.os_name }}_runner.sh script
