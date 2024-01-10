@@ -56,7 +56,7 @@ install_module() {
     # use ee's rockspec
     cp -av "${VAR_CUR_HOME}/api7-master-0.rockspec" "${VAR_APISIX_HOME}/rockspec/"
     sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/g' "${VAR_APISIX_HOME}/Makefile"
-
+    sed -i 's/API7/APISIX/g' "${VAR_APISIX_HOME}/apisix/init.lua"
 }
 
 test_env() {
