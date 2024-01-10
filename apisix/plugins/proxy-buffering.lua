@@ -15,6 +15,7 @@
 -- limitations under the License.
 --
 local require = require
+local ngx     = ngx
 local core = require("apisix.core")
 
 

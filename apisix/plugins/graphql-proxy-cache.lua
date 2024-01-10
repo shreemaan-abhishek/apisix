@@ -13,6 +13,7 @@ local ipairs = ipairs
 local pcall = pcall
 local os = os
 local ngx  = ngx
+local type = type
 local ngx_var = ngx.var
 local ngx_md5 = ngx.md5
 
@@ -87,7 +88,8 @@ local fetch_graphql_body = {
             return nil, "failed to read graphql data, args has zero size"
         end
         if #body > max_size then
-            return nil, "failed to read graphql data, args size " .. #body .. " is greater than the "
+            return nil, "failed to read graphql data, args size " .. #body
+                        .. " is greater than the "
                         .. "maximum size " .. max_size .. " allowed"
         end
 
@@ -244,7 +246,8 @@ function _M.header_filter(conf, ctx)
     end
 
     local cache_conf = graphql_cache_conf(ctx, conf)
-    core.log.info("graphql-proxy-cache plugin header filter phase, conf: ", core.json.delay_encode(cache_conf))
+    core.log.info("graphql-proxy-cache plugin header filter phase, conf: ",
+                    core.json.delay_encode(cache_conf))
 
     local handler
     if ctx.graphql_cache_conf.cache_strategy == STRATEGY_MEMORY then
@@ -263,7 +266,8 @@ function _M.body_filter(conf, ctx)
     end
 
     local cache_conf = graphql_cache_conf(ctx, conf)
-    core.log.info("graphql-proxy-cache plugin body filter phase, conf: ", core.json.delay_encode(cache_conf))
+    core.log.info("graphql-proxy-cache plugin body filter phase, conf: ",
+                        core.json.delay_encode(cache_conf))
 
     if ctx.graphql_cache_conf.cache_strategy == STRATEGY_MEMORY then
         memory_handler.body_filter(cache_conf, ctx)

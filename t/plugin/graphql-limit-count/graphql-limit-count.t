@@ -275,7 +275,6 @@ X-RateLimit-Remaining: 1
 
 
 
-
 === TEST 13: set route: graphql limit-count with redis-cluster policy
 --- config
     location /t {

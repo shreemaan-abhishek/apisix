@@ -1,5 +1,6 @@
 local core = require("apisix.core")
 local validator = require("resty.validator")
+local tostring  = tostring
 local ngx_req = ngx.req
 
 local schema = {
@@ -10,7 +11,8 @@ local schema = {
             type = "string",
             minLength = 1
         },
-        verbose_errors = { -- TODO: try to leverage this feature to avoid creating an interned lua string for perf
+        -- TODO: try to leverage this feature to avoid creating an interned lua string for perf
+        verbose_errors = {
             type = "boolean",
             default = false
         },
@@ -84,7 +86,10 @@ function _M.access(conf, ctx)
         headers_json = tostring(core.json.encode(headers))
     end
 
-    local ok, err = validator.validate_request(core.request.get_method(), ctx.var.request_uri, headers_json, req_body_json, conf.spec, conf.skip_path_params_validation, conf.skip_query_param_validation)
+    local ok, err = validator.validate_request(core.request.get_method(), ctx.var.request_uri,
+                                                    headers_json, req_body_json, conf.spec,
+                                                    conf.skip_path_params_validation,
+                                                    conf.skip_query_param_validation)
 
     if not ok then
         core.log.error("error occured while validating request, err: " .. err)

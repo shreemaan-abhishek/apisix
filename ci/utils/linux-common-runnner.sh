@@ -99,7 +99,7 @@ run_case() {
     t/plugin/test_proxy_buffering.sh
     ./bin/apisix stop
 
-    FLUSH_ETCD=1 prove -I../test-nginx/lib -I./ -r -s t/demo t/admin/routes2.t t/node/service-path-prefix.t \
+    FLUSH_ETCD=1 prove -I../test-nginx/lib -I./ -r -s t/admin/routes2.t t/node/service-path-prefix.t \
         t/api7-agent \
         t/plugin/graphql-proxy-cache \
         t/plugin/traffic-label.t t/plugin/traffic-label2.t \

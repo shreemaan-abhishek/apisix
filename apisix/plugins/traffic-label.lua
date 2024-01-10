@@ -121,7 +121,8 @@ function _M.check_schema(conf)
     for _, rule in ipairs(conf.rules) do
         local ok, err = expr.new(rule.match or {})
         if not ok then
-            return false, "failed to validate the 'match' expression: " .. core.json.encode(rule.match) .. " err: " .. err
+            return false, "failed to validate the 'match' expression: " ..
+                            core.json.encode(rule.match) .. " err: " .. err
         end
 
         for _, action in ipairs(rule.actions) do
@@ -185,7 +186,7 @@ function _M.access(conf, ctx)
     end
 
     for i, rule in ipairs(conf.rules) do
-        local expr, _ = conf.rules_arr[i]
+        local expr = conf.rules_arr[i]
         match_result = expr:eval(ctx.var)
 
         if match_result then

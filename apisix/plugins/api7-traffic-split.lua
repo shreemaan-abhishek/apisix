@@ -1,26 +1,19 @@
 -- local common libs
 local core       = require("apisix.core")
-local upstream   = require("apisix.upstream")
 local schema_def = require("apisix.schema_def")
 local roundrobin = require("resty.roundrobin")
-local ipmatcher  = require("resty.ipmatcher")
 local expr       = require("resty.expr.v1")
 
 -- local function
 local core_log     = core.log
 local ipairs       = ipairs
-local pairs        = pairs
 local table_insert = table.insert
 local tostring     = tostring
-local type         = type
 
-local core_json_encode           = core.json.encode
-local core_resolver_parse_domain = core.resolver.parse_domain
 local core_schema_check          = core.schema.check
 local core_string_format         = core.string.format
 local core_table_clone           = core.table.clone
 local core_table_merge           = core.table.merge
-local core_utils_parse_addr      = core.utils.parse_addr
 
 -- pre-defined resource
 local lrucache = core.lrucache.new({
@@ -173,7 +166,8 @@ function _M.check_schema(conf)
 
     for idx, cupstream in ipairs(conf.upstreams) do
         if upstream_hash[cupstream.name] then
-            return false, core_string_format("duplicate upstream [%d] name found: %s", idx, cupstream.name)
+            return false, core_string_format("duplicate upstream [%d] name found: %s",
+                                                idx, cupstream.name)
         end
 
         upstream_hash[cupstream.name] = true
@@ -188,8 +182,9 @@ function _M.check_schema(conf)
         if rule.canary_upstreams then
             for cidx, cupstream in ipairs(rule.canary_upstreams) do
                 if cupstream.upstream_name and not upstream_hash[cupstream.upstream_name] then
-                    return false, core_string_format("failed to fetch rules[%d].canary_upstreams[%d].upstream_name: "
-                                                     .. "[%s] in conf.upstreams", idx, cidx, cupstream.upstream_name)
+                    return false, core_string_format("failed to fetch "
+                                 .. "rules[%d].canary_upstreams[%d].upstream_name: [%s] "
+                                 .. "in conf.upstreams", idx, cidx, cupstream.upstream_name)
                 end
             end
         end
@@ -254,7 +249,8 @@ function _M.access(conf, ctx)
         return
     end
 
-    local rr_up, err = lrucache(canary_upstreams, ctx.conf_version, new_rr_obj, canary_upstreams, conf)
+    local rr_up, err = lrucache(canary_upstreams, ctx.conf_version, new_rr_obj,
+                                    canary_upstreams, conf)
     if not rr_up then
         core_log.error("lrucache roundrobin failed: ", err)
         return 500

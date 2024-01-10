@@ -497,7 +497,6 @@ local upstream_schema = {
             default = "pass"
         },
         upstream_host = host_def,
-        name = rule_name_def,
         desc = desc_def,
         service_name = {
             type = "string",
