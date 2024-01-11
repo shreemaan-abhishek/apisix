@@ -66,7 +66,9 @@ local metadata_schema = {
         resource = {
             type = "object",
             description = "additional resource",
-            additionalProperties = {{type = "boolean"}, {type = "number"}, {type = "string"}},
+            additionalProperties = {
+                one_of = {{type = "boolean"},{type = "number"}, {type = "string"}},
+            },
         },
         collector = {
             type = "object",
