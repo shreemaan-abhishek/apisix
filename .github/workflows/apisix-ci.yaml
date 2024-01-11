@@ -136,6 +136,7 @@ jobs:
         if: matrix.os_name == 'linux_openresty' && steps.test_env.outputs.type == 'plugin'
         run: |
           cd workbench
+          sudo apt-get update
           sudo apt install -y maven
           cd t/lib/dubbo-backend
           mvn package
