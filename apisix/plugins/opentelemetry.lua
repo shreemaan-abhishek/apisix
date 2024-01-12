@@ -219,15 +219,7 @@ function _M.init()
 end
 
 
-local function create_tracer_obj(conf)
-    local metadata = plugin.plugin_metadata(plugin_name)
-    if metadata == nil then
-        core.log.warn("plugin_metadata is required for opentelemetry plugin to working properly")
-        return
-    end
-    core.log.info("metadata: ", core.json.delay_encode(metadata))
-    local plugin_info = metadata.value
-
+local function create_tracer_obj(conf, plugin_info)
     if plugin_info.trace_id_source == "x-request-id" then
         id_generator.new_ids = function()
             local trace_id = core.request.headers()["x-request-id"] or ngx_var.request_id
@@ -306,7 +298,15 @@ end
 
 
 function _M.rewrite(conf, api_ctx)
-    local tracer, err = core.lrucache.plugin_ctx(lrucache, api_ctx, nil, create_tracer_obj, conf)
+    local metadata = plugin.plugin_metadata(plugin_name)
+    if metadata == nil then
+        core.log.warn("plugin_metadata is required for opentelemetry plugin to working properly")
+        return
+    end
+    core.log.info("metadata: ", core.json.delay_encode(metadata))
+
+    local tracer, err = core.lrucache.plugin_ctx(lrucache, api_ctx, metadata.modifiedIndex,
+                                                    create_tracer_obj, conf, metadata.value)
     if not tracer then
         core.log.error("failed to fetch tracer object: ", err)
         return
