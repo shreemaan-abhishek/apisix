@@ -1,0 +1,120 @@
+local core = require("apisix.core")
+local nacos_factory = require("agent.discovery.nacos.factory")
+local utils = require("agent.discovery.nacos.utils")
+local health_check = require("resty.healthcheck")
+local process = require("ngx.process")
+
+local nacos_dict = ngx.shared.nacos
+
+local _M = {}
+local nacos_clients = {}
+
+
+function _M.nodes(service_name, discovery_args)
+    local value = nacos_dict:get_stale(service_name)
+
+    local nodes = {}
+    if not value then
+         -- maximum waiting time: 5 seconds
+        local waiting_time = 5
+        local step = 0.1
+        local logged = false
+        while not value and waiting_time > 0 do
+            if not logged then
+                core.log.warn("nacos service not found: ", service_name, " waiting for ", waiting_time, " seconds")
+                logged = true
+            end
+
+            ngx.sleep(step)
+            waiting_time = waiting_time - step
+            value = nacos_dict:get_stale(service_name)
+        end
+    end
+
+    if not value then
+        core.log.error("nacos service not found: ", service_name)
+        return nodes
+    end
+
+    nodes = core.json.decode(value)
+
+    local res = {}
+    for _, node in ipairs(nodes) do
+        if discovery_args then
+            if utils.match_metdata(node.metadata, discovery_args.metadata) then
+                core.table.insert(res, node)
+            end
+        else
+            core.table.insert(res, node)
+        end
+    end
+
+    core.log.info("nacos service_name: ", service_name, " nodes: ", core.json.encode(res))
+    return res
+end
+
+
+function _M.init_worker()
+    local local_conf = require("apisix.core.config_local").local_conf(true)
+    local discovery_conf = local_conf.api7_discovery.nacos
+
+    if process.type() ~= "privileged agent" then
+        return
+    end
+
+    local keep = {}
+    for _, val in ipairs(discovery_conf) do
+        local id = val.id
+        local version = ngx.md5(core.json.encode(val, true))
+        keep[id] = true
+
+        -- The nacos config has not been changed.
+        if nacos_clients[id] and nacos_clients[id].version == version then
+            goto CONTINUE
+        end
+
+        if nacos_clients[id] then
+            nacos_clients[id].stop()
+        end
+        local new_client = nacos_factory.new(val)
+        new_client:start()
+        nacos_clients[id] = new_client
+
+        ::CONTINUE::
+    end
+
+
+    for id, client in pairs(nacos_clients) do
+        -- The nacos config has been deleted.
+        if not keep[client.id] then
+            client:stop()
+            nacos_clients[id] = nil
+        end
+    end
+end
+
+
+-- Now we use control plane to list the services
+function _M.list_all_services()
+    return {}
+end
+
+
+function _M.get_health_checkers()
+    local result = core.table.new(0, 4)
+    if nacos_clients == nil then
+        return result
+    end
+
+    for id in pairs(nacos_clients) do
+        local list = health_check.get_target_list(id, "nacos")
+        if list then
+            result[id] = list
+        end
+    end
+
+    return result
+end
+
+
+return _M

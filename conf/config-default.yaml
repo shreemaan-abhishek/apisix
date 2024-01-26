@@ -215,6 +215,7 @@ nginx_config:                     # config for render the template to generate n
     #  ipc_shared_dict: 100m       # custom shared cache, format: `cache-key: cache-size`
       config: 5m
       kubernetes: 20m
+      nacos: 20m
 
     # Enables or disables passing of the server name through TLS Server Name Indication extension (SNI, RFC 6066)
     # when establishing a connection with the proxied HTTPS server.

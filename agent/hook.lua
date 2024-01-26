@@ -81,7 +81,7 @@ config_local.local_conf = function(force)
     end
 
     --- Enable the kubernetes discovery by default.
-    local latest_config_payload = get_config_from_dict("config_payload", "{\"api7_discovery\": {\"kubernetes\": []}}")
+    local latest_config_payload = get_config_from_dict("config_payload", "{\"api7_discovery\": {\"kubernetes\": [], \"nacos\": []}}")
     if not latest_config_payload then
         return default_conf
     end

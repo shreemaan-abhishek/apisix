@@ -1,8 +1,7 @@
 local log          = require("apisix.core.log")
 local pairs        = pairs
 
--- Now we only support "kubernetes" discovery type
-local discovery_type = {"kubernetes"}
+local discovery_type = {"kubernetes", "nacos"}
 local discovery = {}
 
 local _M = {
