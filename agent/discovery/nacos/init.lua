@@ -74,7 +74,7 @@ function _M.init_worker()
         end
 
         if nacos_clients[id] then
-            nacos_clients[id].stop()
+            nacos_clients[id]:stop()
         end
         local new_client = nacos_factory.new(val)
         new_client:start()
