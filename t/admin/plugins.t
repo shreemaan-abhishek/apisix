@@ -85,6 +85,7 @@ hmac-auth
 basic-auth
 jwt-auth
 key-auth
+acl
 consumer-restriction
 forward-auth
 opa
