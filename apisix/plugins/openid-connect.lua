@@ -330,6 +330,8 @@ function _M.rewrite(plugin_conf, ctx)
                     ngx_encode_base64(core.json.encode(userinfo)))
             end
         end
+
+        ctx.external_user = userinfo
     end
 
     if not response then
@@ -385,6 +387,8 @@ function _M.rewrite(plugin_conf, ctx)
             if session.data.refresh_token and conf.set_refresh_token_header then
                 core.request.set_header(ctx, "X-Refresh-Token", session.data.refresh_token)
             end
+
+            ctx.external_user = response.user
         end
     end
 end

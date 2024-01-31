@@ -59,8 +59,8 @@ passed
                         }
                     },
                     "labels": {
-                        "org": "opensource,apache",
-                        "project": "tomcat,web-server"
+                        "org": "[\"opensource\",\"apache\"]",
+                        "project": "[\"tomcat\",\"web-server\",\"http,server\"]"
                     }
                 }]]
                 )
@@ -323,7 +323,135 @@ Authorization: Basic cm9zZToxMjM0NTY=
 
 
 
-=== TEST 16: delete route
+=== TEST 16: set allow_labels with comma
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "basic-auth": {},
+                            "acl": {
+                                 "allow_labels": {
+                                    "project": ["http,server"]
+                                 }
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 17: verify jack
+--- request
+GET /hello
+--- more_headers
+Authorization: Basic amFjazoxMjM0NTY=
+--- error_code: 403
+
+
+
+=== TEST 18: verify rose
+--- request
+GET /hello
+--- more_headers
+Authorization: Basic cm9zZToxMjM0NTY=
+--- response_body
+hello world
+
+
+
+=== TEST 19: test acl with external user
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                                "phase": "access",
+                                "functions" : ["return function(conf, ctx)
+                                            local core = require(\"apisix.core\");
+                                            local uri_args = core.request.get_uri_args(ctx) or {};
+                                            if type(uri_args.team) == \"table\" then ctx.external_user = { team = uri_args.team } else ctx.external_user = { team = { uri_args.team } } end;
+                                            end"]
+                            },
+                            "acl": {
+                                 "external_user_label_field": "team",
+                                 "allow_labels": {
+                                    "team": ["cloud","infra","devops","qa"]
+                                 }
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 20: verify infra team
+--- request
+GET /hello?team=infra
+--- response_body
+hello world
+
+
+
+=== TEST 21: verify infra & fake team
+--- request
+GET /hello?team=infra&team=fake
+--- response_body
+hello world
+
+
+
+=== TEST 22: verify fake team
+--- request
+GET /hello?team=fake
+--- error_code: 403
+
+
+
+=== TEST 23: delete route
 --- config
     location /t {
         content_by_lua_block {
@@ -341,7 +469,7 @@ passed
 
 
 
-=== TEST 17: delete jack
+=== TEST 24: delete jack
 --- config
     location /t {
         content_by_lua_block {
@@ -359,7 +487,7 @@ passed
 
 
 
-=== TEST 18: delete rose
+=== TEST 25: delete rose
 --- config
     location /t {
         content_by_lua_block {

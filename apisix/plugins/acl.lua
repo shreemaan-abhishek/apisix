@@ -1,3 +1,4 @@
+local type      = type
 local ipairs    = ipairs
 local pairs     = pairs
 local re_split  = require("ngx.re").split
@@ -5,6 +6,7 @@ local core      = require("apisix.core")
 local schema = {
     type = "object",
     properties = {
+        external_user_label_field = {type = "string", default = "groups"},
         allow_labels = {
             type = "object",
             minProperties = 1,
@@ -45,16 +47,33 @@ local _M = {
     schema = schema,
 }
 
-local function contains_value(want_values, value_str)
-    local values = { value_str }
-    if core.string.find(value_str, ",") then
-        local res, err = re_split(value_str, ",", "jo")
-        if res then
-            values = res
-        else
-            core.log.warn("failed to split labels [", value_str, "], err: ", err)
+local function contains_value(want_values, value)
+    local values
+    local typ = type(value)
+    if typ == "table" then
+        values = value
+    elseif typ == "string" then
+        values = { value }
+        if core.string.has_prefix(value, "[") then
+            local res, err = core.json.decode(value)
+            if res then
+                values = res
+            else
+                core.log.warn("failed to decode labels [", value, "] as array, err: ", err)
+            end
+        elseif core.string.find(value, ",") then
+            local res, err = re_split(value, ",", "jo")
+            if res then
+                values = res
+            else
+                core.log.warn("failed to split labels [", value, "], err: ", err)
+            end
         end
+    else
+        core.log.error("unsupported type of label value: ", typ)
+        return false
     end
+
     for _, want in ipairs(want_values) do
         for _, value in ipairs(values) do
             if want == value then
@@ -93,20 +112,26 @@ function _M.check_schema(conf)
 end
 
 function _M.access(conf, ctx)
-    local consumer = ctx.consumer
-
-    if not consumer then
+    local labels
+    if ctx.consumer then
+        labels = ctx.consumer.labels
+    elseif ctx.external_user then
+        labels = { [conf.external_user_label_field] =
+                        ctx.external_user[conf.external_user_label_field] }
+    else
         return 401, { message = "Missing authentication."}
     end
 
+    core.log.info("consumer's or user's labels: ", core.json.delay_encode(labels))
+
     if conf.deny_labels then
-        if contains_label(conf.deny_labels, consumer.labels) then
+        if contains_label(conf.deny_labels, labels) then
             return reject(conf)
         end
     end
 
     if conf.allow_labels then
-        if not contains_label(conf.allow_labels, consumer.labels) then
+        if not contains_label(conf.allow_labels, labels) then
             return reject(conf)
         end
     end
