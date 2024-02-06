@@ -92,6 +92,7 @@ plugins:    # plugin list
   - basic-auth
   - jwt-auth
   - key-auth
+  - multi-auth
   - acl
   - consumer-restriction
   - forward-auth

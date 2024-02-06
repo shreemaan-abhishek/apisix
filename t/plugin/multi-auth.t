@@ -73,17 +73,12 @@ passed
                                 },
                                 {
                                     "key-auth": {
-                                        "query": "apikey",
-                                        "hide_credentials": true,
-                                        "header": "apikey"
+                                        "hide_credentials": true
                                     }
                                 },
                                 {
                                     "jwt-auth": {
-                                        "cookie": "jwt",
-                                        "query": "jwt",
-                                        "hide_credentials": true,
-                                        "header": "authorization"
+                                        "hide_credentials": true
                                     }
                                 }
                             ]
