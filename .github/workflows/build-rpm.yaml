@@ -1,0 +1,139 @@
+name: Build rpm package
+
+on:
+  push:
+    branches:
+      - main
+      - "feat/ht_msg_pub"
+    tags:
+      - "**"
+  pull_request:
+    branches:
+      # - "main"
+      - "feat/ht_msg_pub"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-rpm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      APISIX_BASE_VERSION: 1.21.4.1.8
+    services:
+      etcd:
+        image: bitnami/etcd:3.4.16
+        ports:
+          - 2379:2379
+          - 2380:2380
+        env:
+          ALLOW_NONE_AUTHENTICATION: yes
+          ETCD_ADVERTISE_CLIENT_URLS: http://0.0.0.0:2379
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Set API7 Gateway version
+        id: version
+        run: |
+          VERSION=$(cat ./apisix/core/version.lua | grep -o 'VERSION = "[^"]*"' | awk -F'"' '{print $2}')
+          echo "GATEWAY_VERSION=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Check out APISIX repo
+        run: |
+          sudo make init_apisix
+          sudo make patch_apisix
+
+      - name: Install custom API7 Gateway module
+        run: |
+          sudo make install
+
+      - name: install dependencies
+        run: |
+          sudo apt-get install -y make ruby ruby-dev rubygems build-essential
+          sudo gem install --no-document fpm
+          sudo apt-get install -y rpm
+
+      - name: clone apisix-build-tools
+        run: |
+          git clone -b apisix/3.2.1 https://github.com/api7/apisix-build-tools.git
+          sudo mv apisix-build-tools workbench
+
+      - name: Build API7 Gateway rpm package
+        run: |
+          # build API7 Gateway with apisix-base
+          sudo sed -i 's@mv /tmp/build/output/apisix/usr/local/apisix/deps/share/lua/5.1/apisix /tmp/build/output/apisix/usr/local/apisix/@cp -av /apisix/apisix/ /tmp/build/output/apisix/usr/local/apisix/ \n cp -av /apisix/conf/ /tmp/build/output/apisix/usr/local/apisix/@' ./apisix-build-tools/utils/install-common.sh
+          sudo VERSION=${{ steps.version.outputs.GATEWAY_VERSION }} APISIX_BASE_VERSION=${APISIX_BASE_VERSION} ./ci/utils/package_rpm.sh
+          sudo mkdir -p api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64
+          sudo mv ./apisix-build-tools/output/api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64.rpm ./api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64/
+        working-directory: workbench
+
+      - name: Build APISIX Base rpm package
+        run: |
+          cd ./apisix-build-tools
+          # build apisix-base
+          make package type=rpm app=apisix-base version=${APISIX_BASE_VERSION} image_base=centos image_tag=7
+          cd ../
+          sudo mv ./apisix-build-tools/output/apisix-base-${APISIX_BASE_VERSION}-0.el7.x86_64.rpm ./api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64/
+        working-directory: workbench
+
+      - name: download rpm depends
+        env:
+          DP_VERSION: ${{ steps.version_dp.outputs.API7_GATEWAY_VERSION }}
+        run: |
+          sudo docker run --rm -v $(pwd)/api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64/:/rpm/ centos:7 bash -c "
+          rpm --import https://repos.apiseven.com/KEYS
+          yum -y install https://repos.apiseven.com/packages/centos/apisix-base-1.0-1.noarch.rpm
+          pushd rpm
+          yum -y install *.rpm --downloadonly --downloaddir=/rpm/
+          popd
+          ls -l /rpm 
+          "
+        working-directory: workbench
+
+      - name: package in one
+        env:
+          DP_VERSION: ${{ steps.version_dp.outputs.API7_GATEWAY_VERSION }}
+        run: |
+          sudo tar -zcvf api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64.rpm.tar.gz api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64/
+        working-directory: workbench
+
+      - name: run centos7 docker and mapping rpm into container
+        run: |
+          docker run \
+          -v $PWD/api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64.rpm.tar.gz:/tmp/api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64.rpm.tar.gz \
+          -itd --name centos7Instance --net="host" docker.io/centos:7 /bin/bash
+        working-directory: workbench
+
+      - name: install all dependencies of API7 Gateway in container
+        run: |
+          docker exec centos7Instance bash -c "rpm --import https://repos.apiseven.com/KEYS"
+          docker exec centos7Instance bash -c "yum -y install https://repos.apiseven.com/packages/centos/apache-apisix-repo-1.0-1.noarch.rpm"
+
+      - name: install API7 Gateway which depens on APISIX Base by rpm in container
+        run: |
+          docker exec centos7Instance bash -c "
+          cd /tmp/ && 
+          tar -zxvf api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64.rpm.tar.gz &&
+          cd api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64 &&
+          yum -y localinstall *.rpm --disablerepo='*'
+          "
+          docker exec centos7Instance bash -c "sed -i '/lua_module_hook/d' /usr/local/apisix/conf/config-default.yaml"
+          docker exec centos7Instance bash -c "apisix start"
+
+      - name: Publish API7 Gateway Artifact
+        uses: actions/upload-artifact@v2.2.3
+        with:
+          name: "api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64.rpm.tar.gz"
+          path: "./workbench/api7-gateway-${{ steps.version.outputs.GATEWAY_VERSION }}-0.el7.x86_64.rpm.tar.gz"
+          retention-days: 3
+
+      - name: check and ensure API7 Gateway is installed
+        run: |
+          code=$(curl -k -i -m 20 -o /dev/null -s -w %{http_code} http://127.0.0.1:9180/apisix/admin/routes -H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1')
+          if [ ! $code -eq 200 ]; then
+              echo "failed: failed to install API7 Gateway by rpm"
+              exit 1
+          fi

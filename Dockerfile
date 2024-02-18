@@ -43,12 +43,6 @@ WORKDIR /usr/local/apisix
 
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin:/usr/local/openresty/nginx/sbin:/usr/local/openresty/bin
 
-RUN groupadd --system --gid 636 apisix \
-    && useradd --system --gid apisix --no-create-home --shell /usr/sbin/nologin --uid 636 apisix \
-    && chown -R apisix:apisix /usr/local/apisix
-
-USER apisix
-
 # forward request and error logs to docker log collector
 RUN ln -sf /dev/stdout /usr/local/apisix/logs/access.log \
     && ln -sf /dev/stderr /usr/local/apisix/logs/error.log
@@ -65,8 +59,6 @@ STOPSIGNAL SIGQUIT
 
 # --- apisix-docker end ---
 
-USER root
-
 COPY ./api7-soap-proxy/soap_proxy.py /usr/local/api7-soap-proxy/soap_proxy.py
 COPY ./api7-soap-proxy/requirements.txt /usr/local/api7-soap-proxy/requirements.txt
 COPY ./api7-soap-proxy/logging.conf /usr/local/api7-soap-proxy/logging.conf
@@ -81,6 +73,10 @@ COPY --chown=apisix:apisix ./ci/utils/install-lua-resty-openapi-validate.sh /usr
 COPY --chown=apisix:apisix ./ci/utils/linux-install-luarocks.sh /usr/local/apisix/linux-install-luarocks.sh
 COPY --chown=apisix:apisix ./Makefile /usr/local/apisix/Makefile
 COPY --chown=apisix:apisix ./api7-master-0.rockspec /usr/local/apisix/api7-master-0.rockspec
+
+COPY --from=builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
+
+USER root
 
 WORKDIR /usr/local/api7-soap-proxy
 
@@ -110,3 +106,10 @@ RUN case $(dpkg --print-architecture) in \
 COPY --from=builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
 
 RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove wget gnupg unzip make luarocks ca-certificates sudo --allow-remove-essential
+
+RUN groupadd --system --gid 636 apisix \
+    && useradd --system --gid apisix --no-create-home --shell /usr/sbin/nologin --uid 636 apisix \
+    && chown -R apisix:apisix /usr/local/apisix \
+    && chown -R apisix:apisix /usr/local/api7-soap-proxy
+
+USER apisix

@@ -33,6 +33,8 @@ patch_apisix_code(){
     sed -ri -e "/make\s+ci-env-up/d" \
       -e "/linux-ci-init-service.sh/d" \
       "${VAR_APISIX_HOME}/ci/linux_openresty_common_runner.sh"
+
+    sed -i "s/npm.taobao.org/npmmirror.com/" ${VAR_APISIX_HOME}/t/plugin/grpc-web/package-lock.json
 }
 
 
@@ -58,6 +60,14 @@ install_module() {
     sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/g' "${VAR_APISIX_HOME}/Makefile"
     sed -i 's/API7/APISIX/g' "${VAR_APISIX_HOME}/apisix/init.lua"
     sed -i '/npm config set registry/ i \    npm config set strict-ssl false\n' "${VAR_APISIX_HOME}/ci/common.sh"
+
+    sed -i '298i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ht-msg-sub' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '299i __to_replace__	$(ENV_INSTALL) apisix/plugins/ht-msg-sub/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ht-msg-sub/' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '300i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ht-ws-msg-pub' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '301i __to_replace__	$(ENV_INSTALL) apisix/plugins/ht-ws-msg-pub/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ht-ws-msg-pub/' "${VAR_APISIX_HOME}/Makefile"
+    sed -i 's/__to_replace__//g' "${VAR_APISIX_HOME}/Makefile"
+
+    cat "${VAR_APISIX_HOME}/Makefile"
 }
 
 test_env() {
@@ -108,7 +118,8 @@ run_case() {
         t/plugin/soap.t \
         t/plugin/graphql-limit-count \
         t/plugin/acl* \
-        t/plugin/api7-traffic-split*
+        t/plugin/api7-traffic-split* \
+        t/plugin/ht-*
 }
 
 # =======================================

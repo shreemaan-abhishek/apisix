@@ -149,3 +149,5 @@ plugins:    # plugin list
   - serverless-post-function
   - ext-plugin-post-req
   - ext-plugin-post-resp
+  - ht-ws-msg-pub
+  - ht-msg-sub

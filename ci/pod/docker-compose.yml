@@ -37,6 +37,16 @@ services:
     networks:
       - api7
 
+  push-gateway:
+    hostname: push-gateway
+    container_name: api7-push-gateway
+    image: hkccr.ccs.tencentyun.com/api7/api7-ee-push-gateway:1.1.1
+    restart: always
+    ports:
+      - "9110:9110"
+    networks:
+      - api7
+
 networks:
   api7:
     driver: bridge
