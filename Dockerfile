@@ -84,6 +84,8 @@ RUN apt install -y python3 python3-pip && python3 -m pip install -r requirements
 
 RUN python3 -m compileall soap_proxy.py && mv __pycache__/soap_proxy.cpython-*.pyc soap_proxy.pyc && rm soap_proxy.py
 
+RUN touch /var/log/api7_soap_proxy.access.log /var/log/api7_soap_proxy.error.log
+
 WORKDIR /usr/local/apisix
 
 RUN bash /usr/local/apisix/api7-ljbc.sh && rm /usr/local/apisix/api7-ljbc.sh
@@ -110,6 +112,7 @@ RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove wget gnupg unzip make l
 RUN groupadd --system --gid 636 apisix \
     && useradd --system --gid apisix --no-create-home --shell /usr/sbin/nologin --uid 636 apisix \
     && chown -R apisix:apisix /usr/local/apisix \
-    && chown -R apisix:apisix /usr/local/api7-soap-proxy
+    && chown -R apisix:apisix /usr/local/api7-soap-proxy \
+    && chown -R apisix:apisix /var/log/api7_soap_proxy.*
 
 USER apisix
