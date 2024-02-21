@@ -454,8 +454,8 @@ plugins:                          # plugin list (sorted by priority)
   #- error-log-logger              # priority: 1091
   - body-transformer               # priority: 1080
   - proxy-mirror                   # priority: 1010
-  - proxy-cache                    # priority: 1009
   - graphql-proxy-cache            # priority: 1009
+  - proxy-cache                    # priority: 1009
   - proxy-rewrite                  # priority: 1008
   - workflow                       # priority: 1006
   - api-breaker                    # priority: 1005
