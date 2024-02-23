@@ -36,6 +36,7 @@ jobs:
     env:
       SERVER_NAME: ${{ matrix.os_name }}
       OPENRESTY_VERSION: default
+      abt_branch: apisix-base/1.21.4.2.2
 
     steps:
       - name: Check out code
@@ -96,7 +97,7 @@ jobs:
       - name: Linux Do install
         working-directory: workbench
         run: |
-          sudo --preserve-env=OPENRESTY_VERSION \
+          sudo --preserve-env=OPENRESTY_VERSION,abt_branch \
             ./ci/${{ matrix.os_name }}_runner.sh do_install
 
       - name: Linux Script
