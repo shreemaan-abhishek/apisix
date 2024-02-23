@@ -112,5 +112,7 @@ build-image: ## Build docker image
 	@sed -i '/- server-info/d' conf/config-default.yaml
 	@sed -i 's/#- opentelemetry/- opentelemetry/' conf/config-default.yaml
 	@sed -i 's/#- batch-request/- batch-request/' conf/config-default.yaml
+# disable etcd tls verify to avoid configure ssl_trusted_certificate
+	@sed -i 's/verify: true/verify: false/' conf/config-default.yaml
 	@docker build -t api7-ee-3-gateway:dev .
 .PHONY: build-image

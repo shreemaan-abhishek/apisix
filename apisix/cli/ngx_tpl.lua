@@ -60,6 +60,8 @@ env PATH; # for searching external plugin runner's binary
 env APISIX_DEPLOYMENT_ETCD_HOST;
 env API7_CONTROL_PLANE_ENDPOINTS;
 env API7_CONTROL_PLANE_TOKEN;
+env API7_CONTROL_PLANE_CERT;
+env API7_CONTROL_PLANE_KEY;
 
 {% if envs then %}
 {% for _, name in ipairs(envs) do %}
