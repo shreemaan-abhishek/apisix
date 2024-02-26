@@ -117,7 +117,7 @@ end
 _M.resolve_conf_var = resolve_conf_var
 
 
-local function replace_by_reserved_env_vars(apisix_home, conf)
+local function replace_by_reserved_env_vars(conf)
     -- TODO: support more reserved environment variables
     -- support APISIX_DEPLOYMENT_ETCD_HOST and API7_CONTROL_PLANE_ENDPOINTS
     local v = getenv("API7_CONTROL_PLANE_ENDPOINTS") or getenv("APISIX_DEPLOYMENT_ETCD_HOST")
@@ -134,13 +134,13 @@ local function replace_by_reserved_env_vars(apisix_home, conf)
     local cpCert = getenv("API7_CONTROL_PLANE_CERT")
     local cpKey = getenv("API7_CONTROL_PLANE_KEY")
     if cpCert and cpKey and conf["deployment"] and conf["deployment"]["etcd"] then
-        local certPath = apisix_home .. "/conf/api7ee.crt"
+        local certPath = "/tmp/api7ee.crt"
         local ok, err = util.write_file(certPath, cpCert)
         if not ok then
             util.die("failed to update nginx.conf: ", err, "\n")
         end
 
-        local keyPath = apisix_home .. "/conf/api7ee.key"
+        local keyPath = "/tmp/api7ee.key"
         local ok, err = util.write_file(keyPath, cpKey)
         if not ok then
             util.die("failed to update nginx.conf: ", err, "\n")
@@ -321,7 +321,7 @@ function _M.read_yaml_conf(apisix_home)
         end
     end
 
-    replace_by_reserved_env_vars(apisix_home, default_conf)
+    replace_by_reserved_env_vars(default_conf)
 
     return default_conf
 end
