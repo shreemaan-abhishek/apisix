@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - ubuntu-20.04
+          - buildjet-2vcpu-ubuntu-2004
         job_name:
           - linux_apisix_current_luarocks
           - linux_apisix_current_luarocks_in_customed_nginx
@@ -67,20 +67,33 @@ jobs:
           path: deps
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ matrix.job_name }}-${{ hashFiles('workbench/rockspec/api7-master-0.rockspec') }}
 
-      - name: Linux launch common services
+      - name: Set hostname
         run: |
-          cd workbench
+          sudo hostnamectl set-hostname ubuntu
+          sudo sh -c 'echo "127.0.1.1   $(hostname)" >> /etc/hosts'
+
+      - name: Linux launch common services
+        working-directory: workbench
+        run: |
           project_compose_ci=ci/pod/docker-compose.common.yml make ci-env-up
 
       - name: Linux Before install
-        run: cd workbench && sudo ./ci/${{ matrix.job_name }}_runner.sh before_install
+        working-directory: workbench
+        run: sudo ./ci/${{ matrix.job_name }}_runner.sh before_install
 
       - name: Linux Install
+        working-directory: workbench
         run: |
-            cd workbench
             sudo --preserve-env=OPENRESTY_VERSION \
             ./ci/${{ matrix.job_name }}_runner.sh do_install
             sudo cp ../deps/* -r /usr/local/
 
+      # The length of the working directory path for buildjet is too long,
+      # which will exceed the operating system's limit for the complete path of apisix config_listen.sock.
+      - name: move workbech to /tmp
+        run: |
+          sudo mv ./workbench /tmp
+
       - name: Linux Script
-        run: cd workbench && sudo ./ci/${{ matrix.job_name }}_runner.sh script
+        working-directory: /tmp/workbench
+        run: sudo ./ci/${{ matrix.job_name }}_runner.sh script

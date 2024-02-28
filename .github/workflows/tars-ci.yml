@@ -25,7 +25,7 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - ubuntu-20.04
+          - buildjet-2vcpu-ubuntu-2004
         os_name:
           - linux_openresty
 
@@ -52,18 +52,25 @@ jobs:
         run: |
           ./ci/utils/install-lua-resty-openapi-validate.sh workbench
 
-      - name: Setup Tars MySql
-        working-directory: workbench
-        run: |
-          docker run -d -p 3306:3306 -v $PWD/t/tars/conf/tars.sql:/docker-entrypoint-initdb.d/tars.sql -e MYSQL_ROOT_PASSWORD=tars2022 mysql:5.7
-
       - name: Linux Install
         working-directory: workbench
         run: |
           sudo ./ci/${{ matrix.os_name }}_runner.sh before_install
           sudo --preserve-env=OPENRESTY_VERSION ./ci/${{ matrix.os_name }}_runner.sh do_install
 
-      - name: Run test cases
-        working-directory: workbench
+      # The length of the working directory path for buildjet is too long,
+      # which will exceed the operating system's limit for the complete path of apisix config_listen.sock.
+      - name: move workbech to /tmp
         run: |
+          sudo mv ./workbench /tmp
+
+      - name: Setup Tars MySql
+        working-directory: /tmp/workbench
+        run: |
+          docker run -d -p 3306:3306 -v $PWD/t/tars/conf/tars.sql:/docker-entrypoint-initdb.d/tars.sql -e MYSQL_ROOT_PASSWORD=tars2022 mysql:5.7
+
+      - name: Run test cases
+        working-directory: /tmp/workbench
+        run: |
+          sleep 20
           ./ci/tars-ci.sh run_case

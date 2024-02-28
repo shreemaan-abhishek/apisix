@@ -15,7 +15,7 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - ubuntu-20.04
+          - buildjet-2vcpu-ubuntu-2004
         job_name:
           - linux_openresty
 
@@ -45,6 +45,15 @@ jobs:
           sudo make init_apisix
           sudo make patch_apisix
 
+      - name: Setup Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: "1.21.3"
+
+      - name: Install lua-resty-openapi-validate
+        run: |
+          ./ci/utils/install-lua-resty-openapi-validate.sh workbench
+
       - name: Install custom module
         run: |
           sudo make install
@@ -70,17 +79,14 @@ jobs:
           sudo ./ci/${{ matrix.job_name }}_runner.sh do_install
         working-directory: workbench
 
-      - name: Setup Go
-        uses: actions/setup-go@v3
-        with:
-          go-version: "1.21.3"
-
-      - name: Install lua-resty-openapi-validate
+      # The length of the working directory path for buildjet is too long,
+      # which will exceed the operating system's limit for the complete path of apisix config_listen.sock.
+      - name: move workbech to /tmp
         run: |
-          ./ci/utils/install-lua-resty-openapi-validate.sh workbench
+          sudo mv ./workbench /tmp
 
       - name: Run test case
         run: |
           sudo ./ci/utils/linux-common-runnner.sh test_env
           sudo ./ci/utils/linux-common-runnner.sh run_case
-        working-directory: workbench
+        working-directory: /tmp/workbench

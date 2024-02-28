@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         platform:
-          - ubuntu-20.04
+          - buildjet-4vcpu-ubuntu-2004
         os_name:
           - linux_openresty
         test_dir:
@@ -57,7 +57,7 @@ jobs:
           ./ci/utils/install-lua-resty-openapi-validate.sh workbench
 
       - name: Cache deps
-        uses: actions/cache@v3
+        uses: buildjet/cache@v3
         env:
           cache-name: cache-deps
         with:
@@ -66,7 +66,7 @@ jobs:
 
       - name: Cache openssl-3.0 compilation
         id: cache-openssl
-        uses: actions/cache@v3
+        uses: buildjet/cache@v3
         env:
           cache-name: cache-openssl
         with:
@@ -103,12 +103,17 @@ jobs:
 
       - name: Cache images
         id: cache-images
-        uses: actions/cache@v3
+        uses: buildjet/cache@v3
         env:
           cache-name: cache-apisix-docker-images
         with:
           path: docker-images-backup
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ steps.test_env.outputs.type }}-${{ hashFiles(format('./workbench/ci/pod/docker-compose.{0}.yml', steps.test_env.outputs.type )) }}
+
+      - name: Set hostname
+        run: |
+          sudo hostnamectl set-hostname ubuntu
+          sudo sh -c 'echo "127.0.1.1   $(hostname)" >> /etc/hosts'
 
       - if: ${{ steps.cache-images.outputs.cache-hit == 'true' }}
         name: Load saved docker images
@@ -152,8 +157,14 @@ jobs:
           --preserve-env=USE_OPENSSL3 \
           ./ci/${{ matrix.os_name }}_runner.sh do_install
 
+      # The length of the working directory path for buildjet is too long,
+      # which will exceed the operating system's limit for the complete path of apisix config_listen.sock.
+      - name: move workbech to /tmp
+        run: |
+          sudo mv ./workbench /tmp
+
       - name: Linux Script
-        working-directory: workbench
+        working-directory: /tmp/workbench
         env:
           OPENSSL_FIPS: yes
           TEST_FILE_SUB_DIR: ${{ matrix.test_dir }}
@@ -161,7 +172,7 @@ jobs:
 
       - if: ${{ steps.cache-images.outputs.cache-hit != 'true' }}
         name: Save docker images
-        working-directory: workbench
+        working-directory: /tmp/workbench
         run: |
           # free disk space
           bash ./ci/free_disk_space.sh
