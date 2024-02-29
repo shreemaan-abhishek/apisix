@@ -2,7 +2,8 @@ name: Code Lint
 
 on:
   pull_request:
-    branches: [ main ]
+    types: [labeled]
+    branches: [main]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -12,6 +13,10 @@ permissions:
 
 jobs:
   lint:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-code-lint') ||
+      contains(github.event.pull_request.labels.*.name, 'ci-gateway-all') ||
+      github.ref == 'refs/heads/main'
     runs-on: buildjet-2vcpu-ubuntu-2004
     timeout-minutes: 10
     steps:
@@ -50,6 +55,11 @@ jobs:
           make lint
 
   sc-lint:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-code-lint') ||
+      contains(github.event.pull_request.labels.*.name, 'ci-gateway-all') ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/release'
     runs-on: buildjet-2vcpu-ubuntu-2004
     timeout-minutes: 5
     steps:

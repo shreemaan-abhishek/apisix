@@ -2,7 +2,8 @@ name: Chaos Test
 
 on:
   pull_request:
-    branches: [ main ]
+    types: [labeled]
+    branches: [main]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -16,6 +17,10 @@ permissions:
 
 jobs:
   chaos-test:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-chaos') ||
+      contains(github.event.pull_request.labels.*.name, 'ci-gateway-all') ||
+      github.ref == 'refs/heads/main'
     runs-on: buildjet-2vcpu-ubuntu-2004
     timeout-minutes: 35
     steps:

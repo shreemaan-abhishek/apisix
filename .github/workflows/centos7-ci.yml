@@ -7,6 +7,7 @@ on:
       - 'docs/**'
       - '**/*.md'
   pull_request:
+    types: [labeled]
     branches: [main, 'release/**']
     paths-ignore:
       - 'docs/**'
@@ -21,6 +22,11 @@ permissions:
 
 jobs:
   test_apisix:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-centos7') ||
+      contains(github.event.pull_request.labels.*.name, 'ci-gateway-all') ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/release'
     name: run ci on centos7
     runs-on: ubuntu-20.04
     timeout-minutes: 90

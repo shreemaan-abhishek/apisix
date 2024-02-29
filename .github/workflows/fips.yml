@@ -2,12 +2,13 @@ name: CI FIPS
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
   pull_request:
-    branches: [ main ]
+    types: [labeled]
+    branches: [main]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -17,6 +18,10 @@ permissions:
 
 jobs:
   build:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-fips') ||
+      contains(github.event.pull_request.labels.*.name, 'ci-gateway-all') ||
+      github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
       matrix:
@@ -129,6 +134,7 @@ jobs:
               sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh after
             fi
           fi
+
       - if: ${{ steps.cache-images.outputs.cache-hit != 'true' }}
         name: Linux launch services
         working-directory: workbench
@@ -159,7 +165,7 @@ jobs:
 
       # The length of the working directory path for buildjet is too long,
       # which will exceed the operating system's limit for the complete path of apisix config_listen.sock.
-      - name: move workbech to /tmp
+      - name: Move workbench to /tmp
         run: |
           sudo mv ./workbench /tmp
 

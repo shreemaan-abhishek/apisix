@@ -2,12 +2,13 @@ name: fuzzing
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
   pull_request:
-    branches: [ main ]
+    types: [labeled]
+    branches: [main]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -21,6 +22,10 @@ permissions:
 
 jobs:
   test_apisix:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-fuzzing') ||
+      contains(github.event.pull_request.labels.*.name, 'ci-gateway-all') ||
+      github.ref == 'refs/heads/main'
     name: run fuzzing
     runs-on: buildjet-2vcpu-ubuntu-2004
     timeout-minutes: 30
@@ -52,7 +57,7 @@ jobs:
 
     # The length of the working directory path for buildjet is too long,
     # which will exceed the operating system's limit for the complete path of apisix config_listen.sock.
-    - name: move workbech to /tmp
+    - name: Move workbench to /tmp
       run: |
         sudo mv ./workbench /tmp
 
@@ -61,7 +66,7 @@ jobs:
       run: |
         project_compose_ci=ci/pod/docker-compose.common.yml make ci-env-up
 
-    - name: run apisix
+    - name: Run apisix
       working-directory: /tmp/workbench
       run: |
         wget -qO - https://openresty.org/package/pubkey.gpg | sudo apt-key add -
@@ -77,19 +82,19 @@ jobs:
         make init
         make run
 
-    - name: run upstream
+    - name: Run upstream
       working-directory: /tmp/workbench
       run: |
         sudo openresty -c $PWD/t/fuzzing/upstream/nginx.conf
 
-    - name: install boofuzz
+    - name: Install boofuzz
       working-directory: /tmp/workbench
       run: |
         # Avoid "ERROR: flask has requirement click>=8.0, but you'll have click 7.0 which is incompatible"
         sudo apt remove python3-click
         pip install -r $PWD/t/fuzzing/requirements.txt
 
-    - name: run tests
+    - name: Run tests
       working-directory: /tmp/workbench
       run: |
         export APISIX_FUZZING_PWD=$PWD

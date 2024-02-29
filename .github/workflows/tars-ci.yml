@@ -2,12 +2,13 @@ name: CI Tars
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
   pull_request:
-    branches: [ main ]
+    types: [labeled]
+    branches: [main]
     paths-ignore:
       - 'docs/**'
       - '**/*.md'
@@ -21,6 +22,10 @@ permissions:
 
 jobs:
   tars:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-tars') ||
+      contains(github.event.pull_request.labels.*.name, 'ci-gateway-all') ||
+      github.ref == 'refs/heads/main'
     strategy:
       fail-fast: false
       matrix:

@@ -7,6 +7,7 @@ on:
       - 'docs/**'
       - '**/*.md'
   pull_request:
+    types: [labeled]
     branches: [main, 'release/**']
     paths-ignore:
       - 'docs/**'
@@ -18,6 +19,11 @@ concurrency:
 
 jobs:
   build:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-cli') ||
+      contains(github.event.pull_request.labels.*.name, 'ci-gateway-all') ||
+      github.ref == 'refs/heads/main' ||
+      github.ref == 'refs/heads/release'
     strategy:
       fail-fast: false
       matrix:
@@ -90,7 +96,7 @@ jobs:
 
       # The length of the working directory path for buildjet is too long,
       # which will exceed the operating system's limit for the complete path of apisix config_listen.sock.
-      - name: move workbech to /tmp
+      - name: Move workbench to /tmp
         run: |
           sudo mv ./workbench /tmp
 
