@@ -54,6 +54,20 @@ __DATA__
                 return
             end
             ngx.say("done")
+
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            local old = file:read("*all")
+            file:write([[
+return {
+  rate = 1
+}
+]])
+            file:close()
         }
     }
 --- response_body
@@ -98,6 +112,7 @@ GET /hello
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
             local httpc = http.new()
             local res, err = httpc:request_uri(uri)
+            conf:close()
         }
     }
 --- no_error_log
@@ -179,3 +194,204 @@ GET /wrong_uri_hello
 | balancer
 | upstream (req + response)
 | response
+
+
+
+=== TEST 13: check rate
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local http = require("resty.http")
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local httpc = http.new()
+
+            -- send 2 requests
+            local res, err = httpc:request_uri(uri)
+            local res, err = httpc:request_uri(uri)
+
+            -- for next test case
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            local old = file:read("*all")
+            file:write("return {rate = 3}")
+            file:close()
+        }
+    }
+--- grep_error_log eval
+qr/trace:/
+--- grep_error_log_out
+trace:
+
+
+
+=== TEST 14: check rate (rate = 3)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local http = require("resty.http")
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local httpc = http.new()
+
+            -- send 100 requests, 3 will match randomly
+            for i = 1, 100 do
+                local res, err = httpc:request_uri(uri)
+            end
+            -- for next test case
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            local old = file:read("*all")
+            file:write("return {rate = nil}")
+            file:close()
+        }
+    }
+--- timeout: 20
+--- grep_error_log eval
+qr/trace:/
+--- grep_error_log_out
+trace:
+trace:
+trace:
+
+
+
+=== TEST 15: check rate: `rate = nil`
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local http = require("resty.http")
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local httpc = http.new()
+
+            -- send 5 requests
+            for i = 1, 5 do
+                local res, err = httpc:request_uri(uri)
+            end
+
+            -- for next test case
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            local old = file:read("*all")
+            file:write("return {rate = \"not a number\"}")
+            file:close()
+        }
+    }
+--- grep_error_log eval
+qr/trace:/
+--- grep_error_log_out
+trace:
+trace:
+trace:
+trace:
+trace:
+
+
+
+=== TEST 16: check rate: `type(rate) ~= "number"`
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local http = require("resty.http")
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local httpc = http.new()
+
+            -- send 5 requests
+            for i = 1, 5 do
+                local res, err = httpc:request_uri(uri)
+            end
+
+            -- for next test case
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            local old = file:read("*all")
+            file:write("return {paths = {\"/nohello\"}}")
+            file:close()
+        }
+    }
+--- grep_error_log eval
+qr/trace:/
+--- grep_error_log_out
+trace:
+trace:
+trace:
+trace:
+trace:
+
+
+
+=== TEST 17: request_uri not defined in config should not trace
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local http = require("resty.http")
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local httpc = http.new()
+
+            local res, err = httpc:request_uri(uri)
+
+        }
+    }
+--- no_error_log
+trace:
+
+
+
+=== TEST 18: only request_uri defined in config should trace
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local http = require("resty.http")
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
+            local httpc = http.new()
+
+            local res, err = httpc:request_uri(uri)
+
+            -- restore original state
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            local old = file:read("*all")
+            file:write([[
+return {
+  rate = 1, -- allow only 1 request per 100 requests
+  hosts = {}, -- only the requests carrying these host headers will be traced
+  paths = {}, -- only these request_uris will be traced
+}
+]])
+            file:close()
+        }
+    }
+--- grep_error_log eval
+qr/trace:/
+--- grep_error_log_out
+trace:

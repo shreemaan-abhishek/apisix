@@ -55,6 +55,8 @@ install_module() {
 
     cp -av "${VAR_CUR_HOME}/agent" "${VAR_APISIX_HOME}"
 
+    cat "${VAR_CUR_HOME}/.luacheckrc" >> "${VAR_APISIX_HOME}/.luacheckrc"
+
     # use ee's rockspec
     cp -av "${VAR_CUR_HOME}/api7-master-0.rockspec" "${VAR_APISIX_HOME}/rockspec/"
     sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/g' "${VAR_APISIX_HOME}/Makefile"
@@ -65,9 +67,14 @@ install_module() {
     sed -i '299i __to_replace__	$(ENV_INSTALL) apisix/plugins/ht-msg-sub/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ht-msg-sub/' "${VAR_APISIX_HOME}/Makefile"
     sed -i '300i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ht-ws-msg-pub' "${VAR_APISIX_HOME}/Makefile"
     sed -i '301i __to_replace__	$(ENV_INSTALL) apisix/plugins/ht-ws-msg-pub/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ht-ws-msg-pub/' "${VAR_APISIX_HOME}/Makefile"
+
+    sed -i '302i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/trace' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/trace/*.lua $(ENV_INST_LUADIR)/apisix/plugins/trace/' "${VAR_APISIX_HOME}/Makefile"
     sed -i 's/__to_replace__//g' "${VAR_APISIX_HOME}/Makefile"
 
     cat "${VAR_APISIX_HOME}/Makefile"
+    printf "\n\n"
+    cat "${VAR_APISIX_HOME}/.luacheckrc"
 }
 
 test_env() {
