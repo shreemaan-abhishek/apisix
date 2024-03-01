@@ -7,7 +7,7 @@ on:
       - 'docs/**'
       - '**/*.md'
   pull_request:
-    types: [labeled]
+    types: [labeled, synchronize]
     branches: [main]
     paths-ignore:
       - 'docs/**'
@@ -198,7 +198,7 @@ jobs:
         run: |
           ./ci/utils/install-lua-resty-openapi-validate.sh workbench
 
-      # The length of the working directory path for buildjet is too long,
+      # The length of the working directory path for buildjet is too long.
       # which will exceed the operating system's limit for the complete path of apisix config_listen.sock.
       - name: Move workbench to /tmp
         run: |

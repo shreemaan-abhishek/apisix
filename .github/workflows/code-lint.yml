@@ -2,7 +2,7 @@ name: Code Lint
 
 on:
   pull_request:
-    types: [labeled]
+    types: [labeled, synchronize]
     branches: [main]
     paths-ignore:
       - 'docs/**'
