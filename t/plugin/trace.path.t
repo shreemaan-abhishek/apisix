@@ -54,21 +54,6 @@ __DATA__
                 return
             end
             ngx.say("done")
-
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
-            if not file then
-                ngx.status = 500
-                ngx.say("Failed test: failed to open config file")
-                return
-            end
-            local old = file:read("*all")
-            file:write([[
-return {
-  rate = 2,
-  paths = {"/*"}
-}
-]])
-            file:close()
         }
     }
 --- response_body
@@ -82,14 +67,7 @@ done
         content_by_lua_block {
             local t = require("lib.test_admin").test
             local http = require("resty.http")
-
             local httpc = http.new()
-
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
-            -- send 100 requests, 2 will match randomly
-            for i = 1, 100 do
-                local res, err = httpc:request_uri(uri)
-            end
 
             local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
             if not file then
@@ -100,18 +78,27 @@ done
             local old = file:read("*all")
             file:write([[
 return {
-  rate = 2,
-  paths = {"/abc/*"}
+  rate = 100,
+  paths = {"/*"}
 }
 ]])
             file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
+            local res, err = httpc:request_uri(uri)
+
         }
     }
---- timeout: 20
 --- grep_error_log eval
 qr/trace:/
 --- grep_error_log_out
-trace:
 trace:
 
 
@@ -122,14 +109,49 @@ trace:
         content_by_lua_block {
             local t = require("lib.test_admin").test
             local http = require("resty.http")
-
             local httpc = http.new()
 
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/abc/hello"
-            -- send 100 requests, 2 will match randomly
-            for i = 1, 100 do
-                local res, err = httpc:request_uri(uri)
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
             end
+            local old = file:read("*all")
+            file:write([[
+return {
+  rate = 100,
+  paths = {"/abc/*"}
+}
+]])
+            file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/abc/hello"
+            local res, err = httpc:request_uri(uri)
+
+        }
+    }
+--- grep_error_log eval
+qr/trace:/
+--- grep_error_log_out
+trace:
+
+
+
+=== TEST 4: match against pattern "/abc/*/cde"
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local http = require("resty.http")
+            local httpc = http.new()
 
             local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
             if not file then
@@ -145,25 +167,13 @@ return {
 }
 ]])
             file:close()
-        }
-    }
---- timeout: 20
---- grep_error_log eval
-qr/trace:/
---- grep_error_log_out
-trace:
-trace:
 
-
-
-=== TEST 4: match against pattern "/abc/*/cde"
---- config
-    location /t {
-        content_by_lua_block {
-            local t = require("lib.test_admin").test
-            local http = require("resty.http")
-
-            local httpc = http.new()
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
 
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/abc/foo/cde"
             -- send 100 requests, 1 will match randomly
@@ -177,20 +187,6 @@ trace:
                 local res, err = httpc:request_uri(uri)
             end
 
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
-            if not file then
-                ngx.status = 500
-                ngx.say("Failed test: failed to open config file")
-                return
-            end
-            local old = file:read("*all")
-            file:write([[
-return {
-  rate = 1,
-  paths = {"/*/cde"}
-}
-]])
-            file:close()
         }
     }
 --- timeout: 40
@@ -209,6 +205,28 @@ trace:
             local http = require("resty.http")
             local httpc = http.new()
 
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            local old = file:read("*all")
+            file:write([[
+return {
+  rate = 1,
+  paths = {"/*/cde"}
+}
+]])
+            file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/foo/cde"
             -- send 100 requests, 1 will match randomly
             for i = 1, 100 do
@@ -220,22 +238,6 @@ trace:
             for i = 1, 100 do
                 local res, err = httpc:request_uri(uri)
             end
-
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
-            if not file then
-                ngx.status = 500
-                ngx.say("Failed test: failed to open config file")
-                return
-            end
-            local old = file:read("*all")
-            file:write([[
-return {
-  rate = 1,
-  hosts = {""},
-  paths = {""}
-}
-]])
-            file:close()
 
         }
     }

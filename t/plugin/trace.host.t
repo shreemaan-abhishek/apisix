@@ -55,20 +55,6 @@ __DATA__
             end
             ngx.say("done")
 
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
-            if not file then
-                ngx.status = 500
-                ngx.say("Failed test: failed to open config file")
-                return
-            end
-            local old = file:read("*all")
-            file:write([[
-return {
-  rate = 1,
-  hosts = {"*.com"}
-}
-]])
-            file:close()
         }
     }
 --- response_body
@@ -83,15 +69,6 @@ done
             local t = require("lib.test_admin").test
             local http = require("resty.http")
 
-            local httpc = http.new()
-
-            -- correct path, correct host = trace
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
-            -- send 100 requests, 2 will match randomly
-            for i = 1, 100 do
-                local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com" }})
-            end
-
             local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
             if not file then
                 ngx.status = 500
@@ -101,16 +78,27 @@ done
             local old = file:read("*all")
             file:write([[
 return {
-  rate = 1,
-  hosts = {"*.com"},
-  paths = {"/hello"}
+  rate = 100,
+  hosts = {"*.com"}
 }
 ]])
             file:close()
 
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
+            local httpc = http.new()
+
+            -- correct path, correct host = trace
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com" }})
+
         }
     }
---- timeout: 20
 --- grep_error_log eval
 qr/trace:/
 --- grep_error_log_out
@@ -125,15 +113,6 @@ trace:
             local t = require("lib.test_admin").test
             local http = require("resty.http")
 
-            local httpc = http.new()
-
-
-            -- incorrect path, incorrect host = dont_trace
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello/abc"
-            for i = 1, 100 do
-                local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com.cde" }})
-            end
-
             local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
             if not file then
                 ngx.status = 500
@@ -143,16 +122,28 @@ trace:
             local old = file:read("*all")
             file:write([[
 return {
-  rate = 2,
-  hosts = {"abc.*"},
+  rate = 100,
+  hosts = {"*.com"},
   paths = {"/hello"}
 }
 ]])
             file:close()
 
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
+            local httpc = http.new()
+
+            -- incorrect path, incorrect host = dont_trace
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello/abc"
+            local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com.cde" }})
+
         }
     }
---- timeout: 20
 --- no_error_log
 trace:
 
@@ -163,15 +154,6 @@ trace:
     location /t {
         content_by_lua_block {
             local t = require("lib.test_admin").test
-            local http = require("resty.http")
-            local httpc = http.new()
-
-            -- correct path, correct host = trace
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
-            -- send 100 requests, 2 will match randomly
-            for i = 1, 100 do
-                local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com" }})
-            end
 
             local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
             if not file then
@@ -182,19 +164,32 @@ trace:
             local old = file:read("*all")
             file:write([[
 return {
-  rate = 1,
+  rate = 100,
   hosts = {"abc.*"},
   paths = {"/hello"}
 }
 ]])
             file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
+            local http = require("resty.http")
+            local httpc = http.new()
+
+            -- correct path, correct host = trace
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com" }})
+
         }
     }
---- timeout: 20
 --- grep_error_log eval
 qr/trace:/
 --- grep_error_log_out
-trace:
 trace:
 
 
@@ -207,12 +202,6 @@ trace:
             local http = require("resty.http")
             local httpc = http.new()
 
-
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
-            for i = 1, 100 do
-                local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com" }})
-            end
-
             local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
             if not file then
                 ngx.status = 500
@@ -223,14 +212,23 @@ trace:
             file:write([[
 return {
   rate = 1,
-  hosts = {""},
-  paths = {""}
+  hosts = {"abc.*"},
+  paths = {"/hello"}
 }
 ]])
             file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
+            local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com" }})
         }
     }
---- timeout: 20
 --- grep_error_log eval
 qr/trace:/
 --- grep_error_log_out

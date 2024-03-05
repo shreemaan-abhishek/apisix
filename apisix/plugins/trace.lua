@@ -182,8 +182,9 @@ end
 
 
 function _M.init()
-  package[conf_path] = nil
+  package.loaded[conf_path] = false
   local trace_conf = require(conf_path)
+  core.log.info("trace_conf: ", core.json.encode(trace_conf))
 
   local conf = core.config.local_conf()
   local router_name = "radixtree_uri"

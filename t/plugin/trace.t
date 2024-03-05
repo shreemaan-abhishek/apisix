@@ -204,23 +204,35 @@ GET /wrong_uri_hello
             local t = require("lib.test_admin").test
             local http = require("resty.http")
 
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
-            local httpc = http.new()
 
-            -- send 2 requests
-            local res, err = httpc:request_uri(uri)
-            local res, err = httpc:request_uri(uri)
-
-            -- for next test case
+            -- prepare trace config with rate = 1
             local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
             if not file then
                 ngx.status = 500
                 ngx.say("Failed test: failed to open config file")
                 return
             end
-            local old = file:read("*all")
-            file:write("return {rate = 3}")
+            file:write([[
+return {
+  rate = 1
+}
+]])
             file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local httpc = http.new()
+
+            -- send 2 requests, since rate = 1 only first will match
+            local res, err = httpc:request_uri(uri)
+            local res, err = httpc:request_uri(uri)
+
         }
     }
 --- grep_error_log eval
@@ -237,6 +249,23 @@ trace:
             local t = require("lib.test_admin").test
             local http = require("resty.http")
 
+            -- prepare config with rate = 3
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            file:write("return {rate = 3}")
+            file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
             local httpc = http.new()
 
@@ -244,16 +273,6 @@ trace:
             for i = 1, 100 do
                 local res, err = httpc:request_uri(uri)
             end
-            -- for next test case
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
-            if not file then
-                ngx.status = 500
-                ngx.say("Failed test: failed to open config file")
-                return
-            end
-            local old = file:read("*all")
-            file:write("return {rate = nil}")
-            file:close()
         }
     }
 --- timeout: 20
@@ -266,12 +285,29 @@ trace:
 
 
 
-=== TEST 15: check rate: `rate = nil`
+=== TEST 15: check rate: `rate = nil` should log all requests
 --- config
     location /t {
         content_by_lua_block {
             local t = require("lib.test_admin").test
             local http = require("resty.http")
+
+            -- prepare config with rate = nil
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            file:write("return {rate = nil}")
+            file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
 
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
             local httpc = http.new()
@@ -281,16 +317,6 @@ trace:
                 local res, err = httpc:request_uri(uri)
             end
 
-            -- for next test case
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
-            if not file then
-                ngx.status = 500
-                ngx.say("Failed test: failed to open config file")
-                return
-            end
-            local old = file:read("*all")
-            file:write("return {rate = \"not a number\"}")
-            file:close()
         }
     }
 --- grep_error_log eval
@@ -311,6 +337,22 @@ trace:
             local t = require("lib.test_admin").test
             local http = require("resty.http")
 
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            file:write("return {rate = \"not a number\"}")
+            file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
             local httpc = http.new()
 
@@ -319,16 +361,6 @@ trace:
                 local res, err = httpc:request_uri(uri)
             end
 
-            -- for next test case
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
-            if not file then
-                ngx.status = 500
-                ngx.say("Failed test: failed to open config file")
-                return
-            end
-            local old = file:read("*all")
-            file:write("return {paths = {\"/nohello\"}}")
-            file:close()
         }
     }
 --- grep_error_log eval
@@ -349,6 +381,22 @@ trace:
             local t = require("lib.test_admin").test
             local http = require("resty.http")
 
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            file:write("return {paths = {\"/nohello\"}}")
+            file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
             local httpc = http.new()
 
@@ -368,27 +416,27 @@ trace:
             local t = require("lib.test_admin").test
             local http = require("resty.http")
 
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
-            local httpc = http.new()
-
-            local res, err = httpc:request_uri(uri)
-
-            -- restore original state
             local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
             if not file then
                 ngx.status = 500
                 ngx.say("Failed test: failed to open config file")
                 return
             end
-            local old = file:read("*all")
-            file:write([[
-return {
-  rate = 1, -- allow only 1 request per 100 requests
-  hosts = {}, -- only the requests carrying these host headers will be traced
-  paths = {}, -- only these request_uris will be traced
-}
-]])
+            file:write("return {paths = {\"/nohello\"}}")
             file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
+            local httpc = http.new()
+            local res, err = httpc:request_uri(uri)
+
+
         }
     }
 --- grep_error_log eval
