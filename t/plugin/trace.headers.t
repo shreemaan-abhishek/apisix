@@ -54,6 +54,22 @@ __DATA__
                 return
             end
             ngx.say("done")
+
+            -- make all requests trace (rate = 100)
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            local old = file:read("*all")
+            file:write([[
+return {
+  rate = 100,
+  hosts = {"*.com"}
+}
+]])
+            file:close()
         }
     }
 --- response_body
@@ -61,89 +77,25 @@ done
 
 
 
-=== TEST 2: match against pattern "/*"
---- config
-    location /t {
-        content_by_lua_block {
-            local t = require("lib.test_admin").test
-            local http = require("resty.http")
-            local httpc = http.new()
-
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
-            if not file then
-                ngx.status = 500
-                ngx.say("Failed test: failed to open config file")
-                return
-            end
-            local old = file:read("*all")
-            file:write([[
-return {
-  rate = 100,
-  paths = {"/*"}
-}
-]])
-            file:close()
-
-            -- reload plugin
-            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
-            ngx.sleep(0.2)
-            if code > 300 then
-                return
-            end
-
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
-            local res, err = httpc:request_uri(uri)
-        }
-    }
---- grep_error_log eval
-qr/trace:/
---- grep_error_log_out
+=== TEST 2: check if observability tracing services headers take effect
+--- request
+GET /hello
+--- more_headers
+x-request-id: qewh42384238r09
+sw8: 2385248054058
+traceparent: 23852iwjefuisu489
+x-b3-traceid: oshe98ru348
+--- error_log
+x-request-id: qewh42384238r09
+sw8: 2385248054058
+traceparent: 23852iwjefuisu489
+x-b3-traceid: oshe98ru348
 trace:
+| Role     | Phase                     | Timespan | Start time              |
 
 
 
-=== TEST 3: match against pattern "/abc/*"
---- config
-    location /t {
-        content_by_lua_block {
-            local t = require("lib.test_admin").test
-            local http = require("resty.http")
-            local httpc = http.new()
-
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
-            if not file then
-                ngx.status = 500
-                ngx.say("Failed test: failed to open config file")
-                return
-            end
-            local old = file:read("*all")
-            file:write([[
-return {
-  rate = 100,
-  paths = {"/abc/*"}
-}
-]])
-            file:close()
-
-            -- reload plugin
-            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
-            ngx.sleep(0.2)
-            if code > 300 then
-                return
-            end
-
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/abc/hello"
-            local res, err = httpc:request_uri(uri)
-        }
-    }
---- grep_error_log eval
-qr/trace:/
---- grep_error_log_out
-trace:
-
-
-
-=== TEST 4: match against pattern "/abc/*/cde"
+=== TEST 3: trace vars
 --- config
     location /t {
         content_by_lua_block {
@@ -161,7 +113,7 @@ trace:
             file:write([[
 return {
   rate = 1,
-  paths = {"/abc/*/cde"}
+  vars = {"foo", "request_method"}
 }
 ]])
             file:close()
@@ -173,28 +125,20 @@ return {
                 return
             end
 
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/abc/foo/cde"
-            -- send 100 requests, 1 will match randomly
-            for i = 1, 100 do
-                local res, err = httpc:request_uri(uri)
-            end
-
-            -- no match
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/abc/hello"
-            for i = 1, 100 do
-                local res, err = httpc:request_uri(uri)
-            end
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local res, err = httpc:request_uri(uri, {headers = { ["foo"] = "bar" }})
         }
     }
---- timeout: 40
---- grep_error_log eval
-qr/trace:/
---- grep_error_log_out
+--- error_log
+request_method: GET
 trace:
+| Role     | Phase                     | Timespan | Start time              |
+--- no_error_log
+foo:
 
 
 
-=== TEST 5: match against pattern "/*/cde"
+=== TEST 4: trace log contains uuid when no headers are found and `gen_uid = true`
 --- config
     location /t {
         content_by_lua_block {
@@ -212,7 +156,7 @@ trace:
             file:write([[
 return {
   rate = 1,
-  paths = {"/*/cde"}
+  gen_uid = true
 }
 ]])
             file:close()
@@ -224,21 +168,63 @@ return {
                 return
             end
 
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/foo/cde"
-            -- send 100 requests, 1 will match randomly
-            for i = 1, 100 do
-                local res, err = httpc:request_uri(uri)
-            end
-
-            -- no match
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/abc/hello"
-            for i = 1, 100 do
-                local res, err = httpc:request_uri(uri)
-            end
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local res, err = httpc:request_uri(uri)
         }
     }
---- timeout: 40
---- grep_error_log eval
-qr/trace:/
---- grep_error_log_out
+--- error_log
+uuid:
 trace:
+| Role     | Phase                     | Timespan | Start time              |
+--- no_error_log
+x-request-id:
+sw8:
+traceparent:
+x-b3-traceid:
+
+
+
+=== TEST 5: trace doesn't contain uid if traceable headers are present
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local http = require("resty.http")
+            local httpc = http.new()
+
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            local old = file:read("*all")
+            file:write([[
+return {
+  rate = 1,
+  gen_uid = true,
+  vars = {"uri"}
+}
+]])
+            file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local res, err = httpc:request_uri(uri, {headers = { ["foo"] = "bar" }}) -- header foo need not be traced
+        }
+    }
+--- error_log
+trace:
+| Role     | Phase                     | Timespan | Start time              |
+--- no_error_log
+x-request-id:
+sw8:
+traceparent:
+x-b3-traceid:
+uid:

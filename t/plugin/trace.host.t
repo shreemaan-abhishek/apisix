@@ -54,7 +54,6 @@ __DATA__
                 return
             end
             ngx.say("done")
-
         }
     }
 --- response_body
@@ -96,7 +95,6 @@ return {
             -- correct path, correct host = trace
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
             local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com" }})
-
         }
     }
 --- grep_error_log eval
@@ -141,7 +139,6 @@ return {
             -- incorrect path, incorrect host = dont_trace
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello/abc"
             local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com.cde" }})
-
         }
     }
 --- no_error_log
@@ -184,7 +181,6 @@ return {
             -- correct path, correct host = trace
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
             local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com" }})
-
         }
     }
 --- grep_error_log eval

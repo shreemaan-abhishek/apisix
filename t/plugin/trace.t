@@ -232,7 +232,6 @@ return {
             -- send 2 requests, since rate = 1 only first will match
             local res, err = httpc:request_uri(uri)
             local res, err = httpc:request_uri(uri)
-
         }
     }
 --- grep_error_log eval
@@ -316,7 +315,6 @@ trace:
             for i = 1, 5 do
                 local res, err = httpc:request_uri(uri)
             end
-
         }
     }
 --- grep_error_log eval
@@ -360,7 +358,6 @@ trace:
             for i = 1, 5 do
                 local res, err = httpc:request_uri(uri)
             end
-
         }
     }
 --- grep_error_log eval
@@ -401,7 +398,6 @@ trace:
             local httpc = http.new()
 
             local res, err = httpc:request_uri(uri)
-
         }
     }
 --- no_error_log
@@ -435,11 +431,42 @@ trace:
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
             local httpc = http.new()
             local res, err = httpc:request_uri(uri)
-
-
         }
     }
 --- grep_error_log eval
 qr/trace:/
 --- grep_error_log_out
+trace:
+
+
+
+=== TEST 19: requests taking less than trace_conf.timespan_threshold should not log
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local http = require("resty.http")
+
+            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            if not file then
+                ngx.status = 500
+                ngx.say("Failed test: failed to open config file")
+                return
+            end
+            file:write("return {timespan_threshold = 60}")
+            file:close()
+
+            -- reload plugin
+            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
+            ngx.sleep(0.2)
+            if code > 300 then
+                return
+            end
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
+            local httpc = http.new()
+            local res, err = httpc:request_uri(uri)
+        }
+    }
+--- no_error_log
 trace:

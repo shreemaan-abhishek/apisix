@@ -1,6 +1,8 @@
 local require = require
 local apisix = require("apisix")
 local core = require("apisix.core")
+local uuid = require("resty.jit-uuid")
+
 local conf_path = "apisix.plugins.trace.config"
 
 local ngx = ngx
@@ -38,6 +40,12 @@ local prefix = [[
 | Role     | Phase                     | Timespan | Start time              |
 ]] .. suffix
 
+local trace_headers = {
+  "x-request-id", -- request id header
+  "sw8",          -- skywalking
+  "traceparent",  -- opentelemetry
+  "x-b3-traceid", -- zipkin
+}
 local plugin_name = "trace"
 
 local _M = {
@@ -74,11 +82,16 @@ end
 
 
 local function timespan(raw)
-  local unit = 1000 -- 1000ms in 1s
-  if raw >= 1 then  -- if greater than 1s don't convert to ms
-    unit = 1
+  if raw == 0 then
+    return "0ms"
   end
-  return floor(raw * unit + 0.5) .. "ms"
+  local factor = 1000 -- 1000ms in 1s
+  local unit = "ms"
+  if raw >= 1 then  -- if greater than 1s don't convert to ms
+    factor = 1
+    unit = "s"
+  end
+  return floor(raw * factor + 0.5) .. unit
 end
 
 
@@ -103,6 +116,7 @@ local function match(incoming, conf)
   end
   return matches[0]
 end
+
 
 local unique_random
 do
@@ -181,6 +195,39 @@ local function check_uri(trace_conf)
 end
 
 
+local function prepend(ctx, field, val)
+  ctx.trace_log = "\n" .. field .. ": " .. val .. ctx.trace_log
+end
+
+
+local function add_headers(ctx)
+  local count = 0
+  for _, header_field in pairs(trace_headers) do
+    local val = core.request.header(ctx, header_field)
+    if val and #val > 0 then
+      prepend(ctx, header_field, val)
+      count = count + 1
+    end
+  end
+  return count
+end
+
+
+local function add_vars(ctx, vars)
+  local count = 0
+  if vars and #vars > 0 then
+    for _, var in pairs(vars) do
+      local val = ngx.var[var]
+      if val and #val > 0 then
+        prepend(ctx, var, val)
+        count = count + 1
+      end
+    end
+  end
+  return count
+end
+
+
 function _M.init()
   package.loaded[conf_path] = false
   local trace_conf = require(conf_path)
@@ -201,7 +248,7 @@ function _M.init()
     old_match_route(...)
     ngx.update_time()
 
-    ngx.ctx.match_timespan = timespan(ngx.now() - match_start)
+    ngx.ctx.match_timespan = ngx.now() - match_start
   end
 
   old_http_access_phase = apisix.http_access_phase
@@ -214,6 +261,7 @@ function _M.init()
       ngx.ctx.trace_log = prefix
 
       local access_start = ngx.now()
+      ngx.ctx.req_start = access_start
       ngx.ctx.access_lt = localtime_msec(access_start)
 
       old_http_access_phase(...)
@@ -225,7 +273,7 @@ function _M.init()
       ngx.ctx.trace = path_pass or host_pass
       ngx.update_time()
 
-      ngx.ctx.access_timespan = timespan(ngx.now() - access_start)
+      ngx.ctx.access_timespan = ngx.now() - access_start
     end
   end
 
@@ -234,13 +282,20 @@ function _M.init()
     if not ngx.ctx.trace then
       old_http_balancer_phase(...)
     else
+      local num_headers = add_headers(ngx.ctx)
+      local num_vars = add_vars(ngx.ctx, trace_conf.vars)
+      -- if no vars or headers were added add a uuid
+      if (num_headers + num_vars) < 1 and trace_conf.gen_uid then
+        ngx.ctx.trace_log = "\n" .. "uuid: " .. uuid() .. ngx.ctx.trace_log
+      end
+
       local balancer_start = ngx.now()
       ngx.ctx.balancer_lt = localtime_msec(balancer_start)
 
       old_http_balancer_phase(...)
       ngx.update_time()
 
-      ngx.ctx.balancer_timespan = timespan(ngx.now() - balancer_start)
+      ngx.ctx.balancer_timespan = ngx.now() - balancer_start
       ngx.update_time()
       ngx.ctx.upstream_start = ngx.now()
       ngx.ctx.upstream_lt = localtime_msec(ngx.ctx.upstream_start)
@@ -259,7 +314,7 @@ function _M.init()
       old_http_header_filter_phase(...)
       ngx.update_time()
 
-      ngx.ctx.header_filter_timespan = timespan(ngx.now() - header_filter_start)
+      ngx.ctx.header_filter_timespan = ngx.now() - header_filter_start
     end
   end
 
@@ -298,23 +353,39 @@ function _M.init()
       local premature = false
       -- when route match fails access_timespan = nil
       if not ngx.ctx.access_timespan then
-        ngx.ctx.access_timespan = "0ms"
+        ngx.ctx.access_timespan = 0
+        ngx.ctx.balancer_timespan = 0
         premature = true
       end
-      add_entry("access", ngx.ctx.access_timespan, ngx.ctx.access_lt)
-      add_entry("\\_match_route", ngx.ctx.match_timespan, ngx.ctx.match_lt)
+
+      local upstream_timespan = 0
       if not premature then
-        add_entry("balancer", ngx.ctx.balancer_timespan, ngx.ctx.balancer_lt)
-        add_entry(PHASE_UPSTREAM,
-          timespan(ngx.ctx.upstream_end - ngx.ctx.upstream_start), ngx.ctx.upstream_lt)
+        upstream_timespan = ngx.ctx.upstream_end - ngx.ctx.upstream_start
       end
-      add_entry("header_filter", ngx.ctx.header_filter_timespan, ngx.ctx.header_filter_start)
-      add_entry("body_filter", timespan(ngx.ctx.bf_timespan), ngx.ctx.bf_lt)
-      if not premature then
-        add_entry(PHASE_CLIENT, timespan(log_start - ngx.ctx.bf_end), ngx.ctx.response_lt)
+
+      local client_timespan = log_start - ngx.ctx.bf_end
+      local log_timespan = log_end - log_start
+      local total_time = ngx.ctx.access_timespan + ngx.ctx.balancer_timespan + upstream_timespan +
+                         ngx.ctx.header_filter_timespan + ngx.ctx.bf_timespan + client_timespan +
+                         log_timespan
+
+      if total_time >= (trace_conf.timespan_threshold or 0)  then
+        add_entry("access", timespan(ngx.ctx.access_timespan), ngx.ctx.access_lt)
+        add_entry("\\_match_route", timespan(ngx.ctx.match_timespan), ngx.ctx.match_lt)
+        if not premature then
+          add_entry("balancer", timespan(ngx.ctx.balancer_timespan), ngx.ctx.balancer_lt)
+          add_entry(PHASE_UPSTREAM,
+            timespan(upstream_timespan), ngx.ctx.upstream_lt)
+        end
+        add_entry("header_filter", timespan(ngx.ctx.header_filter_timespan),
+                  ngx.ctx.header_filter_start)
+        add_entry("body_filter", timespan(ngx.ctx.bf_timespan), ngx.ctx.bf_lt)
+        if not premature then
+          add_entry(PHASE_CLIENT, timespan(client_timespan), ngx.ctx.response_lt)
+        end
+        add_entry("log", timespan(log_timespan), log_lt)
+        core.log.warn("trace: ", ngx.ctx.trace_log .. suffix)
       end
-      add_entry("log", timespan(log_end - log_start), log_lt)
-      core.log.warn("trace: ", ngx.ctx.trace_log .. suffix)
     end
     ngx.ctx.trace_log = ""    -- clear trace
     ngx.ctx.bf_timespan = nil -- clear body_filter timespan
