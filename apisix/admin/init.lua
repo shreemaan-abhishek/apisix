@@ -425,11 +425,12 @@ local uri_route = {
 
 function _M.init_worker()
     local local_conf = core.config.local_conf()
+    router = route.new(uri_route)
+
     if not local_conf.apisix or not local_conf.apisix.enable_admin then
         return
     end
 
-    router = route.new(uri_route)
     events = require("resty.worker.events")
 
     events.register(reload_plugins, reload_event, "PUT")

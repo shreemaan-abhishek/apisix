@@ -60,6 +60,7 @@ local str_sub         = string.sub
 local tonumber        = tonumber
 local type            = type
 local pairs           = pairs
+local pcall           = pcall
 local control_api_router
 
 local is_http = false
@@ -146,6 +147,10 @@ function _M.http_init_worker()
         end
     end
 
+    local ok, custom_plugins = pcall(require, "agent.custom_plugins")
+    if ok then
+        custom_plugins.init_worker()
+    end
     plugin.init_worker()
     router.http_init_worker()
     require("apisix.http.service").init_worker()

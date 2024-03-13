@@ -80,6 +80,11 @@ config_local.local_conf = function(force)
         return nil, err
     end
 
+    -- if disable the admin API if connect to the control plane
+    if default_conf and default_conf.apisix then
+        default_conf.apisix.enable_admin = false
+    end
+
     --- Enable the kubernetes discovery by default.
     local latest_config_payload = get_config_from_dict("config_payload", "{\"api7_discovery\": {\"kubernetes\": [], \"nacos\": []}}")
     if not latest_config_payload then
@@ -189,6 +194,9 @@ apisix.http_init_worker = function(...)
     if not ok then
       core.log.error("failed to init worker, the data plane instance will be automatically exited soon, error: ", res)
     end
+
+    local plugin = require("apisix.plugin")
+    plugin.init_plugins_syncer()
 
     if discovery and discovery.init_worker then
         discovery.init_worker()

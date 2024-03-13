@@ -34,11 +34,13 @@ local type          = type
 local local_plugins = core.table.new(32, 0)
 local tostring      = tostring
 local error         = error
+local loadstring    = loadstring
 local is_http       = ngx.config.subsystem == "http"
 local local_plugins_hash    = core.table.new(0, 32)
 local stream_local_plugins  = core.table.new(32, 0)
 local stream_local_plugins_hash = core.table.new(0, 32)
 
+local include_custom_plugins, custom_plugins = pcall(require, "agent.custom_plugins")
 
 local merged_route = core.lrucache.new({
     ttl = 300, count = 512
@@ -129,6 +131,19 @@ local function load_plugin(name, plugins_list, plugin_type)
         end
 
         ok, plugin = pcall(require, pkg_name)
+
+        -- If not ok, try to loaded from custom plugins
+        if not ok and include_custom_plugins then
+            local custom_plugin = custom_plugins.get(name)
+            if custom_plugin then
+                local success, plugin_func = pcall(loadstring, custom_plugin.value.content)
+                if success and plugin_func then
+                    plugin = plugin_func()
+                    ok = true
+                    pkg_loaded[pkg_name] = plugin
+                end
+            end
+        end
     end
 
     if not ok then
@@ -183,6 +198,41 @@ local function load_plugin(name, plugins_list, plugin_type)
     end
 
     return
+end
+
+
+function _M.refresh_plugin(plugin_name, plugin_type)
+    if not local_plugins_hash[plugin_name] then
+        return
+    end
+
+    unload_plugin(plugin_name, plugin_type or PLUGIN_TYPE_HTTP)
+
+    local temporary_plugin_list = {}
+    load_plugin(plugin_name, temporary_plugin_list, plugin_type)
+    if #temporary_plugin_list == 0 then
+        return
+    end
+
+    local index
+    for k, v in ipairs(local_plugins) do
+        if v.name == plugin_name then
+            index = k
+        end
+    end
+
+    if not index then
+        core.log.error("couldn't find the plugin: ", plugin_name)
+        return
+    end
+
+    local_plugins[index] = temporary_plugin_list[1]
+
+    if #local_plugins > 1 then
+        sort_tab(local_plugins, sort_plugin)
+    end
+
+    local_plugins_hash[plugin_name] = temporary_plugin_list[1]
 end
 
 
@@ -717,6 +767,10 @@ do
 
     function init_plugins_syncer()
         local err
+        if plugins_conf then
+            return
+        end
+
         plugins_conf, err = core.config.new("/plugins", {
             automatic = true,
             item_schema = core.schema.plugins,
@@ -731,6 +785,11 @@ do
             error("failed to create etcd instance for fetching /plugins : " .. err)
         end
     end
+end
+
+
+function _M.init_plugins_syncer()
+    init_plugins_syncer()
 end
 
 
