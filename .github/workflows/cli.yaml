@@ -94,6 +94,10 @@ jobs:
             ./ci/${{ matrix.job_name }}_runner.sh do_install
             sudo cp ../deps/* -r /usr/local/
 
+      - name: Remove Useless Test
+        working-directory: workbench
+        run: rm t/cli/*grpc*.sh
+
       # The length of the working directory path for buildjet is too long,
       # which will exceed the operating system's limit for the complete path of apisix config_listen.sock.
       - name: Move workbench to /tmp
