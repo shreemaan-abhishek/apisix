@@ -118,29 +118,35 @@ local function unload_plugin(name, plugin_type)
 end
 
 
-local function load_plugin(name, plugins_list, plugin_type)
+local function load_plugin(name, plugins_list, plugin_type, plugin_object)
     local ok, plugin
-    if plugin_type == PLUGIN_TYPE_HTTP_WASM  then
-        -- for wasm plugin, we pass the whole attrs instead of name
-        ok, plugin = wasm.require(name)
-        name = name.name
+
+    if plugin_object then
+        ok = true
+        plugin = plugin_object
     else
-        local pkg_name = "apisix.plugins." .. name
-        if plugin_type == PLUGIN_TYPE_STREAM then
-            pkg_name = "apisix.stream.plugins." .. name
-        end
+        if plugin_type == PLUGIN_TYPE_HTTP_WASM  then
+            -- for wasm plugin, we pass the whole attrs instead of name
+            ok, plugin = wasm.require(name)
+            name = name.name
+        else
+            local pkg_name = "apisix.plugins." .. name
+            if plugin_type == PLUGIN_TYPE_STREAM then
+                pkg_name = "apisix.stream.plugins." .. name
+            end
 
-        ok, plugin = pcall(require, pkg_name)
+            ok, plugin = pcall(require, pkg_name)
 
-        -- If not ok, try to loaded from custom plugins
-        if not ok and include_custom_plugins then
-            local custom_plugin = custom_plugins.get(name)
-            if custom_plugin then
-                local success, plugin_func = pcall(loadstring, custom_plugin.value.content)
-                if success and plugin_func then
-                    plugin = plugin_func()
-                    ok = true
-                    pkg_loaded[pkg_name] = plugin
+            -- If not ok, try to loaded from custom plugins
+            if not ok and include_custom_plugins then
+                local custom_plugin = custom_plugins.get(name)
+                if custom_plugin then
+                    local success, plugin_func = pcall(loadstring, custom_plugin.value.content)
+                    if success and plugin_func then
+                        plugin = plugin_func()
+                        ok = true
+                        pkg_loaded[pkg_name] = plugin
+                    end
                 end
             end
         end
@@ -201,15 +207,13 @@ local function load_plugin(name, plugins_list, plugin_type)
 end
 
 
-function _M.refresh_plugin(plugin_name, plugin_type)
-    if not local_plugins_hash[plugin_name] then
-        return
+function _M.refresh_plugin(plugin_name, plugin_type, plugin_object)
+    if local_plugins_hash[plugin_name] then
+        unload_plugin(plugin_name, plugin_type or PLUGIN_TYPE_HTTP)
     end
 
-    unload_plugin(plugin_name, plugin_type or PLUGIN_TYPE_HTTP)
-
     local temporary_plugin_list = {}
-    load_plugin(plugin_name, temporary_plugin_list, plugin_type)
+    load_plugin(plugin_name, temporary_plugin_list, plugin_type, plugin_object)
     if #temporary_plugin_list == 0 then
         return
     end
@@ -222,11 +226,10 @@ function _M.refresh_plugin(plugin_name, plugin_type)
     end
 
     if not index then
-        core.log.error("couldn't find the plugin: ", plugin_name)
-        return
+        core.table.insert(local_plugins, temporary_plugin_list[1])
+    else
+        local_plugins[index] = temporary_plugin_list[1]
     end
-
-    local_plugins[index] = temporary_plugin_list[1]
 
     if #local_plugins > 1 then
         sort_tab(local_plugins, sort_plugin)
