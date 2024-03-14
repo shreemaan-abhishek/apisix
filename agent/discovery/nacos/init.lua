@@ -1,7 +1,6 @@
 local core = require("apisix.core")
 local nacos_factory = require("agent.discovery.nacos.factory")
 local utils = require("agent.discovery.nacos.utils")
-local health_check = require("resty.healthcheck")
 local process = require("ngx.process")
 
 local nacos_dict = ngx.shared.nacos
@@ -107,6 +106,7 @@ function _M.get_health_checkers()
     end
 
     for id in pairs(nacos_clients) do
+        local health_check = require("resty.healthcheck")
         local list = health_check.get_target_list(id, "nacos")
         if list then
             result[id] = list

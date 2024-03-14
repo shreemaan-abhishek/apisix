@@ -13,7 +13,6 @@ local core = require("apisix.core")
 local util = require("apisix.cli.util")
 local local_conf = require("apisix.core.config_local").local_conf()
 local informer_factory = require("agent.discovery.kubernetes.informer_factory")
-local health_check = require("resty.healthcheck")
 
 
 local ctx = {}
@@ -393,6 +392,7 @@ local function multiple_mode_init(confs)
 
         local checker
         if conf.check then
+            local health_check = require("resty.healthcheck")
             checker = health_check.new({
                 name = conf.id,
                 shm_name = "kubernetes",
@@ -546,6 +546,7 @@ function _M.get_health_checkers()
     end
 
     for id in pairs(ctx) do
+        local health_check = require("resty.healthcheck")
         local list = health_check.get_target_list(id, "kubernetes")
         if list then
             result[id] = list

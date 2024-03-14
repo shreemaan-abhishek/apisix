@@ -1,7 +1,6 @@
 local core = require("apisix.core")
 local http = require('resty.http')
 local utils = require("agent.discovery.nacos.utils")
-local health_check = require("resty.healthcheck")
 
 local ngx_timer_at = ngx.timer.at
 local math_random  = math.random
@@ -187,6 +186,7 @@ function _M.new(config)
     }
 
     if config.check then
+        local health_check = require("resty.healthcheck")
         local checker = health_check.new({
             name = config.id,
             shm_name = "nacos",
