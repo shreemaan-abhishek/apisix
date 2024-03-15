@@ -162,7 +162,7 @@ function _M.http_init(prometheus_enabled_in_stream)
 
     metrics.service_registry_status = prometheus:gauge("service_registry_status",
             "Service registry status from health check",
-            {"service_registry_id", "ip", "port", "hostname"})
+            {"service_registry_id", "ip", "port"})
 
     -- per service
 
@@ -471,7 +471,7 @@ local function collect(ctx, stream_only)
         for id, nodes in pairs(stats) do
             for _, stat in ipairs(nodes) do
                 metrics.service_registry_status:set((stat.status == "healthy") and 1 or 0,
-                    gen_arr(id, stat.ip, stat.port, stat.hostname))
+                    gen_arr(id, stat.ip, stat.port))
             end
         end
     end
