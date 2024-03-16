@@ -141,7 +141,7 @@ local function load_plugin(name, plugins_list, plugin_type, plugin_object)
             if not ok and include_custom_plugins then
                 local custom_plugin = custom_plugins.get(name)
                 if custom_plugin then
-                    local success, plugin_func = pcall(loadstring, custom_plugin.value.content)
+                    local success, plugin_func = pcall(loadstring, custom_plugin.value.content, name)
                     if success and plugin_func then
                         plugin = plugin_func()
                         ok = true
