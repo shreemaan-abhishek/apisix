@@ -16,7 +16,7 @@ ARG APISIX_VERSION=3.2.1
 RUN set -ex; \
     arch=$(dpkg --print-architecture); \
     apt update; \
-    apt-get -y install --no-install-recommends wget gnupg ca-certificates unzip make;\
+    apt-get -y install --no-install-recommends wget gnupg ca-certificates unzip make git;\
     codename=`grep -Po 'VERSION="[0-9]+ \(\K[^)]+' /etc/os-release`; \
     wget -O - https://openresty.org/package/pubkey.gpg | apt-key add -; \
     case "${arch}" in \
@@ -107,7 +107,7 @@ RUN case $(dpkg --print-architecture) in \
 
 COPY --from=builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
 
-RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove wget gnupg unzip make luarocks ca-certificates sudo --allow-remove-essential
+RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove wget gnupg unzip make luarocks ca-certificates git sudo --allow-remove-essential
 
 RUN groupadd --system --gid 636 apisix \
     && useradd --system --gid apisix --no-create-home --shell /usr/sbin/nologin --uid 636 apisix \
