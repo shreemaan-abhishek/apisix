@@ -125,6 +125,7 @@ run_case() {
         t/plugin/soap.t \
         t/plugin/graphql-limit-count \
         t/plugin/acl* \
+        t/plugin/data-mask* \
         t/plugin/api7-traffic-split* \
         t/plugin/ht-*
 }

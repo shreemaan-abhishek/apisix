@@ -189,6 +189,7 @@ do
         upstream_upgrade           = true,
         upstream_connection        = true,
         upstream_uri               = true,
+        request_line               = true,
 
         upstream_mirror_uri        = true,
 

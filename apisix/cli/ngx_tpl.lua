@@ -576,6 +576,7 @@ http {
         set $upstream_scheme             'http';
         set $upstream_host               $http_host;
         set $upstream_uri                '';
+        set $request_line                '';
 
         location /apisix/admin {
             {%if allow_admin then%}
@@ -690,6 +691,7 @@ http {
             set $upstream_scheme             'http';
             set $upstream_host               $http_host;
             set $upstream_uri                '';
+            set $request_line                '';
             set $ctx_ref                     '';
 
             {% if wasm then %}

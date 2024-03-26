@@ -98,6 +98,7 @@ plugins:    # plugin list
   - forward-auth
   - opa
   - authz-keycloak
+  - data-mask
   - proxy-cache
   - graphql-proxy-cache
   - body-transformer

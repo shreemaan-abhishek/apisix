@@ -577,6 +577,9 @@ function _M.http_access_phase()
     api_ctx.var.real_request_uri = api_ctx.var.request_uri
     api_ctx.var.request_uri = api_ctx.var.uri .. api_ctx.var.is_args .. (api_ctx.var.args or "")
 
+    -- var.request is read only, we have to use other variable in access log for change var.request
+    api_ctx.var.request_line = api_ctx.var.request
+
     router.router_http.match(api_ctx)
 
     local route = api_ctx.matched_route
@@ -634,6 +637,7 @@ function _M.http_access_phase()
         if route.value.strip_path_prefix and service.value.path_prefix then
             local uri = api_ctx.var.uri
             if core.string.has_prefix(uri, service.value.path_prefix) then
+                api_ctx.var.uri_before_strip = uri
                 uri = uri:sub(#service.value.path_prefix + 1)
                 api_ctx.var.uri = uri
                 ngx_req_set_uri(uri)

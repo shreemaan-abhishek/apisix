@@ -91,6 +91,7 @@ consumer-restriction
 forward-auth
 opa
 authz-keycloak
+data-mask
 body-transformer
 proxy-mirror
 proxy-cache
