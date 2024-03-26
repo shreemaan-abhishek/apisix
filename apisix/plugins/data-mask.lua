@@ -159,49 +159,51 @@ function _M.log(conf, ctx)
     local json_body
     local body_masked = false
 
-    for _, item in ipairs(conf.request) do
-        if item.type == "query" then
-            if mask_table(args, item) then
-                query_masked = true
-            end
-        end
-
-        if item.type == "header" then
-            local header = core.request.header(ctx, item.name)
-            if header then
-                if item.action == "remove" then
-                    core.request.set_header(ctx, item.name, nil)
-                elseif item.action == "replace" then
-                    core.request.set_header(ctx, item.name, item.value)
-                elseif item.action == "regex" then
-                    core.request.set_header(ctx, item.name,
-                                                regex_replace(header, item.regex, item.value))
+    if conf.request then
+        for _, item in ipairs(conf.request) do
+            if item.type == "query" then
+                if mask_table(args, item) then
+                    query_masked = true
                 end
             end
-        end
 
-        if item.type == "body" then
-            if item.body_format == "urlencoded" then
-                if mask_table(post_args, item) then
-                    post_args_masked = true
-                end
-            elseif item.body_format == "json" then
-                if body and #body <= conf.max_body_size then
-                    if not json_body then
-                        local js, err = core.json.decode(body)
-                        if not js then
-                            core.log.warn("failed to decode json body: ", err)
-                        else
-                            json_body = js
-                        end
-                    end
-                    if json_body then
-                        if mask_json(json_body, item) then
-                            body_masked = true
-                        end
+            if item.type == "header" then
+                local header = core.request.header(ctx, item.name)
+                if header then
+                    if item.action == "remove" then
+                        core.request.set_header(ctx, item.name, nil)
+                    elseif item.action == "replace" then
+                        core.request.set_header(ctx, item.name, item.value)
+                    elseif item.action == "regex" then
+                        core.request.set_header(ctx, item.name,
+                                                    regex_replace(header, item.regex, item.value))
                     end
                 end
+            end
 
+            if item.type == "body" then
+                if item.body_format == "urlencoded" then
+                    if mask_table(post_args, item) then
+                        post_args_masked = true
+                    end
+                elseif item.body_format == "json" then
+                    if body and #body <= conf.max_body_size then
+                        if not json_body then
+                            local js, err = core.json.decode(body)
+                            if not js then
+                                core.log.warn("failed to decode json body: ", err)
+                            else
+                                json_body = js
+                            end
+                        end
+                        if json_body then
+                            if mask_json(json_body, item) then
+                                body_masked = true
+                            end
+                        end
+                    end
+
+                end
             end
         end
     end
