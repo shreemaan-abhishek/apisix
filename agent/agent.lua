@@ -103,6 +103,10 @@ function _M.heartbeat(self, first)
         return
     end
 
+    if not first then
+        self.last_heartbeat_time = current_time
+    end
+
     payload.conf_server_revision = utils.get_conf_server_revision()
     payload.cores = ngx.worker.count()
 
@@ -151,10 +155,6 @@ function _M.heartbeat(self, first)
 
     local msg = str_format("dp instance \'%s\' heartbeat successfully", payload.instance_id)
 
-    if not first then
-        self.last_heartbeat_time = current_time
-    end
-
     core.log.info(msg)
 end
 
@@ -165,6 +165,8 @@ function _M.upload_metrics(self)
             current_time - self.last_metrics_uploading_time < self.telemetry_collect_interval then
         return
     end
+
+    self.last_metrics_uploading_time = current_time
 
     local payload = {
         instance_id = core.id.get(),
@@ -212,8 +214,6 @@ function _M.upload_metrics(self)
         core.log.error("upload metrics failed ", err)
         return
     end
-
-    self.last_metrics_uploading_time = current_time
 
     if res.status ~= 200 then
         core.log.warn("upload metrics failed, status: " .. res.status .. ", body: ", core.json.encode(res.body))
