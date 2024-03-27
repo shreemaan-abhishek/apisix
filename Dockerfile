@@ -16,7 +16,7 @@ ARG APISIX_VERSION=3.2.1
 RUN set -ex; \
     arch=$(dpkg --print-architecture); \
     apt update; \
-    apt-get -y install --no-install-recommends wget gnupg ca-certificates unzip make git;\
+    apt-get -y install --no-install-recommends wget gnupg ca-certificates unzip make git zlib1g-dev libxml2-dev libxslt-dev;\
     codename=`grep -Po 'VERSION="[0-9]+ \(\K[^)]+' /etc/os-release`; \
     wget -O - https://openresty.org/package/pubkey.gpg | apt-key add -; \
     case "${arch}" in \
@@ -33,6 +33,7 @@ RUN set -ex; \
     esac; \
     apt update \
     && apt install -y apisix=${APISIX_VERSION}-0 \
+    && apt install openresty-openssl111-dev \
     && apt-get purge -y --auto-remove \
     && rm -f /etc/apt/sources.list.d/openresty.list /etc/apt/sources.list.d/apisix.list \
     && rm /usr/local/openresty/bin/etcdctl \
@@ -102,12 +103,14 @@ RUN case $(dpkg --print-architecture) in \
     export GOLANG_DOWNLOAD_URL=https://golang.org/dl/go1.21.3.linux-$GO_ARCH.tar.gz; \
     wget -q "$GOLANG_DOWNLOAD_URL" -O go.tar.gz && \
     tar -C /usr/local -xzf go.tar.gz && \
-    rm go.tar.gz && export PATH=$PATH:/usr/local/go/bin && export CGO_ENABLED=1 && apt-get install -y gcc sudo && make deps && go clean -cache &&  \
+    rm go.tar.gz && export PATH=$PATH:/usr/local/go/bin && export CGO_ENABLED=1 && apt-get install -y gcc sudo && \
+    luarocks config variables.OPENSSL_DIR /usr/local/openresty/openssl111 && \
+    make deps && go clean -cache &&  \
     rm -rf /usr/local/go && apt-get -y purge --auto-remove gcc --allow-remove-essential
 
 COPY --from=builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
 
-RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove wget gnupg unzip make luarocks ca-certificates git sudo --allow-remove-essential
+RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove wget gnupg unzip make luarocks ca-certificates git zlib1g-dev libxml2-dev libxslt-dev sudo --allow-remove-essential
 
 RUN groupadd --system --gid 636 apisix \
     && useradd --system --gid apisix --no-create-home --shell /usr/sbin/nologin --uid 636 apisix \
