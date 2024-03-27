@@ -634,7 +634,7 @@ function _M.http_access_phase()
             enable_websocket = service.value.enable_websocket
         end
 
-        if route.value.strip_path_prefix and service.value.path_prefix then
+        if service.value.strip_path_prefix and service.value.path_prefix then
             local uri = api_ctx.var.uri
             if core.string.has_prefix(uri, service.value.path_prefix) then
                 api_ctx.var.uri_before_strip = uri

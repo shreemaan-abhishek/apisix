@@ -81,6 +81,7 @@ function test_strip_path_prefix()
         [[
             {
                 \"path_prefix\": \"/foo\",
+                \"strip_path_prefix\": true,
                 \"upstream\": {
                     \"type\": \"roundrobin\",
                     \"nodes\": {
@@ -97,8 +98,7 @@ function test_strip_path_prefix()
         [[
             {
                 \"uris\": [\"/hello\"],
-                \"service_id\": \"1\",
-                \"strip_path_prefix\": true
+                \"service_id\": \"1\"
             }
         ]]
     ))

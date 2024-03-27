@@ -603,8 +603,6 @@ _M.route = {
 
         service_id = id_schema,
 
-        strip_path_prefix = {type = "boolean", default = false},
-
         upstream_id = id_schema,
 
         enable_websocket = {
@@ -704,6 +702,7 @@ _M.service = {
             maxLength   = 4096,
             pattern     = [[^/.+]],
         },
+        strip_path_prefix = {type = "boolean", default = false},
         status = {
             description = "service status, 1 to enable, 0 to disable",
             type = "integer",
