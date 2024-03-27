@@ -83,6 +83,7 @@ plugins:    # plugin list
   - uri-blocker
   - request-validation
   - openid-connect
+  - saml-auth
   - cas-auth
   - authz-casbin
   - authz-casdoor

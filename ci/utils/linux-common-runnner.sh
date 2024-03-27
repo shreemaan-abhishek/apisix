@@ -35,6 +35,25 @@ patch_apisix_code(){
       "${VAR_APISIX_HOME}/ci/linux_openresty_common_runner.sh"
 
     sed -i "s/npm.taobao.org/npmmirror.com/" ${VAR_APISIX_HOME}/t/plugin/grpc-web/package-lock.json
+
+    sed -i "s/openresty-openssl111-debug-dev/openresty-openssl111-debug-dev openresty-openssl111-dev libxml2-dev libxslt-dev/" ${VAR_APISIX_HOME}/ci/linux-install-openresty.sh
+    echo "luarocks config variables.OPENSSL_DIR \${OPENSSL_PREFIX}" >> ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
+}
+
+
+install_deps() {
+    # run keycloak for saml test
+    docker run --rm --name keycloak -d -p 8087:8080 -e KEYCLOAK_ADMIN=admin -e KEYCLOAK_ADMIN_PASSWORD=admin quay.io/keycloak/keycloak:18.0.2 start-dev
+
+    # wait for keycloak ready
+    bash -c 'while true; do curl -s localhost:8087 &>/dev/null; ret=$?; [[ $ret -eq 0 ]] && break; sleep 3; done'
+
+    # configure keycloak for test
+    wget https://github.com/stedolan/jq/releases/download/jq-1.6/jq-linux64 -O jq
+    chmod +x jq
+    docker cp jq keycloak:/usr/bin/
+    docker cp ci/kcadm_configure_saml.sh keycloak:/tmp/
+    docker exec keycloak bash /tmp/kcadm_configure_saml.sh
 }
 
 
@@ -126,6 +145,7 @@ run_case() {
         t/plugin/graphql-limit-count \
         t/plugin/acl* \
         t/plugin/data-mask* \
+        t/plugin/saml-auth.t \
         t/plugin/api7-traffic-split* \
         t/plugin/ht-*
 }
@@ -145,6 +165,9 @@ patch_apisix_code)
     ;;
 install_module)
     install_module "$@"
+    ;;
+install_deps)
+    install_deps "$@"
     ;;
 run_case)
     run_case "$@"

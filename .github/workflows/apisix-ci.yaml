@@ -115,6 +115,7 @@ jobs:
           cd workbench
           make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
           sudo ./ci/init-common-test-service.sh
+          sudo ./ci/utils/linux-common-runnner.sh install_deps
 
       - name: Cache images
         id: cache-images

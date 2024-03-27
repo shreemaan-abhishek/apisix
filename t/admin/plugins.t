@@ -77,6 +77,7 @@ uri-blocker
 request-validation
 multi-auth
 openid-connect
+saml-auth
 cas-auth
 authz-casbin
 authz-casdoor
@@ -94,8 +95,8 @@ authz-keycloak
 data-mask
 body-transformer
 proxy-mirror
-proxy-cache
 graphql-proxy-cache
+proxy-cache
 proxy-rewrite
 workflow
 api-breaker
