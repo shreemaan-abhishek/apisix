@@ -110,7 +110,7 @@ RUN case $(dpkg --print-architecture) in \
 
 COPY --from=builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
 
-RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove wget gnupg unzip make luarocks ca-certificates git zlib1g-dev libxml2-dev libxslt-dev sudo --allow-remove-essential
+RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove wget gnupg unzip make luarocks ca-certificates git sudo --allow-remove-essential
 
 RUN groupadd --system --gid 636 apisix \
     && useradd --system --gid apisix --no-create-home --shell /usr/sbin/nologin --uid 636 apisix \
