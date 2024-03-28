@@ -372,5 +372,6 @@ return {
         methods = {"GET"},
         uris = {"/plugin_metadata/*"},
         handler = _M.dump_plugin_metadata,
-    }
+    },
+    get_health_checkers = _M.get_health_checkers,
 }

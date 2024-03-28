@@ -149,11 +149,17 @@ local function hook()
         ssl_key_path = etcd_conf.tls.key
     end
 
+    local healthcheck_report_interval = core.table.try_read_attr(local_conf, "api7ee", "healthcheck_report_interval")
+    if not healthcheck_report_interval then
+        healthcheck_report_interval = 60 * 2
+    end
+
     api7_agent = agent.new({
         endpoint = endpoint,
         ssl_cert_path = ssl_cert_path,
         ssl_key_path = ssl_key_path,
         max_metrics_size = max_metrics_size,
+        healthcheck_report_interval = healthcheck_report_interval,
     })
 
     local skip_first_heartbeat = getenv("API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG")
@@ -177,6 +183,7 @@ hook()
 
 local heartbeat_timer_name = "plugin#api7-agent#heartbeat"
 local telemetry_timer_name = "plugin#api7-agent#telemetry"
+local report_healthcheck_timer_name = "plugin#api7-agent#report_healthcheck"
 
 local heartbeat = function()
     api7_agent:heartbeat()
@@ -184,6 +191,10 @@ end
 
 local upload_metrics = function()
     api7_agent:upload_metrics()
+end
+
+local report_healthcheck = function()
+    api7_agent:report_healthcheck()
 end
 
 local apisix = require("apisix")
@@ -205,6 +216,7 @@ apisix.http_init_worker = function(...)
     local timers  = require("apisix.timers")
     timers.register_timer(heartbeat_timer_name, heartbeat, true)
     timers.register_timer(telemetry_timer_name, upload_metrics, true)
+    timers.register_timer(report_healthcheck_timer_name, report_healthcheck)
 end
 
 return _M

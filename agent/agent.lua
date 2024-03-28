@@ -5,8 +5,12 @@ local ltn12   = require("ltn12")
 local https   = require("ssl.https")
 local http    = require("socket.http")
 local ssl     = require("ssl")
+
 local resty_http    = require("resty.http")
-local discovery = require("agent.discovery")
+local discovery     = require("agent.discovery")
+local lrucache      = require("resty.lrucache")
+
+local get_health_checkers = require("apisix.control.v1").get_health_checkers
 
 local setmetatable  = setmetatable
 local ngx_time      = ngx.time
@@ -21,6 +25,10 @@ local _M = {}
 local mt = {
     __index = _M
 }
+
+-- max_items same as https://github.com/apache/apisix/blob/77704832ec91117f5ca7171811ae5f0d3f1494fe/apisix/balancer.lua#L38-L40
+local healthcheck_cache     = lrucache.new(1024 * 4)
+local HEALTHCHECK_CACHE_TTL = 20 * 60 -- 20 min
 
 local payload = {
     instance_id = core.id.get(),
@@ -224,15 +232,124 @@ function _M.upload_metrics(self)
     core.log.info(msg)
 end
 
+function _M.report_healthcheck(self)
+    local current_time = ngx_time()
+    if self.last_report_healthcheck_time and
+            current_time - self.last_report_healthcheck_time < self.healthcheck_report_interval then
+        return
+    end
+
+    self.last_report_healthcheck_time = current_time
+
+    -- Control API in version 3.2
+    -- https://apisix.apache.org/zh/docs/apisix/3.2/control-api/#get-v1healthcheck
+    -- UPGRADE NOTICE:
+    --   When upgrading APISIX DP, this needs to be redesigned because the return value of the control API has changed.
+    local _, infos = get_health_checkers()
+    if not infos or #infos == 0 then
+        core.log.debug("no healthcheck data to report")
+        return
+    end
+
+    local data = core.table.new(0, 0)
+    for _, upstream in core.config_util.iterate_values(infos) do
+        if not (upstream.src_type and upstream.src_id and upstream.src_type == "upstreams" and upstream.nodes) then
+            goto continue
+        end
+
+        local all_nodes = {}
+        for _, node in core.config_util.iterate_values(upstream.nodes) do
+            local host = node.domain and #node.domain > 0 and node.domain or node.host
+            local port = node.port
+            if host and port then
+                local node_key = host .. ":" .. port
+                all_nodes[node_key] = {
+                    host = host,
+                    port = port,
+                    status = "unhealthy"
+                }
+            end
+        end
+
+        for _, node in core.config_util.iterate_values(upstream.healthy_nodes) do
+            local host = node.domain and #node.domain > 0 and node.domain or node.host
+            local port = node.port
+            if host and port then
+                local node_key = host .. ":" .. port
+                all_nodes[node_key] = {
+                    host = host,
+                    port = port,
+                    status = "healthy"
+                }
+            end
+        end
+
+        local diff_nodes = {}
+        for key, node in pairs(all_nodes) do
+            local cache_key = upstream.src_id .. "_" .. key
+            local prev_status = healthcheck_cache:get(cache_key)
+            local cur_status = node.status
+            if not prev_status or prev_status ~= cur_status then
+                core.table.insert(diff_nodes, node)
+            end
+        end
+
+        if #diff_nodes > 0 then
+            core.table.insert(data, {
+                upstream_id = upstream.src_id,
+                nodes = diff_nodes
+            })
+        end
+
+        :: continue ::
+    end
+
+    if #data == 0 then
+        core.log.debug("no new healthcheck data to report")
+        return
+    end
+    local payload_data = core.json.encode({
+        instance_id = payload.instance_id,
+        data = data
+    })
+    local res, err = send_request(self.healthcheck_url, {
+        method = "POST",
+        body = payload_data,
+        headers = headers,
+        ssl_cert_path = self.ssl_cert_path,
+        ssl_key_path = self.ssl_key_path,
+    })
+    if not res then
+        core.log.warn("report healthcheck data failed: ", err)
+        return
+    end
+    if res.status ~= 200 then
+        core.log.warn("report healthcheck data failed: payload: " .. payload_data .. ", response status: " .. res.status ..
+                ", response body: " .. core.json.encode(res.body))
+        return
+    end
+
+    for _, upstream in core.config_util.iterate_values(data) do
+        for _, node in core.config_util.iterate_values(upstream.nodes) do
+            local cache_key = node.upstream_id .. "_" .. node.host .. ":" .. node.port
+            healthcheck_cache:set(cache_key, node.status, HEALTHCHECK_CACHE_TTL)
+        end
+    end
+
+    local msg = str_format("dp instance \'%s\' report healthcheck data successfully", payload.instance_id)
+    core.log.info(msg)
+end
 
 function _M.new(agent_conf)
     local self = {
         heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
         metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
+        healthcheck_url = agent_conf.endpoint .. "/api/dataplane/healthcheck",
         ssl_cert_path = agent_conf.ssl_cert_path,
         ssl_key_path = agent_conf.ssl_key_path,
         heartbeat_interval = 10,
         telemetry_collect_interval = 15,
+        healthcheck_report_interval = agent_conf.healthcheck_report_interval,
         max_metrics_size = agent_conf.max_metrics_size or 1024 * 1024 * 32,
         last_heartbeat_time = nil,
         last_metrics_uploading_time = nil,
@@ -243,6 +360,4 @@ function _M.new(agent_conf)
     return setmetatable(self, mt)
 end
 
-
 return _M
-
