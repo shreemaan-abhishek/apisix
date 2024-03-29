@@ -233,13 +233,13 @@ local config_schema = {
                                     items = {
                                         type = "string",
                                         minLength = 16,
-                                        maxLength = 16
+                                        maxLength = 32
                                     }
                                 },
                                 {
                                     type = "string",
                                     minLength = 16,
-                                    maxLength = 16
+                                    maxLength = 32
                                 }
                             }
                         },
