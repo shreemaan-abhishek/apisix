@@ -331,7 +331,7 @@ function _M.report_healthcheck(self)
 
     for _, upstream in core.config_util.iterate_values(data) do
         for _, node in core.config_util.iterate_values(upstream.nodes) do
-            local cache_key = node.upstream_id .. "_" .. node.host .. ":" .. node.port
+            local cache_key = upstream.upstream_id .. "_" .. node.host .. ":" .. node.port
             healthcheck_cache:set(cache_key, node.status, HEALTHCHECK_CACHE_TTL)
         end
     end
