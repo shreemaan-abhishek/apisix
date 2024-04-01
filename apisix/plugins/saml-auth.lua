@@ -21,6 +21,7 @@ local schema = {
         sp_cert = { type = "string" },
         sp_private_key = { type = "string" },
     },
+    encrypt_fields = {"sp_private_key"},
     required = {
         "sp_issuer",
         "idp_uri",
