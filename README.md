@@ -1,106 +1,28 @@
-# apisix-plugin-demo
+# Why create this repo?
+The Enterprise Edition's data plane is built on the open source Apache APISIX 3.2(we will review regularly to see if it is necessary to upgrade to a newer Apache APISIX version), but with some differences:
+- The admin API is closed by default (when a customer doesn't want to use our control plane, we can enable the admin API in data plane's yaml configure file)
+- Plug-ins exclusive of Enterprise Edition
+- Backwards compatibility for bugfixes and security vulnerabilities
+- Backward compatibility of valuable new features
+- Bugs reported by customers will be fixed in the enterprise version first, and then contributed to Apache APISIX
+- Delivery images are automatically scanned for security vulnerabilities on Google Cloud
+  
+# How does this repo work?
 
-[![Build Status][badge-action-img]][badge-action-url]
+This code repository is built based on Apache APISIX 3.2. If you want to synchronize a bugfix or new feature from a new version of Apache APISIX (such as 3.8) to this repository, you need to understand its implementation mechanism and how it works:
+- When packaging and building, the complete code and test cases will be pulled from Apache APISIX 3.2. If the same file is found in this repo (the path and file name are consistent), the file in this repo will be used to replace the file in the open-source version; if the file does not exist in this repo, the file in the open source version will prevail.
+- This code repository does not use the usual `diff` to handle the code differences between the enterprise edition and the open source edition, but uses code file level substitution. This is to allow developers to better read and understand the code of the enterprise version data plane.
+- In order to ensure compatibility with the open source Apache APISIX and the quality of new code, CI will completely run all test cases of Apache APISIX
+- For bugfixes and new features picked from the new version of Apache APISIX cherry, in addition to code and documentation, **test cases must also be added**
 
-This repository contains a basic [Apache APISIX][apisix] plugin template to help you
-get started with Apache APISIX plugin development.
-
-> This template was designed to work with the [GitHub Action][github-actions] development environments.
-
-## Table of contents
-- [Getting started](#getting-started)
-- [Plugin template structure](#plugin-template-structure)
-- [Sample Code](#sample-code)
-- [Testing](#testing)
-  - [Continuous integration](#continuous-integration)
-- [Useful links](#useful-links)
-
-## Getting Started
-> Before we dive into plugin development and everything related to it,
-> a brief look at the [GitHub Template][github-public-template] is in order
-
-All you need to do is click the [`Use this template`][apisix-plugin-use-template] button (you **<ins>must be logged</ins>** in with your GitHub account).
-
-After using the template to create your own blank custom plugin project, the project is ready to be cloned to your local environment and development.
-
-[Back to TOC][TOC]
-
-## Plugin template structure
-```
-.
-├── .github/         GitHub Actions workflows and Dependabot configuration files
-├── apisix           All files in this folder will be copied and overwrite the original APISIX
-│   └── plugins/     Plugin source
-├── ci               All files in this folder will be copied and overwrite the original APISIX
-│   └── utils/       CI utils script folder
-├── t/               Test case folder
-├── LICENSE
-├── Makefile
-└── README.md        README
-```
-[Back to TOC][TOC]
-
-## Sample Code
-The prepared plugin template provides as little code as possible because it is impossible for a general scaffold to fulfill all the specific requirements for all types of plugins.
-Therefore, the template contains only the following files:
-
-```
-.
-├── apisix
-│   └── plugins/
-│       └── demo.lua
-└── t
-    └── demo/
-        └── demo.t      
-```
-
-To start with the actual implementation, you may check our [APISIX Plugin Deveolpment][apisix-plugin-develop],
-which contains an introduction to the essential parts of the plugin development.
-
-[Back to TOC][TOC]
-
-## Testing
-[Testing plugins][apisix-testing-framework] is an essential part of the plugin development to make sure that everything works as expected.
-
-### Continuous integration
-[Continuous integration][continuous-integration] (CI) depends on [GitHub Actions][github-actions], a set of workflows that make it possible to automate your testing process.
-Thanks to such automation, you can delegate the testing and verification phases to the CI and instead focus on development (and writing more tests).
-
-In the `.github/workflows` directory, you can find definitions for the following GitHub Actions workflows:
-
-- [CI](.github/workflows/ci.yml)
-  - Triggered on `push` and `pull_request` events.
-  - Run test case in [`t`](t) folder
-
-[Back to TOC][TOC]
-
-## Useful links
-- [Getting started with GitHub Public Template][github-public-template]
-- [What is APISIX Plugin][apisix-plugin]
-- [APISIX Architecture Design][apisix-architecture-design]
-- [APISIX Plugin Deveolpment][apisix-plugin-develop]
-- [APISIX Code Style][apisix-code-style]
-- [APISIX Debug Mode][apisix-debug-mode]
-- [APISIX Testing Framework][apisix-testing-framework]
-- [GitHub Actions][github-actions]
-
-[Back to TOC][TOC]
-
-[TOC]: #table-of-contents
-
-[badge-action-url]: https://github.com/api7/apisix-plugin-template/actions
-[badge-action-img]: https://github.com/api7/apisix-plugin-template/actions/workflows/ci.yml/badge.svg
-
-[apisix]: https://github.com/apache/apisix
-[apisix-architecture-design]: https://apisix.apache.org/docs/apisix/architecture-design/apisix
-[apisix-code-style]: https://github.com/apache/apisix/blob/master/CODE_STYLE.md
-[apisix-debug-mode]: https://apisix.apache.org/docs/apisix/architecture-design/debug-mode
-[apisix-plugin]: https://apisix.apache.org/docs/apisix/architecture-design/plugin
-[apisix-plugin-develop]: https://apisix.apache.org/docs/apisix/plugin-develop
-[apisix-plugin-use-template]: https://github.com/api7/apisix-plugin-template/generate
-[apisix-testing-framework]: https://apisix.apache.org/docs/apisix/internal/testing-framework
-
-[continuous-integration]: https://en.wikipedia.org/wiki/Continuous_integration
-
-[github-actions]: https://help.github.com/en/actions
-[github-public-template]: https://docs.github.com/en/repositories/creating-and-managing-repositories/creating-a-repository-from-a-template
+# What is in this repo?
+- Enterprise Edition Data Plane
+- Plug-ins exclusive of Enterprise Edition
+- Bugfixes, and new features that are backward compatible with new versions of Apache APISIX
+- Workaround for undisclosed security vulnerability
+- Security enhancement
+  
+# What will not be included in Enterprise Edition DP?
+- Changes to the underlying implementation of Apache APISIX, such as routing matching algorithms, load balancing algorithms, health checks, etc. We hope these are consistent with the open source Apache APISIX because there are wider usage scenarios and large-scale verification in the community
+- Bugfix for open source plug-ins for the same reason as above
+- Publicly disclosed security vulnerabilities
