@@ -61,7 +61,7 @@ Success! Data written to: kv/apisix/foo
                  [[{
                         "plugins": {
                             "authz-keycloak": {
-                                "token_endpoint": "https://127.0.0.1:8443/realms/University/protocol/openid-connect/token",
+                                "token_endpoint": "http://127.0.0.1:8090/auth/realms/University/protocol/openid-connect/token",
                                 "permissions": ["course_resource"],
                                 "client_id": "course_management",
                                 "client_secret": "$secret://vault/test1/foo/client_secret",
@@ -125,7 +125,7 @@ success
                  [[{
                         "plugins": {
                             "authz-keycloak": {
-                                "token_endpoint": "https://127.0.0.1:8443/realms/University/protocol/openid-connect/token",
+                                "token_endpoint": "https://127.0.0.1:8443/auth/realms/University/protocol/openid-connect/token",
                                 "permissions": ["course_resource"],
                                 "client_id": "course_management",
                                 "client_secret": "$env://CLIENT_SECRET",
@@ -189,7 +189,7 @@ success
                  [[{
                         "plugins": {
                             "authz-keycloak": {
-                                "token_endpoint": "https://127.0.0.1:8443/realms/University/protocol/openid-connect/token",
+                                "token_endpoint": "https://127.0.0.1:8443/auth/realms/University/protocol/openid-connect/token",
                                 "permissions": ["course_resource"],
                                 "client_id": "course_management",
                                 "client_secret": "$env://INVALID_CLIENT_SECRET",

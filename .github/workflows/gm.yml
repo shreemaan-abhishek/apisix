@@ -90,7 +90,7 @@ jobs:
         working-directory: workbench
         run: |
           make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
-
+          sudo ./ci/init-common-test-service.sh
       - name: Linux Before install
         working-directory: workbench
         env:
