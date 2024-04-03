@@ -88,6 +88,10 @@ jobs:
         cd workbench
         bash ./ci/free_disk_space.sh
 
+    - name: Setup docker compose
+      run: |
+        sudo cp ./docker-compose /bin/docker-compose
+
     - name: Linux launch common services
       run: |
         cd workbench
