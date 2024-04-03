@@ -34,7 +34,7 @@ local mt = { __index = _M }
 local pb_state
 local function init_pb_state()
     -- clear current pb state
-    local old_pb_state = pb.state(nil)
+    local old_pb_state = pb.state(pb_state)
 
     -- set int64 rule for pubsub module
     pb.option("int64_as_string")
