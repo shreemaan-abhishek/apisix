@@ -394,7 +394,12 @@ function _M.get(key, is_dir)
 
     -- in etcd v2, get could implicitly turn into readdir
     -- while in v3, we need to do it explicitly
-    local res, err = etcd_cli:readdir(key)
+    local res
+    if is_dir then
+        res, err = etcd_cli:readdir(key)
+    else
+        res, err = etcd_cli:get(key)
+    end
     if not res then
         return nil, err
     end
