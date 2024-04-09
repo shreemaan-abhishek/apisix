@@ -96,7 +96,7 @@ function _M.access(conf, ctx)
         if not conf.verbose_errors then
             err = ""
         end
-        return 400, {message = "failed to validate request, err: " .. err}
+        return 400, {message = "failed to validate request. " .. err}
     end
 end
 
