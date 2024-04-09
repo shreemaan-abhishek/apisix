@@ -34,6 +34,10 @@ local str_sub = string.sub
 local table_concat = table.concat
 local table_insert = table.insert
 local io_stderr = io.stderr
+local getenv = os.getenv
+
+local AUTH_HEADER = "Control-Plane-Token"
+local control_plane_token = getenv("API7_CONTROL_PLANE_TOKEN")
 
 local _M = {}
 
@@ -219,6 +223,9 @@ local function prepare_dirs_via_http(yaml_conf, args, index, host, host_count)
                             .. '", "key":"' .. base64_encode(key) .. '"}'
         local response_body = {}
         local headers = {["Content-Length"] = #post_json}
+        if control_plane_token then
+            headers[AUTH_HEADER] = control_plane_token
+        end
         if auth_token then
             headers["Authorization"] = auth_token
         end
