@@ -16,7 +16,7 @@ If there is too much content, you can post the link of the document.
 
    
 ## Checklist
- - [ ] I have explained **WHY** we need this PR and the problem it solves
+ - [ ] I have explained **WHY** we need this PR and **HOW** the problem it solves
  - [ ] I have explained the changes or the new features added to this PR
  - [ ] I have added **e2e test cases** corresponding to this change
  - [ ] I have updated the documentation to reflect this change
