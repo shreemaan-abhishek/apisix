@@ -451,7 +451,984 @@ GET /hello?team=fake
 
 
 
-=== TEST 23: delete route
+=== TEST 23: set acl with external user parsed by JSONPath (parser is table)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { orgs = { api7 = { team = {\"cloud\", \"infra\"} } } };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "$.orgs..team",
+                              "external_user_label_field_key": "team",
+                              "external_user_label_field_parser": "table",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 24: test acl with external user parsed by JSONPath (parser is table)
+--- request
+GET /hello
+--- response_body
+hello world
+
+
+
+=== TEST 25: set acl with external user parsed by JSONPath (parser is segmented_text)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { orgs = { api7 = { team = \"cloud|infra\" } } };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "$.orgs..team",
+                              "external_user_label_field_key": "team",
+                              "external_user_label_field_parser": "segmented_text",
+                              "external_user_label_field_separator": "\\|",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 26: test acl with external user parsed by JSONPath (parser is segmented_text)
+--- request
+GET /hello
+--- response_body
+hello world
+
+
+
+=== TEST 27: set acl with external user parsed by JSONPath (parser is json)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { orgses = { api7 = { team = \"[\\\"cloud\\\", \\\"infra\\\"]\" } } };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "$..team",
+                              "external_user_label_field_key": "team",
+                              "external_user_label_field_parser": "json",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 28: test acl with external user parsed by JSONPath (parser is json)
+--- request
+GET /hello
+--- response_body
+hello world
+
+
+
+=== TEST 29: set acl parser "segmented_text", but can not extract expect value by the invalid separator
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                            "functions": [
+                              "return function(conf, ctx)      ctx.external_user = { orgs = { api7 = { team = \"cloud|infra\" } } };     end"
+                            ],
+                            "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "$.orgs..team",
+                              "external_user_label_field_key": "team",
+                              "external_user_label_field_parser": "segmented_text",
+                              "external_user_label_field_separator": "|",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 30: test ACL with the invalid separator
+# User may want to split the text "cloud|infra" to be ["cloud", "infra"] by char "|", but it dose not.
+# Because the char "|" is a regex expression, the text "cloud|infra" will be split to ['c','l','o','u','d','|','i','n','f','r','a'].
+# If you want to split text by "|" you should use "\\|".
+# This is a normal case, no error_log here.
+--- request
+GET /hello
+--- error_code: 403
+
+
+
+=== TEST 31: set external_user info that ACL can extract multiple values from it.
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { orgs = { api7 = { team = \"cloud|infra\" }, apache = { team = { \"devops\", \"qa\" } } } };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "$.orgs..team",
+                              "external_user_label_field_key": "team",
+                              "external_user_label_field_parser": "segmented_text",
+                              "external_user_label_field_separator": "\\|",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 32: test the ACL extract multiple values from external_user info and the first value can not be expected.
+# User may expect the value extracted is "cloud|infra", but it is not.
+# Because the values extracted are multiple, we can not expect the value "cloud|infra" is the first.
+# This is a normal case, no error_log here.
+--- request
+GET /hello
+--- error_code: 403
+
+
+
+=== TEST 33: use JSONPath to extract value but a correct external_user_label_field and external_user_label_field_parser is missing.
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { orgs = { api7 = { team = \"cloud,infra\" } } };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "$..team",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 34: test using JSONPath but a label key is missing.
+# Using the JSONPath "$..team" to extract value and a label key is missing, the ACL will use the JSONPath as the key to match labels.
+# It's obvious that our use of "$. .team" does not match any value in ACL allow_labels/deny_labels.
+# This is a normal case, no error_log here.
+--- request
+GET /hello
+--- error_code: 403
+
+
+
+=== TEST 35: set invalid separator
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { orgs = { api7 = { team = \"cloud,infra\" } } };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                               "allow_labels": {
+                                 "org": ["api7", "apache"],
+                                 "team": ["cloud", "infra"]
+                               },
+                               "external_user_label_field": "$..team",
+                               "external_user_label_field_key": "team",
+                               "external_user_label_field_parser": "segmented_text",
+                               "external_user_label_field_separator": "(invalid(pattern",
+                               "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 36: test invalid separator, ngx.re.split will be fail.
+# The value extracted is "cloud,infra",
+# ACL parser try to parser it as Lua table.
+# It will fail and forbidden all.
+--- request
+GET /hello
+--- error_code: 403
+--- error_log
+extra_values_with_parser(): failed to split labels [cloud,infra], err: pcre_compile() failed: missing ) in "(invalid(pattern"
+
+
+=== TEST 37: set the parser "table" but the type of the value extracted is not a table
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { orgs = { api7 = { team = \"cloud,infra\" } } };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "$..team",
+                              "external_user_label_field_key": "team",
+                              "external_user_label_field_parser": "table",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 38: test the parser is "table" but the type of the value extracted is not a table
+# The value extracted is "cloud,infra",
+# ACL parser try to parser it as Lua table.
+# It will fail and forbidden all.
+--- request
+GET /hello
+--- error_code: 403
+--- error_log
+extra_values_with_parser(): the parser is specified as table, but the type of value is not table: string
+
+
+
+=== TEST 39: set the parser "json" but the type of the value extracted is not string
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { orgs = { api7 = { team = {\"cloud\", \"infra\"} } } };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "$..team",
+                              "external_user_label_field_key": "team",
+                              "external_user_label_field_parser": "json",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 40: test the parser is "json" but the type of the value extracted is not string
+# The value extracted is {"cloud", "infra"}, a Lua table.
+# The ACL try to parser it as a serialized JSON.
+# It will fail and forbidden all.
+--- request
+GET /hello
+--- error_code: 403
+--- error_log
+extra_values_with_parser(): the parser is specified as json array, but the value type is not string
+
+
+
+=== TEST 41: set the parser "json" but the value extracted has no prefix "["
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { orgs = { api7 = { team = \"cloud\" } } };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "$..team",
+                              "external_user_label_field_key": "team",
+                              "external_user_label_field_parser": "json",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 42: test the parser is "json" but the value extracted has no prefix "["
+# The value extracted is "cloud".
+# The ACL try to parse it as a serialized JSON string.
+# It will fail and forbidden all.
+--- request
+GET /hello
+--- error_code: 403
+--- error_log
+extra_values_with_parser(): the parser is specified as json array, but the value do not has prefix '['
+
+
+
+=== TEST 43: set the parser "json" and the value extracted has prefix "[" but it is a invalid JSON
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { orgs = { api7 = { team = \"[cloud\" } } };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "$..team",
+                              "external_user_label_field_key": "team",
+                              "external_user_label_field_parser": "json",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 44: test the parser is "json" and the value extracted has prefix "[" but it is a invalid JSON
+# The value extracted is "cloud".
+# The ACL try to parse it as a serialized JSON string.
+# It will fail and forbidden all.
+--- request
+GET /hello
+--- error_code: 403
+--- error_log
+extra_values_with_parser(): failed to decode labels [[cloud] as array, err: Expected value but found invalid token at character 2
+
+
+
+=== TEST 45: set no parser, value has no prefix "[" and no separator ",", external_user_label_field as labels key
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "serverless-pre-function": {
+                              "functions": [
+                                "return function(conf, ctx)      ctx.external_user = { team = \"cloud\" };     end"
+                              ],
+                              "phase": "access"
+                            },
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "team",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 46: test no parser, value has no prefix "[" and no separator ",", external_user_label_field as labels key
+# The value extracted is "cloud".
+# There is no parser and the value type is "string", so ACL treat it as a Lua table {"cloud"}.
+# It can match the ACL allow_labels, so response 200 OK.
+--- request
+GET /hello
+--- response_body
+hello world
+--- error_log
+extra_values_without_parser(): the string value can not parsed by json or segmented_text
+
+
+
+=== TEST 47: TEST SCHEMA: invalid external_user_label_field_parser
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "team",
+                              "external_user_label_field_parser": "an-invalid-parser",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.print(body)
+        }
+    }
+--- request
+GET /t
+--- error_code: 400
+--- response_body
+{"error_msg":"failed to check the configuration of plugin acl err: property \"external_user_label_field_parser\" validation failed: matches none of the enum values"}
+
+
+
+=== TEST 48: TEST SCHEMA: external_user_label_field_parser="segmented_text" but external_user_label_field_separator is missing
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "team",
+                              "external_user_label_field_parser": "segmented_text",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.print(body)
+        }
+    }
+--- request
+GET /t
+--- error_code: 400
+--- response_body
+{"error_msg":"failed to check the configuration of plugin acl err: allOf 1 failed: then clause did not match"}
+
+
+
+=== TEST 49: TEST SCHEMA: invalid external_user_label_field_key (specified but empty)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "team",
+                              "external_user_label_field_parser": "segmented_text",
+                              "external_user_label_field_key": "",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.print(body)
+        }
+    }
+--- request
+GET /t
+--- error_code: 400
+--- response_body
+{"error_msg":"failed to check the configuration of plugin acl err: property \"external_user_label_field_key\" validation failed: string too short, expected at least 1, got 0"}
+
+
+
+=== TEST 50: TEST SCHEMA: invalid external_user_label_field_key (specified but not string)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "team",
+                              "external_user_label_field_parser": "segmented_text",
+                              "external_user_label_field_key": {},
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.print(body)
+        }
+    }
+--- request
+GET /t
+--- error_code: 400
+--- response_body
+{"error_msg":"failed to check the configuration of plugin acl err: property \"external_user_label_field_key\" validation failed: wrong type: expected string, got table"}
+
+
+
+=== TEST 51: TEST SCHEMA: invalid external_user_label_field_separator (specified but empty)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "team",
+                              "external_user_label_field_parser": "segmented_text",
+                              "external_user_label_field_key": "",
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.print(body)
+        }
+    }
+--- request
+GET /t
+--- error_code: 400
+--- response_body
+{"error_msg":"failed to check the configuration of plugin acl err: property \"external_user_label_field_key\" validation failed: string too short, expected at least 1, got 0"}
+
+
+
+=== TEST 52: TEST SCHEMA: invalid external_user_label_field_separator (specified but not string)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "uri": "/hello",
+                        "upstream": {
+                            "type": "roundrobin",
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            }
+                        },
+                        "plugins": {
+                            "acl": {
+                              "allow_labels": {
+                                "org": ["api7", "apache"],
+                                "team": ["cloud", "infra"]
+                              },
+                              "external_user_label_field": "team",
+                              "external_user_label_field_parser": "segmented_text",
+                              "external_user_label_field_key": {},
+                              "rejected_code": 403
+                            }
+                        }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.print(body)
+        }
+    }
+--- request
+GET /t
+--- error_code: 400
+--- response_body
+{"error_msg":"failed to check the configuration of plugin acl err: property \"external_user_label_field_key\" validation failed: wrong type: expected string, got table"}
+
+
+
+=== TEST 53: delete route
 --- config
     location /t {
         content_by_lua_block {
@@ -469,7 +1446,7 @@ passed
 
 
 
-=== TEST 24: delete jack
+=== TEST 54: delete jack
 --- config
     location /t {
         content_by_lua_block {
@@ -487,7 +1464,7 @@ passed
 
 
 
-=== TEST 25: delete rose
+=== TEST 55: delete rose
 --- config
     location /t {
         content_by_lua_block {

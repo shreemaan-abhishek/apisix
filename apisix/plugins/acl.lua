@@ -1,12 +1,23 @@
 local type      = type
 local ipairs    = ipairs
 local pairs     = pairs
+local jp        = require("jsonpath")
 local re_split  = require("ngx.re").split
 local core      = require("apisix.core")
 local schema = {
     type = "object",
     properties = {
-        external_user_label_field = {type = "string", default = "groups"},
+        external_user_label_field = {type = "string", default = "groups", minLength = 1},
+        external_user_label_field_key = {type = "string", minLength = 1},
+        external_user_label_field_parser = {
+            type = "string",
+            enum = {"segmented_text", "json", "table"},
+        },
+        external_user_label_field_separator = {
+            type = "string",
+            minLength = 1,
+            description = "The separator(regex) of the segmented_text parser",
+        },
         allow_labels = {
             type = "object",
             minProperties = 1,
@@ -30,7 +41,18 @@ local schema = {
             },
         },
         rejected_code = {type = "integer", minimum = 200, default = 403},
-        rejected_msg = {type = "string"}
+        rejected_msg = {type = "string"},
+    },
+    allOf = {
+        {
+            ["if"] = {
+                required = { "external_user_label_field_parser" },
+                properties = { external_user_label_field_parser = { const = "segmented_text" } },
+            },
+            ["then"] = {
+                required = { "external_user_label_field_separator" },
+            },
+        },
     },
     anyOf = {
         {required = {"allow_labels"}},
@@ -47,31 +69,87 @@ local _M = {
     schema = schema,
 }
 
-local function contains_value(want_values, value)
-    local values
-    local typ = type(value)
-    if typ == "table" then
-        values = value
-    elseif typ == "string" then
-        values = { value }
-        if core.string.has_prefix(value, "[") then
-            local res, err = core.json.decode(value)
-            if res then
-                values = res
-            else
-                core.log.warn("failed to decode labels [", value, "] as array, err: ", err)
-            end
-        elseif core.string.find(value, ",") then
-            local res, err = re_split(value, ",", "jo")
-            if res then
-                values = res
-            else
-                core.log.warn("failed to split labels [", value, "], err: ", err)
-            end
+local parsers = {
+    SEGMENTED_TEXT = "segmented_text",
+    JSON = "json",
+    TABLE = "table",
+}
+
+
+local function extra_values_with_parser(value, parser, sep)
+    local values = {}
+    if parser == parsers.SEGMENTED_TEXT then
+        local res, err = re_split(value, sep, "jo")
+        if res then
+            return res
         end
+        core.log.warn("failed to split labels [", value, "], err: ", err)
+
+        return values
+    end
+
+    local typ = type(value)
+
+    if parser == parsers.TABLE then
+        if typ == "table" then
+            return value
+        end
+        core.log.warn("the parser is specified as table, but the type of value is not table: ", typ)
+        return values
+    end
+
+    if parser == parsers.JSON then
+        if typ ~= "string" then
+            core.log.warn("the parser is specified as json array, but the value type is not string")
+            return values
+        end
+        if not core.string.has_prefix(value, "[") then
+            core.log.warn("the parser is specified as json array, but the value do not has prefix '['")
+            return values
+        end
+
+        local res, err = core.json.decode(value)
+        if res then
+            return res
+        end
+        core.log.warn("failed to decode labels [", value, "] as array, err: ", err)
+        return values
+    end
+
+    return values
+end
+
+
+local function extra_values_without_parser(value)
+    local values = {}
+    local typ = type(value)
+
+    if typ == "table" then
+        return extra_values_with_parser(value, parsers.TABLE, "")
+    end
+
+    if typ == "string" then
+        if core.string.has_prefix(value, "[") then
+            return extra_values_with_parser(value, parsers.JSON, "")
+        end
+        if core.string.find(value, ",") then
+            return extra_values_with_parser(value, parsers.SEGMENTED_TEXT, ",")
+        end
+        core.log.warn("the string value can not parsed by " .. parsers.JSON .. " or " .. parsers.SEGMENTED_TEXT)
+        return { value }
+    end
+
+    core.log.error("unsupported type of label value: ", typ)
+    return values
+end
+
+
+local function contains_value(want_values, value, parser, sep)
+    local values
+    if parser then
+        values = extra_values_with_parser(value, parser, sep)
     else
-        core.log.error("unsupported type of label value: ", typ)
-        return false
+        values = extra_values_without_parser(value)
     end
 
     for _, want in ipairs(want_values) do
@@ -84,12 +162,13 @@ local function contains_value(want_values, value)
     return false
 end
 
-local function contains_label(want_labels, labels)
+
+local function contains_label(want_labels, labels, parser, sep)
     if not labels then
         return false
     end
     for key, values in pairs(want_labels) do
-        if labels[key] and contains_value(values, labels[key]) then
+        if labels[key] and contains_value(values, labels[key], parser, sep) then
             return true
         end
     end
@@ -105,10 +184,10 @@ end
 
 function _M.check_schema(conf)
     local ok, err = core.schema.check(schema, conf)
-   if not ok then
+    if not ok then
         return false, err
-   end
-   return true
+    end
+    return true
 end
 
 function _M.access(conf, ctx)
@@ -116,22 +195,29 @@ function _M.access(conf, ctx)
     if ctx.consumer then
         labels = ctx.consumer.labels
     elseif ctx.external_user then
-        labels = { [conf.external_user_label_field] =
-                        ctx.external_user[conf.external_user_label_field] }
+        local label_key = conf.external_user_label_field
+        if conf.external_user_label_field_key then
+            label_key = conf.external_user_label_field_key
+        end
+        local label_value = jp.value(ctx.external_user, conf.external_user_label_field)
+        labels = { [label_key] = label_value }
     else
         return 401, { message = "Missing authentication."}
     end
 
     core.log.info("consumer's or user's labels: ", core.json.delay_encode(labels))
 
+    local sep = conf.external_user_label_field_separator
+    local parser = conf.external_user_label_field_parser
+
     if conf.deny_labels then
-        if contains_label(conf.deny_labels, labels) then
+        if contains_label(conf.deny_labels, labels, parser, sep) then
             return reject(conf)
         end
     end
 
     if conf.allow_labels then
-        if not contains_label(conf.allow_labels, labels) then
+        if not contains_label(conf.allow_labels, labels, parser, sep) then
             return reject(conf)
         end
     end
