@@ -16,9 +16,13 @@ local setmetatable  = setmetatable
 local ngx_time      = ngx.time
 local str_format    = string.format
 local get_phase     = ngx.get_phase
-local config_dict   = ngx.shared.config
 local getenv = os.getenv
 
+local shdict_name = "config"
+if ngx.config.subsystem == "stream" then
+    shdict_name = shdict_name .. "-stream"
+end
+local config_dict   = ngx.shared[shdict_name]
 
 local _M = {}
 

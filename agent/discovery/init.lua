@@ -1,5 +1,6 @@
 local log          = require("apisix.core.log")
 local pairs        = pairs
+local is_http      = ngx.config.subsystem == "http"
 
 local discovery_type = {"kubernetes", "nacos"}
 local discovery = {}
@@ -18,6 +19,11 @@ if discovery_type then
 end
 
 function _M.init_worker()
+    -- now we only support service discovery in L7
+    if not is_http then
+        return
+    end
+
     if discovery_type then
         for _, discovery_name in pairs(discovery_type) do
             discovery[discovery_name].init_worker()
@@ -27,6 +33,12 @@ end
 
 function _M.list_all_services()
     local services = {}
+
+    -- now we only support service discovery in L7
+    if not is_http then
+        return {}
+    end
+
     if discovery_type then
         for _, discovery_name in pairs(discovery_type) do
             local service = discovery[discovery_name].list_all_services()
@@ -41,6 +53,12 @@ end
 
 function _M.get_health_checkers()
     local health_checkers = {}
+
+    -- now we only support service discovery in L7
+    if not is_http then
+        return {}
+    end
+
     if discovery_type then
         for _, discovery_name in pairs(discovery_type) do
             local health_checker = discovery[discovery_name].get_health_checkers()

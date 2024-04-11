@@ -55,7 +55,7 @@ end
 
 function _M.init_worker()
     local local_conf = require("apisix.core.config_local").local_conf(true)
-    local discovery_conf = local_conf.api7_discovery.nacos
+    local discovery_conf = local_conf.api7_discovery and local_conf.api7_discovery.nacos or {}
 
     if process.type() ~= "privileged agent" then
         return

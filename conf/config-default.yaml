@@ -166,6 +166,7 @@ nginx_config:                     # config for render the template to generate n
       plugin-limit-conn-stream: 10m
       worker-events-stream: 10m
       tars-stream: 1m
+      config-stream: 5m
 
   # As user can add arbitrary configurations in the snippet,
   # it is user's responsibility to check the configurations

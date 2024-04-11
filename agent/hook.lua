@@ -44,7 +44,11 @@ local function update_conf_for_etcd(etcd_conf)
 end
 
 
-local config_dict = ngx.shared.config
+local shdict_name = "config"
+if ngx.config.subsystem == "stream" then
+    shdict_name = shdict_name .. "-stream"
+end
+local config_dict   = ngx.shared[shdict_name]
 local function get_config_from_dict(key, default)
     local value, err = config_dict:get(key)
     if err then

@@ -97,7 +97,11 @@ _EOC_
     $block->set_value("extra_init_by_lua", $extra_init_by_lua);
 
     if (!$block->request) {
-        $block->set_value("request", "GET /t");
+        if (!defined $block->stream_enable) {
+            $block->set_value("request", "GET /t");
+        } else {
+            $block->set_value("stream_request", "GET /apisix/prometheus/metrics HTTP/1.0\r\nHost: 127.0.0.1:9100\r\n\r\n");
+        }
     }
 
     if ((!defined $block->error_log) && (!defined $block->no_error_log)) {
@@ -240,3 +244,89 @@ plugin_attr:
 --- wait: 17
 --- error_log
 config version changed, old version: 0, new version: 1
+
+
+
+=== TETS 7: create stream_proxy
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- yaml_config
+apisix:
+  stream_proxy:
+    tcp:
+    - addr: 9100
+plugin_attr:
+  prometheus:
+    export_addr:
+      port: 1980
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local etcd = require("apisix.core.etcd")
+            local code, body = t('/apisix/admin/stream_routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "remote_addr": "127.0.0.1",
+                    "desc": "test-desc",
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "desc": "new route"
+                }]],
+                [[{
+                    "value": {
+                        "remote_addr": "127.0.0.1",
+                        "desc": "test-desc",
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "desc": "new route"
+                    },
+                    "key": "/apisix/stream_routes/1"
+                }]]
+                )
+
+            ngx.status = code
+            ngx.say(body)
+
+            local res = assert(etcd.get('/stream_routes/1'))
+            local create_time = res.body.node.value.create_time
+            assert(create_time ~= nil, "create_time is nil")
+            local update_time = res.body.node.value.update_time
+            assert(update_time ~= nil, "update_time is nil")
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+
+=== TETS 8: test stream route
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- yaml_config
+apisix:
+  stream_proxy:
+    tcp:
+    - addr: 9100
+plugin_attr:
+  prometheus:
+    export_addr:
+      port: 1980
+--- stream_enable
+--- stream_response eval
+qr/200 OK/

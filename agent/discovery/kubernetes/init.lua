@@ -530,7 +530,7 @@ function _M.init_worker()
     end
 
     local local_conf = require("apisix.core.config_local").local_conf(true)
-    local discovery_conf = local_conf.api7_discovery.kubernetes
+    local discovery_conf = local_conf.api7_discovery and local_conf.api7_discovery.kubernetes or {}
 
     core.log.info("kubernetes discovery conf: ", core.json.delay_encode(discovery_conf))
 
