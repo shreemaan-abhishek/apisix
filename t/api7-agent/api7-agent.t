@@ -330,3 +330,40 @@ plugin_attr:
 --- stream_enable
 --- stream_response eval
 qr/200 OK/
+
+
+
+=== TEST 9: test service discovery
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- yaml_config
+plugin_attr:
+  prometheus:
+    export_addr:
+      port: 1980
+discovery:
+ dns:
+   servers:
+     - "127.0.0.1:8600"
+   resolv_conf: /etc/resolv.conf
+   order:
+     - last
+     - SRV
+     - A
+     - AAAA
+     - CNAME
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("passed")
+        }
+    }
+--- response_body
+passed
+--- log_level: info
+--- error_log
+discovery: dns init worker
+discovery: nacos init worker
+discovery: kubernetes init worker

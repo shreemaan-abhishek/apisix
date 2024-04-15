@@ -121,8 +121,8 @@ local core = require("apisix.core")
 core.id.init()
 
 -- replace the apisix.discovery.init to agent.discovery.init
-local discovery = require("agent.discovery.init")
-package.loaded["apisix.discovery.init"] = discovery
+local wrapper = require("agent.discovery.wrapper")
+package.loaded["apisix.discovery.init"] = wrapper
 
 local agent = require("agent.agent")
 local getenv = os.getenv
@@ -213,8 +213,8 @@ apisix.http_init_worker = function(...)
     local plugin = require("apisix.plugin")
     plugin.init_plugins_syncer()
 
-    if discovery and discovery.init_worker then
-        discovery.init_worker()
+    if wrapper and wrapper.discovery then
+        wrapper.discovery.init_worker()
     end
 
     local timers  = require("apisix.timers")

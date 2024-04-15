@@ -156,7 +156,7 @@ function _M.heartbeat(self, first)
         config_dict:set("config_payload", core.json.encode(config.config_payload))
 
         if not first then
-            ok, res = pcall(discovery.init_worker)
+            ok, res = pcall(discovery.discovery.init_worker)
             if ok then
                 core.log.info("service discovery re-init successfully")
             else

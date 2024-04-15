@@ -18,7 +18,8 @@ if discovery_type then
     end
 end
 
-function _M.init_worker()
+-- keep the same as apisix discovery
+function discovery.init_worker()
     -- now we only support service discovery in L7
     if not is_http then
         return
@@ -26,6 +27,7 @@ function _M.init_worker()
 
     if discovery_type then
         for _, discovery_name in pairs(discovery_type) do
+            log.info("discovery: ", discovery_name, " init worker")
             discovery[discovery_name].init_worker()
         end
     end
