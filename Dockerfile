@@ -11,7 +11,7 @@ RUN git clone -b release-3.5 https://github.com/etcd-io/etcd.git && cd etcd && m
 # --- refer: https://github.com/apache/apisix-docker/blob/master/debian/Dockerfile
 FROM debian:bullseye-slim
 
-ARG APISIX_VERSION=3.2.1
+ARG APISIX_VERSION=3.2.2
 
 RUN set -ex; \
     arch=$(dpkg --print-architecture); \
