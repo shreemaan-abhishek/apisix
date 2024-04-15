@@ -788,6 +788,15 @@ _M.ssl = {
                     minimum = 0,
                     default = 1,
                 },
+                skip_mtls_uri_regex = {
+                    type = "array",
+                    minItems = 1,
+                    uniqueItems = true,
+                    items = {
+                        description = "uri regular expression to skip mtls",
+                        type = "string",
+                    }
+                },
             },
             required = {"ca"},
         },
