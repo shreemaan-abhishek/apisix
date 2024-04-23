@@ -33,7 +33,6 @@ local ssl_certificates
 local radixtree_router
 local radixtree_router_ver
 
-
 local _M = {
     version = 0.1,
     server_name = ngx_ssl.server_name,
@@ -213,8 +212,7 @@ function _M.match_and_set(api_ctx, match_only, alt_sni)
     end
 
     ngx_ssl.clear_certs()
-
-    local new_ssl_value = secret.fetch_secrets(matched_ssl.value) or matched_ssl.value
+    local new_ssl_value = secret.fetch_secrets(matched_ssl.value, true, matched_ssl.value, "") or matched_ssl.value
 
     ok, err = _M.set_cert_and_key(sni, new_ssl_value)
     if not ok then
