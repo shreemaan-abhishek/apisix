@@ -36,7 +36,6 @@ patch_apisix_code(){
 
     sed -i "s/npm.taobao.org/npmmirror.com/" ${VAR_APISIX_HOME}/t/plugin/grpc-web/package-lock.json
 
-    sed -i "s/openresty-openssl111-debug-dev/openresty-openssl111-debug-dev openresty-openssl111-dev libxml2-dev libxslt-dev/" ${VAR_APISIX_HOME}/ci/linux-install-openresty.sh
     echo "luarocks config variables.OPENSSL_DIR \${OPENSSL_PREFIX}" >> ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
 }
 
