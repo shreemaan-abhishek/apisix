@@ -95,8 +95,8 @@ authz-keycloak
 data-mask
 body-transformer
 proxy-mirror
-graphql-proxy-cache
 proxy-cache
+graphql-proxy-cache
 proxy-rewrite
 workflow
 api-breaker
@@ -120,6 +120,7 @@ grpc-web
 public-api
 prometheus
 datadog
+error_page
 elasticsearch-logger
 echo
 loggly

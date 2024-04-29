@@ -90,6 +90,8 @@ install_module() {
     sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/trace/*.lua $(ENV_INST_LUADIR)/apisix/plugins/trace/' "${VAR_APISIX_HOME}/Makefile"
     sed -i 's/__to_replace__//g' "${VAR_APISIX_HOME}/Makefile"
 
+    sed -i 's|"error"|"\\[error\\]"|' "${VAR_APISIX_HOME}/t/fuzzing/public.py"
+
     cat "${VAR_APISIX_HOME}/Makefile"
     printf "\n\n"
     cat "${VAR_APISIX_HOME}/.luacheckrc"
