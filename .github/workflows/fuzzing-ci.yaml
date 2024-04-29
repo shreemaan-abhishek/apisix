@@ -79,7 +79,7 @@ jobs:
         sudo mkdir /root/.luarocks
         sudo luarocks config variables.OPENSSL_DIR /usr/local/openresty/openssl111
 
-        sudo make deps
+        sudo ENV_OPENSSL_PREFIX=/usr/local/openresty/openssl111 make deps
         sudo chmod -R a+r deps
         make init
         make run

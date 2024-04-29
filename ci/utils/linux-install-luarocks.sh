@@ -53,6 +53,10 @@ if [ -d ${OPENRESTY_PREFIX}/openssl111 ]; then
     OPENSSL_PREFIX=${OPENRESTY_PREFIX}/openssl111
 fi
 
+if [ -d ${OPENRESTY_PREFIX}/openssl3 ]; then
+    OPENSSL_PREFIX=${OPENRESTY_PREFIX}/openssl3
+fi
+
 FOUND_PATH=$(echo "${PATH}" | grep -oP '(?<=:|)/usr/local/bin(?=:|)') || true
 if [[ "${FOUND_PATH}" == "" ]]; then
    echo "Warning: the path /usr/local/bin is not included in the system default PATH variable."

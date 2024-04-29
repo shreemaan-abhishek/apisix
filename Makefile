@@ -91,23 +91,6 @@ install:
 	$(project_ci_runner) install_module
 	@$(call func_echo_success_status, "$@ -> [ Done ]")
 
-
-### deps : Installing dependencies
-.PHONY: deps
-deps:
-	$(eval ENV_LUAROCKS_VER := $(shell $(ENV_LUAROCKS) --version | grep -E -o "luarocks [0-9]+."))
-	@if [ '$(ENV_LUAROCKS_VER)' = 'luarocks 3.' ]; then \
-		mkdir -p ~/.luarocks; \
-		$(ENV_LUAROCKS) config $(ENV_LUAROCKS_FLAG_LOCAL) variables.OPENSSL_LIBDIR $(addprefix $(ENV_OPENSSL_PREFIX), /lib); \
-		$(ENV_LUAROCKS) config $(ENV_LUAROCKS_FLAG_LOCAL) variables.OPENSSL_INCDIR $(addprefix $(ENV_OPENSSL_PREFIX), /include); \
-		[ '$(ENV_OS_NAME)' == 'darwin' ] && $(ENV_LUAROCKS) config $(ENV_LUAROCKS_FLAG_LOCAL) variables.PCRE_INCDIR $(addprefix $(ENV_PCRE_PREFIX), /include); \
-		$(ENV_LUAROCKS) install api7-master-0.rockspec --tree deps --only-deps $(ENV_LUAROCKS_SERVER_OPT); \
-	else \
-		$(call func_echo_warn_status, "WARNING: You're not using LuaRocks 3.x; please remove the luarocks and reinstall it via https://raw.githubusercontent.com/apache/apisix/master/utils/linux-install-luarocks.sh"); \
-		exit 1; \
-	fi
-	./ci/utils/install-lua-resty-openapi-validate.sh
-
 build-image: ## Build docker image
 	@sed -i '/- server-info/d' conf/config-default.yaml
 	@sed -i 's/#- opentelemetry/- opentelemetry/' conf/config-default.yaml

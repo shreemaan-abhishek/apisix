@@ -11,7 +11,7 @@ source "${VAR_CUR_PATH}/linux-common.sh"
 # Linux common config
 # =======================================
 export_or_prefix() {
-    export OPENRESTY_PREFIX="/usr/local/openresty-debug"
+    export OPENRESTY_PREFIX="/usr/local/openresty"
     export PATH=$OPENRESTY_PREFIX/nginx/sbin:$OPENRESTY_PREFIX/luajit/bin:$OPENRESTY_PREFIX/bin:$PATH
 }
 
@@ -36,6 +36,7 @@ patch_apisix_code(){
 
     sed -i "s/npm.taobao.org/npmmirror.com/" ${VAR_APISIX_HOME}/t/plugin/grpc-web/package-lock.json
 
+    sed -i "s/openssl111/openssl3/g" ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
     echo "luarocks config variables.OPENSSL_DIR \${OPENSSL_PREFIX}" >> ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
 }
 
@@ -78,6 +79,9 @@ install_module() {
     # use ee's rockspec
     cp -av "${VAR_CUR_HOME}/api7-master-0.rockspec" "${VAR_APISIX_HOME}/rockspec/"
     sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/g' "${VAR_APISIX_HOME}/Makefile"
+    sed -i 's/\$(addprefix \$(ENV_NGINX_PREFIX), openssl111)/\$(addprefix \$(ENV_NGINX_PREFIX), openssl3)/g' "${VAR_APISIX_HOME}/Makefile"
+    sed -i 's/\$(ENV_HOMEBREW_PREFIX)\/opt\/openresty-openssl111/\$(ENV_HOMEBREW_PREFIX)\/opt\/openresty-openssl3/g' "${VAR_APISIX_HOME}/Makefile"
+
     sed -i 's/API7/APISIX/g' "${VAR_APISIX_HOME}/apisix/init.lua"
     sed -i '/npm config set registry/ i \    npm config set strict-ssl false\n' "${VAR_APISIX_HOME}/ci/common.sh"
 

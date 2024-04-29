@@ -29,35 +29,14 @@ sudo apt-get -y install software-properties-common
 sudo add-apt-repository -y "deb https://openresty.org/package/${arch_path}ubuntu $(lsb_release -sc) main"
 
 sudo apt-get update
+sudo apt-get install -y libldap2-dev openresty-pcre-dev openresty-zlib-dev build-essential gcc g++ cpanminus libxml2-dev libxslt-dev
 
-abt_branch=${abt_branch:="master"}
-
-COMPILE_OPENSSL3=${COMPILE_OPENSSL3-no}
-USE_OPENSSL3=${USE_OPENSSL3-no}
-OPENSSL3_PREFIX=${OPENSSL3_PREFIX-/home/runner}
 SSL_LIB_VERSION=${SSL_LIB_VERSION-openssl}
+ENABLE_FIPS=${ENABLE_FIPS:-"false"}
+APISIX_RUNTIME=${APISIX_RUNTIME:-"1.1.1"}
+OPENRESTY_PREFIX=${OPENRESTY_PREFIX:-"/usr/local/openresty"}
 
 if [ "$OPENRESTY_VERSION" == "source" ]; then
-    if [ "$COMPILE_OPENSSL3" == "yes" ]; then
-        apt install -y build-essential
-        git clone https://github.com/openssl/openssl
-        cd openssl
-        ./Configure --prefix=$OPENSSL3_PREFIX/openssl-3.0 enable-fips
-        make install
-        bash -c "echo $OPENSSL3_PREFIX/openssl-3.0/lib64 > /etc/ld.so.conf.d/openssl3.conf"
-        ldconfig
-        $OPENSSL3_PREFIX/openssl-3.0/bin/openssl fipsinstall -out $OPENSSL3_PREFIX/openssl-3.0/ssl/fipsmodule.cnf -module $OPENSSL3_PREFIX/openssl-3.0/lib64/ossl-modules/fips.so
-        sed -i 's@# .include fipsmodule.cnf@.include '"$OPENSSL3_PREFIX"'/openssl-3.0/ssl/fipsmodule.cnf@g; s/# \(fips = fips_sect\)/\1\nbase = base_sect\n\n[base_sect]\nactivate=1\n/g' $OPENSSL3_PREFIX/openssl-3.0/ssl/openssl.cnf
-        cd ..
-    fi
-
-    if [ "$USE_OPENSSL3" == "yes" ]; then
-        bash -c "echo $OPENSSL3_PREFIX/openssl-3.0/lib64 > /etc/ld.so.conf.d/openssl3.conf"
-        ldconfig
-        export cc_opt="-I$OPENSSL3_PREFIX/openssl-3.0/include"
-        export ld_opt="-L$OPENSSL3_PREFIX/openssl-3.0/lib64 -Wl,-rpath,$OPENSSL3_PREFIX/openssl-3.0/lib64"
-    fi
-
     if [ "$SSL_LIB_VERSION" == "tongsuo" ]; then
         export openssl_prefix=/usr/local/tongsuo
         export zlib_prefix=$OPENRESTY_PREFIX/zlib
@@ -66,20 +45,16 @@ if [ "$OPENRESTY_VERSION" == "source" ]; then
         export cc_opt="-DNGX_LUA_ABORT_AT_PANIC -I${zlib_prefix}/include -I${pcre_prefix}/include -I${openssl_prefix}/include"
         export ld_opt="-L${zlib_prefix}/lib -L${pcre_prefix}/lib -L${openssl_prefix}/lib64 -Wl,-rpath,${zlib_prefix}/lib:${pcre_prefix}/lib:${openssl_prefix}/lib64"
     fi
-
-    cd ..
-    wget -q https://raw.githubusercontent.com/api7/apisix-build-tools/$abt_branch/build-apisix-base.sh
-    chmod +x build-apisix-base.sh
-    ./build-apisix-base.sh latest
-
-    sudo apt-get install openresty-openssl111-debug-dev openresty-openssl111-dev libxml2-dev libxslt-dev
-    exit 0
 fi
 
-if [ "$OPENRESTY_VERSION" == "default" ]; then
-    openresty='openresty-debug'
-else
-    openresty="openresty-debug=$OPENRESTY_VERSION*"
+wget "https://raw.githubusercontent.com/api7/apisix-build-tools/apisix-runtime/${APISIX_RUNTIME}/build-apisix-runtime.sh"
+chmod +x build-apisix-runtime.sh
+./build-apisix-runtime.sh latest
+
+if [ ! "$ENABLE_FIPS" == "true" ]; then
+curl -o $OPENRESTY_PREFIX/openssl3/ssl/openssl.cnf \
+    https://raw.githubusercontent.com/api7/apisix-build-tools/apisix-runtime/${APISIX_RUNTIME}/conf/openssl3/openssl.cnf
 fi
 
-sudo apt-get install "$openresty" openresty-openssl111-debug-dev openresty-openssl111-dev libxml2-dev libxslt-dev
+# patch lua-resty-events
+sed -i 's/log(ERR, "event worker failed: ", perr)/log(ngx.WARN, "event worker failed: ", perr)/' /usr/local/openresty/lualib/resty/events/worker.lua

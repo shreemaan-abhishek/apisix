@@ -7,11 +7,13 @@ install_dependencies() {
 
     # install build & runtime deps
     yum install -y wget tar gcc gcc-c++ automake autoconf libtool make unzip patch \
-        git sudo openldap-devel which ca-certificates lua-devel epel-release cpanminus perl
+        git sudo openldap-devel which ca-certificates openresty-pcre-devel openresty-zlib-devel lua-devel epel-release cpanminus perl
 
     # curl with http2
     wget https://github.com/moparisthebest/static-curl/releases/download/v7.79.1/curl-amd64 -qO /usr/bin/curl
     # install openresty to make apisix's rpm test work
+    export luajit_xcflags="-DLUAJIT_ASSERT -DLUAJIT_NUMMODE=2 -DLUAJIT_ENABLE_LUA52COMPAT -O0"
+    export debug_args=--with-debug
     yum install -y yum-utils && yum-config-manager --add-repo https://openresty.org/package/centos/openresty.repo
     yum install -y openresty-openssl111 openresty-openssl111-devel openresty-openssl111-debug-devel pcre pcre-devel openresty-zlib-devel libxml2-devel libxslt-devel
 

@@ -33,7 +33,6 @@ RUN set -ex; \
     esac; \
     apt update \
     && apt install -y apisix=${APISIX_VERSION}-0 \
-    && apt install openresty-openssl111-dev \
     && apt-get purge -y --auto-remove \
     && rm -f /etc/apt/sources.list.d/openresty.list /etc/apt/sources.list.d/apisix.list \
     && rm /usr/local/openresty/bin/etcdctl \
@@ -104,7 +103,7 @@ RUN case $(dpkg --print-architecture) in \
     wget -q "$GOLANG_DOWNLOAD_URL" -O go.tar.gz && \
     tar -C /usr/local -xzf go.tar.gz && \
     rm go.tar.gz && export PATH=$PATH:/usr/local/go/bin && export CGO_ENABLED=1 && apt-get install -y gcc sudo && \
-    luarocks config variables.OPENSSL_DIR /usr/local/openresty/openssl111 && \
+    luarocks config variables.OPENSSL_DIR /usr/local/openresty/openssl3 && \
     make deps && go clean -cache &&  \
     rm -rf /usr/local/go && apt-get -y purge --auto-remove gcc --allow-remove-essential
 
