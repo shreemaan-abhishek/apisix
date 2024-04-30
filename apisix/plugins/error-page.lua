@@ -1,6 +1,6 @@
 local core        = require("apisix.core")
 local plugin      = require("apisix.plugin")
-local plugin_name = "error_page"
+local plugin_name = "error-page"
 local ngx         = ngx
 local format      = string.format
 

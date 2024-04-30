@@ -120,7 +120,7 @@ grpc-web
 public-api
 prometheus
 datadog
-error_page
+error-page
 elasticsearch-logger
 echo
 loggly

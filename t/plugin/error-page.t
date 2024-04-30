@@ -11,7 +11,7 @@ add_block_preprocessor(sub {
 
 my $user_yaml_config = <<_EOC_;
 plugins:
-  - error_page
+  - error-page
   - serverless-post-function
 _EOC_
     $block->set_value("extra_yaml_config", $user_yaml_config);
@@ -36,7 +36,7 @@ __DATA__
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "error_page": {}
+                        "error-page": {}
                     }
                 }]]
                 )
@@ -101,7 +101,7 @@ content-type: text/html
 --- response_body_like
 .*openresty.*
 --- error_log
-failed to read metadata for error_page
+failed to read metadata for error-page
 
 
 
@@ -111,7 +111,7 @@ failed to read metadata for error_page
         content_by_lua_block {
             local t = require("lib.test_admin").test
             -- setting the metadata
-            local code, body = t('/apisix/admin/plugin_metadata/error_page',
+            local code, body = t('/apisix/admin/plugin_metadata/error-page',
                 ngx.HTTP_PUT,
                 [[{"enable": true, "error_500": {}, "error_404": {}, "error_502": {}, "error_503": {}}]]
                 )
@@ -196,13 +196,13 @@ error page for error_405 not defined
 
 
 
-=== TEST 10: set plugin metadata with error_page body not defined for 405
+=== TEST 10: set plugin metadata with error-page body not defined for 405
 --- config
     location /t {
         content_by_lua_block {
             local t = require("lib.test_admin").test
             -- setting the metadata
-            local code, body = t('/apisix/admin/plugin_metadata/error_page',
+            local code, body = t('/apisix/admin/plugin_metadata/error-page',
                 ngx.HTTP_PUT,
                 [[{"enable": true, "error_405": {}}]]
                 )
@@ -231,13 +231,13 @@ error page for error_405 not defined
 
 
 
-=== TEST 12: set plugin metadata with error_page disabled
+=== TEST 12: set plugin metadata with error-page disabled
 --- config
     location /t {
         content_by_lua_block {
             local t = require("lib.test_admin").test
             -- setting the metadata
-            local code, body = t('/apisix/admin/plugin_metadata/error_page',
+            local code, body = t('/apisix/admin/plugin_metadata/error-page',
                 ngx.HTTP_PUT,
                 [[{"enable": false, "error_500": {}, "error_404": {}, "error_502": {}, "error_503": {}}]]
                 )
@@ -255,7 +255,7 @@ passed
 
 
 
-=== TEST 13: test `error_page.enable = false`
+=== TEST 13: test `error-page.enable = false`
 --- request
 GET /hello
 --- more_headers
