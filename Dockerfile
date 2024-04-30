@@ -16,7 +16,7 @@ ARG APISIX_VERSION=3.2.2
 RUN set -ex; \
     arch=$(dpkg --print-architecture); \
     apt update; \
-    apt-get -y install --no-install-recommends wget gnupg ca-certificates unzip make git zlib1g-dev libxml2-dev libxslt-dev;\
+    apt-get -y install --no-install-recommends wget gnupg cpanminus ca-certificates unzip make git zlib1g-dev gcc libxml2-dev libxslt-dev;\
     codename=`grep -Po 'VERSION="[0-9]+ \(\K[^)]+' /etc/os-release`; \
     wget -O - https://openresty.org/package/pubkey.gpg | apt-key add -; \
     case "${arch}" in \
@@ -71,6 +71,7 @@ COPY --chown=apisix:apisix ./conf/config-default.yaml /usr/local/apisix/conf/con
 COPY --chown=apisix:apisix ./ci/utils/api7-ljbc.sh /usr/local/apisix/api7-ljbc.sh
 COPY --chown=apisix:apisix ./ci/utils/install-lua-resty-openapi-validate.sh /usr/local/apisix/ci/utils/install-lua-resty-openapi-validate.sh
 COPY --chown=apisix:apisix ./ci/utils/linux-install-luarocks.sh /usr/local/apisix/linux-install-luarocks.sh
+COPY --chown=apisix:apisix ./ci/utils/linux-install-openssl3.sh /usr/local/apisix/linux-install-openssl3.sh
 COPY --chown=apisix:apisix ./Makefile /usr/local/apisix/Makefile
 COPY --chown=apisix:apisix ./api7-master-0.rockspec /usr/local/apisix/api7-master-0.rockspec
 
@@ -103,8 +104,8 @@ RUN case $(dpkg --print-architecture) in \
     wget -q "$GOLANG_DOWNLOAD_URL" -O go.tar.gz && \
     tar -C /usr/local -xzf go.tar.gz && \
     rm go.tar.gz && export PATH=$PATH:/usr/local/go/bin && export CGO_ENABLED=1 && apt-get install -y gcc sudo && \
-    luarocks config variables.OPENSSL_DIR /usr/local/openresty/openssl3 && \
-    make deps && go clean -cache &&  \
+    bash /usr/local/apisix/linux-install-openssl3.sh && rm /usr/local/apisix/linux-install-openssl3.sh && luarocks config variables.OPENSSL_DIR /usr/local/openresty/openssl3 && \
+    ENV_OPENSSL_PREFIX=/usr/local/openresty/openssl3 make deps && go clean -cache &&  \
     rm -rf /usr/local/go && apt-get -y purge --auto-remove gcc --allow-remove-essential
 
 COPY --from=builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
