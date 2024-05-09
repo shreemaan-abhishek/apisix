@@ -353,6 +353,11 @@ services:
     networks:
       - apisix_net
 
+  openapi-petstore:
+    image: swaggerapi/petstore3:1.0.19
+    ports:
+      - '6969:8080'
+
 networks:
   apisix_net:
   kafka_net:

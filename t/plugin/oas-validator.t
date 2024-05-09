@@ -76,10 +76,8 @@ invalid JSON string provided, err: Expected value but found invalid token at cha
                      "upstream": {
                        "type": "roundrobin",
                        "nodes": {
-                         "petstore3.swagger.io:443": 1
-                       },
-                       "scheme": "https",
-                       "pass_host": "node"
+                         "127.0.0.1:6969": 1
+                       }
                      }
                 }]], spec)
                 )
