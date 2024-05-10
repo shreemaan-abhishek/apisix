@@ -94,6 +94,10 @@ install_module() {
     sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/trace/*.lua $(ENV_INST_LUADIR)/apisix/plugins/trace/' "${VAR_APISIX_HOME}/Makefile"
     sed -i 's/__to_replace__//g' "${VAR_APISIX_HOME}/Makefile"
 
+    # openssl
+    sed -i '24i __to_replace__	export OPENSSL111_BIN=$OPENRESTY_PREFIX/openssl111/bin/openssl' "${VAR_APISIX_HOME}/ci/common.sh"
+    sed -i 's/__to_replace__//g' "${VAR_APISIX_HOME}/ci/common.sh"
+
     sed -i 's|"error"|"\\[error\\]"|' "${VAR_APISIX_HOME}/t/fuzzing/public.py"
 
     cat "${VAR_APISIX_HOME}/Makefile"

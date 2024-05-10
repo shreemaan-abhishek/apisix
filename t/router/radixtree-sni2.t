@@ -422,7 +422,7 @@ GET /t
 --- response_body
 failed to do SSL handshake: handshake failed
 --- error_log
-failed to fetch ssl config: failed to find SNI: please check if the client requests via IP or uses an outdated protocol
+failed to find SNI: please check if the client requests via IP or uses an outdated protocol
 --- no_error_log
 [alert]
 
