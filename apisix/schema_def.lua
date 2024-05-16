@@ -81,7 +81,8 @@ local remote_addr_def = {
 local label_value_def = {
     description = "value of label",
     type = "string",
-    pattern = [[^\S+$]],
+    pattern = [[^.+$]],
+    maxLength = 65536,
     minLength = 1
 }
 _M.label_value_def = label_value_def
