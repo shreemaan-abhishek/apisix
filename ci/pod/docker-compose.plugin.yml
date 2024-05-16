@@ -32,6 +32,10 @@ services:
   ## keycloak
   apisix_keycloak:
     image: sshniro/keycloak-apisix:1.0.0
+    entrypoint:
+      - sh
+      - -c
+      - java -cp /opt/jboss/keycloak/modules/system/layers/base/com/h2database/h2/main/h2-1.4.197.jar org.h2.tools.Shell -url "jdbc:h2:/opt/jboss/keycloak/standalone/data/keycloak;ifexists=true" -user "sa" -password "sa" -sql "update realm set ACCESS_TOKEN_LIFESPAN = 86400, ACCESS_TOKEN_LIFE_IMPLICIT = 86400, USER_ACTION_LIFESPAN = 86400, SSO_IDLE_TIMEOUT = 86400, SSO_MAX_LIFESPAN = 86400, OFFLINE_SESSION_IDLE_TIMEOUT = 86400; update realm_attribute set value = '86400' where value = '432000000';" && /opt/jboss/tools/docker-entrypoint.sh
     environment:
       KEYCLOAK_USER: admin
       KEYCLOAK_PASSWORD: 123456
