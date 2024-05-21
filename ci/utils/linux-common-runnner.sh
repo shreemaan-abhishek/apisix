@@ -92,6 +92,15 @@ install_module() {
 
     sed -i '302i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/trace' "${VAR_APISIX_HOME}/Makefile"
     sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/trace/*.lua $(ENV_INST_LUADIR)/apisix/plugins/trace/' "${VAR_APISIX_HOME}/Makefile"
+    
+    echo '
+### ci-env-stop : CI env temporary stop
+.PHONY: ci-env-stop
+ci-env-stop:
+	@$(call func_echo_status, "$@ -> [ Start ]")
+	$(ENV_DOCKER_COMPOSE) stop
+	@$(call func_echo_success_status, "$@ -> [ Done ]")' >> ${VAR_APISIX_HOME}/Makefile
+
     sed -i 's/__to_replace__//g' "${VAR_APISIX_HOME}/Makefile"
 
     # openssl
