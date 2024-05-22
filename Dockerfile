@@ -75,8 +75,6 @@ COPY --chown=apisix:apisix ./ci/utils/linux-install-openssl3.sh /usr/local/apisi
 COPY --chown=apisix:apisix ./Makefile /usr/local/apisix/Makefile
 COPY --chown=apisix:apisix ./api7-master-0.rockspec /usr/local/apisix/api7-master-0.rockspec
 
-COPY --from=builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
-
 USER root
 
 WORKDIR /usr/local/api7-soap-proxy

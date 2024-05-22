@@ -85,14 +85,9 @@ install_module() {
     sed -i 's/API7/APISIX/g' "${VAR_APISIX_HOME}/apisix/init.lua"
     sed -i '/npm config set registry/ i \    npm config set strict-ssl false\n' "${VAR_APISIX_HOME}/ci/common.sh"
 
-    sed -i '298i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ht-msg-sub' "${VAR_APISIX_HOME}/Makefile"
-    sed -i '299i __to_replace__	$(ENV_INSTALL) apisix/plugins/ht-msg-sub/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ht-msg-sub/' "${VAR_APISIX_HOME}/Makefile"
-    sed -i '300i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ht-ws-msg-pub' "${VAR_APISIX_HOME}/Makefile"
-    sed -i '301i __to_replace__	$(ENV_INSTALL) apisix/plugins/ht-ws-msg-pub/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ht-ws-msg-pub/' "${VAR_APISIX_HOME}/Makefile"
-
     sed -i '302i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/trace' "${VAR_APISIX_HOME}/Makefile"
     sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/trace/*.lua $(ENV_INST_LUADIR)/apisix/plugins/trace/' "${VAR_APISIX_HOME}/Makefile"
-    
+
     echo '
 ### ci-env-stop : CI env temporary stop
 .PHONY: ci-env-stop
@@ -164,8 +159,7 @@ run_case() {
         t/plugin/acl* \
         t/plugin/data-mask* \
         t/plugin/saml-auth.t \
-        t/plugin/api7-traffic-split* \
-        t/plugin/ht-*
+        t/plugin/api7-traffic-split*
 }
 
 # =======================================

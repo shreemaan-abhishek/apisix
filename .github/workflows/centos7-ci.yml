@@ -34,7 +34,7 @@ jobs:
       fail-fast: false
       matrix:
         test_dir:
-          - t/plugin/[a-gi-k]*
+          - t/plugin/[a-k]*
           - t/plugin/[l-z]*
           - t/admin t/cli t/config-center-yaml t/control t/core t/debug t/deployment t/discovery t/misc
           - t/node t/pubsub t/router t/script t/secret t/stream-node t/utils t/wasm t/xds-library

@@ -40,12 +40,7 @@ pid logs/nginx.pid;
 worker_rlimit_nofile {* worker_rlimit_nofile *};
 
 events {
-    {% if event.accept_mutex then %}
-    accept_mutex {* event.accept_mutex *};
-    {% else %}
     accept_mutex off;
-    {% end %}
-
     worker_connections {* event.worker_connections *};
 }
 
@@ -402,10 +397,6 @@ http {
 
     include mime.types;
     charset {* http.charset *};
-
-    {% if http.default_type then %}
-    default_type {* http.default_type *};
-    {% end %}
 
     {% if http.real_ip_header then %}
     real_ip_header {* http.real_ip_header *};
