@@ -1,5 +1,6 @@
 ## Note
 1. Mark the PR as draft until it's ready to be reviewed.
+2. Customized plugins delivered to a customer cannot be merged into the master branch but should be merged into a specific branch.
 3. Always add/update tests for any changes unless you have a good reason.
 4. Run the test case on your own machine before run GitHub CI. Don’t use Github CI for testing.
 5. Always update the documentation to reflect the changes made in the PR.
