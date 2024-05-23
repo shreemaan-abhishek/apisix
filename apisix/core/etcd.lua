@@ -22,11 +22,13 @@
 local require           = require
 local fetch_local_conf  = require("apisix.core.config_local").local_conf
 local array_mt          = require("apisix.core.json").array_mt
+local log               = require("apisix.core.log")
 local v3_adapter        = require("apisix.admin.v3_adapter")
 local etcd              = require("resty.etcd")
 local clone_tab         = require("table.clone")
 local health_check      = require("resty.etcd.health_check")
 local pl_path           = require("pl.path")
+local url               = require("net.url")
 local ipairs            = ipairs
 local pcall             = pcall
 local setmetatable      = setmetatable
@@ -70,6 +72,12 @@ local function _new(etcd_conf)
         if etcd_conf.tls.sni then
             etcd_conf.sni = etcd_conf.tls.sni
         end
+    end
+
+    local url_decoded = url.parse(etcd_conf.http_host[1])
+    if url_decoded.scheme == "https" and not etcd_conf.sni and url_decoded.host then
+        etcd_conf.sni = url_decoded.host
+        log.info("The configuration of `etcd.tls.sni` was not found, so use etcd host as sni: ", etcd_conf.sni)
     end
 
     if etcd_conf.use_grpc then
