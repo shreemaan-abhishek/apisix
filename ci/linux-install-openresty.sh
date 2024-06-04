@@ -18,6 +18,7 @@
 set -euo pipefail
 
 ARCH=${ARCH:-`(uname -m | tr '[:upper:]' '[:lower:]')`}
+OS_NAME=${OS_NAME:-`source /etc/os-release && echo $ID`}
 arch_path=""
 if [[ $ARCH == "arm64" ]] || [[ $ARCH == "aarch64" ]]; then
     arch_path="arm64/"
@@ -26,7 +27,13 @@ fi
 wget -qO - https://openresty.org/package/pubkey.gpg | sudo apt-key add -
 sudo apt-get -y update --fix-missing
 sudo apt-get -y install software-properties-common
-sudo add-apt-repository -y "deb https://openresty.org/package/${arch_path}ubuntu $(lsb_release -sc) main"
+
+if [ "$OS_NAME" == "ubuntu" ]; then
+    sudo add-apt-repository -y "deb https://openresty.org/package/${arch_path}ubuntu $(lsb_release -sc) main"
+elif [ "$OS_NAME" == "debian" ]; then
+    sudo add-apt-repository -y "deb https://openresty.org/package/${arch_path}debian $(lsb_release -sc) openresty"
+fi
+
 
 sudo apt-get update
 sudo apt-get install -y libldap2-dev openresty-pcre-dev openresty-zlib-dev build-essential gcc g++ cpanminus libxml2-dev libxslt-dev
@@ -35,6 +42,8 @@ SSL_LIB_VERSION=${SSL_LIB_VERSION-openssl}
 ENABLE_FIPS=${ENABLE_FIPS:-"false"}
 APISIX_RUNTIME=${APISIX_RUNTIME:-"1.1.1"}
 OPENRESTY_PREFIX=${OPENRESTY_PREFIX:-"/usr/local/openresty"}
+BUILD_LATEST=${BUILD_LATEST:-"latest"}
+OPENRESTY_VERSION=${OPENRESTY_VERSION:-"default"}
 
 if [ "$OPENRESTY_VERSION" == "source" ]; then
     if [ "$SSL_LIB_VERSION" == "tongsuo" ]; then
@@ -47,11 +56,12 @@ if [ "$OPENRESTY_VERSION" == "source" ]; then
     fi
 fi
 
+export runtime_version=${APISIX_RUNTIME}
 wget "https://raw.githubusercontent.com/api7/apisix-build-tools/apisix-runtime/${APISIX_RUNTIME}/build-apisix-runtime.sh"
 chmod +x build-apisix-runtime.sh
-./build-apisix-runtime.sh latest
+./build-apisix-runtime.sh ${BUILD_LATEST}
 
-if [ ! "$ENABLE_FIPS" == "true" ]; then
+if [ ! "$ENABLE_FIPS" == "true" ] && [ "$BUILD_LATEST" == "latest" ]; then
 curl -o $OPENRESTY_PREFIX/openssl3/ssl/openssl.cnf \
     https://raw.githubusercontent.com/api7/apisix-build-tools/apisix-runtime/${APISIX_RUNTIME}/conf/openssl3/openssl.cnf
 fi
