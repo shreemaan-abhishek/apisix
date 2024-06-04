@@ -13,6 +13,7 @@ local pl_path = require("pl.path")
 local lfs = require("lfs")
 local signal = require("posix.signal")
 local errno = require("posix.errno")
+local config_local = require("apisix.core.config_local")
 
 local stderr = io.stderr
 local ipairs = ipairs
@@ -163,6 +164,31 @@ local function init(env)
     local ok, err = schema.validate(yaml_conf)
     if not ok then
         util.die(err, "\n")
+    end
+
+    local standalone = yaml_conf.deployment.config_provider == "yaml"
+    local gw_id = getenv("API7_GATEWAY_GROUP_SHORT_ID")
+    local ha_conf
+    if  yaml_conf.deployment.fallback_cp then
+        ha_conf = yaml_conf.deployment.fallback_cp.aws_s3
+    end
+
+    if standalone and gw_id and gw_id ~= "" and ha_conf then
+        if not gw_id or gw_id == "" then
+            util.die("failed to parse gateway group id from control plane token")
+        end
+
+        local s3 = require("resty.s3")
+        local res, err = s3.get_object(ha_conf.bucket, gw_id, ha_conf.region, ha_conf.access_key, ha_conf.secret_key, ha_conf.endpoint)
+        if not res then
+            util.die("failed to get data from s3: ", err)
+        end
+        local a6_yaml, err = io_open(profile:yaml_path("apisix"), "w+")
+        if not a6_yaml then
+            util.die("failed to open config file: ", err)
+        end
+        a6_yaml:write(res)
+        a6_yaml:close()
     end
 
     -- check the Admin API token

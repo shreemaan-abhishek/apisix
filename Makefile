@@ -108,6 +108,7 @@ deps:
 		exit 1; \
 	fi
 	./ci/utils/install-lua-resty-openapi-validate.sh
+	./ci/utils/install-lua-resty-aws-s3.sh
 
 
 build-image: ## Build docker image

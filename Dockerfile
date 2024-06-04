@@ -63,6 +63,7 @@ COPY ./api7-soap-proxy/soap_proxy.py /usr/local/api7-soap-proxy/soap_proxy.py
 COPY ./api7-soap-proxy/requirements.txt /usr/local/api7-soap-proxy/requirements.txt
 COPY ./api7-soap-proxy/logging.conf /usr/local/api7-soap-proxy/logging.conf
 COPY ./lua-resty-openapi-validate /usr/local/apisix/lua-resty-openapi-validate
+COPY ./lua-resty-aws-s3 /usr/local/apisix/lua-resty-aws-s3
 
 COPY --chown=apisix:apisix ./apisix /usr/local/apisix/apisix
 COPY --chown=apisix:apisix ./agent /usr/local/apisix/agent
@@ -70,6 +71,7 @@ COPY --chown=apisix:apisix ./conf/config.yaml /usr/local/apisix/conf/config.yaml
 COPY --chown=apisix:apisix ./conf/config-default.yaml /usr/local/apisix/conf/config-default.yaml
 COPY --chown=apisix:apisix ./ci/utils/api7-ljbc.sh /usr/local/apisix/api7-ljbc.sh
 COPY --chown=apisix:apisix ./ci/utils/install-lua-resty-openapi-validate.sh /usr/local/apisix/ci/utils/install-lua-resty-openapi-validate.sh
+COPY --chown=apisix:apisix ./ci/utils/install-lua-resty-aws-s3.sh /usr/local/apisix/ci/utils/install-lua-resty-aws-s3.sh
 COPY --chown=apisix:apisix ./ci/utils/linux-install-luarocks.sh /usr/local/apisix/linux-install-luarocks.sh
 COPY --chown=apisix:apisix ./ci/utils/linux-install-openssl3.sh /usr/local/apisix/linux-install-openssl3.sh
 COPY --chown=apisix:apisix ./Makefile /usr/local/apisix/Makefile

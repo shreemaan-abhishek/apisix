@@ -435,6 +435,26 @@ local deployment_schema = {
                 },
                 default = {},
             },
+            fallback_cp = {
+                type = "object",
+                properties = {
+                    aws_s3 = {
+                        type = "object",
+                        properties = {
+                            access_key = { type = "string" },
+                            secret_key = { type = "string" },
+                            bucket = { type = "string" },
+                            region = { type = "string" },
+                            endpoint = {
+                                type = "string",
+                                pattern = [[^https?://]]
+                            },
+                        },
+                        required = {"access_key", "secret_key", "bucket", "region",}
+                    }
+                },
+                required = {"aws_s3"}
+            }
         },
         required = {"role_data_plane"}
     }

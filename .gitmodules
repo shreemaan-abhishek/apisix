@@ -4,3 +4,7 @@
 [submodule "lua-resty-openapi-validate"]
 	path = lua-resty-openapi-validate
 	url = git@github.com:api7/lua-resty-openapi-validate.git
+[submodule "lua-resty-aws-s3"]
+	path = lua-resty-aws-s3
+	url = https://github.com/api7/lua-resty-aws-s3.git
+	branch = initial

@@ -1,0 +1,52 @@
+global_rules:
+    - id: api7ee-global-rule
+      plugins:
+        prometheus:
+            _meta:
+                disable: false
+routes:
+    - enable_websocket: false
+      id: c461d7cb-64fa-46a9-8d07-cd40a6ecbdfa
+      methods:
+        - GET
+        - HEAD
+        - POST
+        - PUT
+        - DELETE
+        - OPTIONS
+        - TRACE
+        - PATCH
+      plugins:
+        limit-count:
+            _meta:
+                disable: false
+            allow_degradation: false
+            count: 50
+            key: remote_addr
+            key_type: var
+            policy: local
+            rejected_code: 503
+            show_limit_quota_header: true
+            time_window: 60
+      priority: 0
+      service_id: a865641d-7439-4463-a31d-d97c862c5623
+      status: 1
+      uris:
+        - /get
+services:
+    - id: a865641d-7439-4463-a31d-d97c862c5623
+      status: 1
+      strip_path_prefix: true
+      upstream_id: a865641d-7439-4463-a31d-d97c862c5623
+upstreams:
+    - id: a865641d-7439-4463-a31d-d97c862c5623
+      nodes:
+        - host: httpbin.org
+          port: 80
+          priority: 0
+          weight: 100
+      pass_host: pass
+      retry_timeout: 0
+      scheme: http
+      type: roundrobin
+#END
