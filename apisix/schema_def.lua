@@ -735,6 +735,12 @@ _M.upstream = upstream_schema
 _M.upstream_name = upstream_name
 
 
+local secret_uri_schema = {
+    type = "string",
+    pattern = "^\\$(secret|env|ENV)://"
+}
+
+
 _M.ssl = {
     type = "object",
     properties = {
@@ -750,14 +756,13 @@ _M.ssl = {
         cert = {
             oneOf = {
                 certificate_scheme,
-                -- TODO: uniformly define the schema of secret_uri
-                { type = "string", pattern = "^\\$(secret|env)://"}
+                secret_uri_schema
             }
         },
         key = {
             oneOf = {
                 private_key_schema,
-                { type = "string", pattern = "^\\$(secret|env)://"}
+                secret_uri_schema
             }
         },
         sni = {
@@ -774,11 +779,21 @@ _M.ssl = {
         },
         certs = {
             type = "array",
-            items = certificate_scheme,
+            items = {
+                oneOf = {
+                    certificate_scheme,
+                    secret_uri_schema
+                }
+            }
         },
         keys = {
             type = "array",
-            items = private_key_schema,
+            items = {
+                oneOf = {
+                    private_key_schema,
+                    secret_uri_schema
+                }
+            }
         },
         client = {
             type = "object",
@@ -801,10 +816,6 @@ _M.ssl = {
             },
             required = {"ca"},
         },
-        exptime = {
-            type = "integer",
-            minimum = 1588262400,  -- 2020/5/1 0:0:0
-        },
         labels = labels_def,
         status = {
             description = "ssl status, 1 to enable, 0 to disable",
@@ -821,8 +832,6 @@ _M.ssl = {
                 enum = {"TLSv1.1", "TLSv1.2", "TLSv1.3"}
             },
         },
-        validity_end = timestamp_def,
-        validity_start = timestamp_def,
         create_time = timestamp_def,
         update_time = timestamp_def
     },
@@ -839,7 +848,8 @@ _M.ssl = {
             {required = {"snis", "key", "cert"}}
         }
     },
-    ["else"] = {required = {"key", "cert"}}
+    ["else"] = {required = {"key", "cert"}},
+    additionalProperties = false,
 }
 
 

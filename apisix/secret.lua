@@ -83,6 +83,7 @@ function _M.init_worker()
     secrets = core.config.new("/secrets", cfg)
 end
 
+
 local function check_secret_uri(secret_uri)
     -- Avoid the error caused by has_prefix to cause a crash.
     if type(secret_uri) ~= "string" then
@@ -93,10 +94,12 @@ local function check_secret_uri(secret_uri)
         not string.has_prefix(upper(secret_uri), core.env.PREFIX) then
         return false, "error secret_uri prefix: " .. secret_uri
     end
+
     return true
 end
 
 _M.check_secret_uri = check_secret_uri
+
 
 local function parse_secret_uri(secret_uri)
     local is_secret_uri, err = check_secret_uri(secret_uri)
@@ -132,6 +135,7 @@ end
 
 
 local function fetch_by_uri(secret_uri)
+    core.log.info("fetching data from secret uri: ", secret_uri)
     local opts, err = parse_secret_uri(secret_uri)
     if not opts then
         return nil, err
