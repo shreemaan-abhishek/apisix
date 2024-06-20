@@ -417,7 +417,7 @@ graphql:
 
 plugins:                          # plugin list (sorted by priority)
   - real-ip                        # priority: 23000
-  # - trace                          # priority: 22901
+  # - toolset                          # priority: 22901
   - ai                             # priority: 22900
   - client-control                 # priority: 22000
   - proxy-buffering                # priority: 21991

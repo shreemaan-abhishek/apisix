@@ -85,8 +85,13 @@ install_module() {
     sed -i 's/API7/APISIX/g' "${VAR_APISIX_HOME}/apisix/init.lua"
     sed -i '/npm config set registry/ i \    npm config set strict-ssl false\n' "${VAR_APISIX_HOME}/ci/common.sh"
 
-    sed -i '302i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/trace' "${VAR_APISIX_HOME}/Makefile"
-    sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/trace/*.lua $(ENV_INST_LUADIR)/apisix/plugins/trace/' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '298i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ht-msg-sub' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '299i __to_replace__	$(ENV_INSTALL) apisix/plugins/ht-msg-sub/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ht-msg-sub/' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '300i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ht-ws-msg-pub' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '301i __to_replace__	$(ENV_INSTALL) apisix/plugins/ht-ws-msg-pub/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ht-ws-msg-pub/' "${VAR_APISIX_HOME}/Makefile"
+
+    sed -i '302i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/toolset' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/toolset/*.lua $(ENV_INST_LUADIR)/apisix/plugins/toolset/' "${VAR_APISIX_HOME}/Makefile"
 
     echo '
 ### ci-env-stop : CI env temporary stop
@@ -95,7 +100,6 @@ ci-env-stop:
 	@$(call func_echo_status, "$@ -> [ Start ]")
 	$(ENV_DOCKER_COMPOSE) stop
 	@$(call func_echo_success_status, "$@ -> [ Done ]")' >> ${VAR_APISIX_HOME}/Makefile
-
     sed -i 's/__to_replace__//g' "${VAR_APISIX_HOME}/Makefile"
 
     # openssl
