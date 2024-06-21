@@ -238,12 +238,12 @@ apisix.http_init_worker = function(...)
         wrapper.discovery.init_worker()
     end
 
-    local local_conf = config_local.local_conf()
-    local config_provider = core.table.try_read_attr(local_conf, "deployment", "role_data_plane", "config_provider")
-    if config_provider and config_provider == "etcd" then
+    if core.config.type == "etcd" then
         local timers  = require("apisix.timers")
         timers.register_timer(heartbeat_timer_name, heartbeat, true)
         timers.register_timer(telemetry_timer_name, upload_metrics, true)
         timers.register_timer(report_healthcheck_timer_name, report_healthcheck)
+    else
+        core.log.warn("skipped registering timer because config type: ", core.config.type)
     end
 end
