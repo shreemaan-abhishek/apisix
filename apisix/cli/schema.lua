@@ -443,14 +443,15 @@ local deployment_schema = {
                         properties = {
                             access_key = { type = "string" },
                             secret_key = { type = "string" },
-                            bucket = { type = "string" },
+                            resource_bucket = { type = "string" },
+                            config_bucket = { type = "string" },
                             region = { type = "string" },
                             endpoint = {
                                 type = "string",
                                 pattern = [[^https?://]]
                             },
                         },
-                        required = {"access_key", "secret_key", "bucket", "region",}
+                        required = {"access_key", "secret_key", "resource_bucket", "config_bucket", "region",}
                     }
                 },
                 required = {"aws_s3"}

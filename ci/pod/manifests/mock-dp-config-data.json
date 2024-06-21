@@ -1,0 +1,60 @@
+{
+  "config": {
+    "config_payload": {
+      "api7_discovery": {
+        "kubernetes": [],
+        "nacos": [
+          {
+            "hosts": ["http://nacos:8848"],
+            "prefix": "/nacos/v1",
+            "fetch_interval": 3,
+            "default_weight": 100,
+            "timeout": { "connect": 2, "send": 2, "read": 5 },
+            "auth": { "username": "nacos", "password": "nacos" },
+            "id": "6110c7a0-47ec-4a20-bc8e-16075391a906",
+            "check": {
+              "active": {
+                "type": "tcp",
+                "timeout": 5,
+                "host": "nacos",
+                "port": "8848",
+                "healthy": { "interval": 10 },
+                "unhealthy": { "interval": 10 }
+              }
+            }
+          },
+          {
+            "hosts": ["http://127.0.0.1:7848"],
+            "prefix": "/nacos/v1",
+            "fetch_interval": 3,
+            "default_weight": 100,
+            "timeout": { "connect": 2, "send": 2, "read": 5 },
+            "auth": { "username": "nacos", "password": "nacos" },
+            "id": "da8b2507-1f54-4c5f-8589-79141c6465c5",
+            "check": {
+              "active": {
+                "type": "tcp",
+                "timeout": 5,
+                "host": "127.0.0.1",
+                "port": "7848",
+                "healthy": { "interval": 10 },
+                "unhealthy": { "interval": 10 }
+              }
+            }
+          }
+        ]
+      },
+      "apisix": {
+        "data_encryption": {
+          "enable": true,
+          "keyring": ["kzicgltttmmja3ohzx50xbgozpgxvuhd"]
+        },
+        "ssl": {
+          "enable": true,
+          "key_encrypt_salt": ["kzicgltttmmja3ohzx50xbgozpgxvuhd"]
+        }
+      }
+    },
+    "config_version": 3
+  }
+}

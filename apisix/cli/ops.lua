@@ -13,7 +13,7 @@ local pl_path = require("pl.path")
 local lfs = require("lfs")
 local signal = require("posix.signal")
 local errno = require("posix.errno")
-local config_local = require("apisix.core.config_local")
+local constants = require("apisix.constants")
 
 local stderr = io.stderr
 local ipairs = ipairs
@@ -179,16 +179,25 @@ local function init(env)
         end
 
         local s3 = require("resty.s3")
-        local res, err = s3.get_object(ha_conf.bucket, gw_id, ha_conf.region, ha_conf.access_key, ha_conf.secret_key, ha_conf.endpoint)
+        local res, err = s3.get_object(ha_conf.resource_bucket, gw_id, ha_conf.region, ha_conf.access_key, ha_conf.secret_key, ha_conf.endpoint)
         if not res then
-            util.die("failed to get data from s3: ", err)
+            util.die("failed to get resource data from s3: ", err)
         end
-        local a6_yaml, err = io_open(profile:yaml_path("apisix"), "w+")
-        if not a6_yaml then
-            util.die("failed to open config file: ", err)
+
+        local success, err = util.write_file(profile:yaml_path("apisix"), res)
+        if not success then
+            util.die("failed to write to apisix config file: ", err)
         end
-        a6_yaml:write(res)
-        a6_yaml:close()
+
+        res, err = s3.get_object(ha_conf.config_bucket, gw_id, ha_conf.region, ha_conf.access_key, ha_conf.secret_key, ha_conf.endpoint)
+        if not res then
+            util.die("failed to get config data from s3: ", err)
+        end
+
+        success, err = util.write_file(constants.DP_CONF_FILE, res)
+        if not success then
+            util.die("failed to write to dp config file: ", err)
+        end
     end
 
     -- check the Admin API token

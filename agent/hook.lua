@@ -1,6 +1,7 @@
 local require = require
 
 local getenv = os.getenv
+local log = require("apisix.core.log")
 
 local control_plane_token = getenv("API7_CONTROL_PLANE_TOKEN")
 if not control_plane_token then
@@ -52,7 +53,7 @@ local config_dict   = ngx.shared[shdict_name]
 local function get_config_from_dict(key, default)
     local value, err = config_dict:get(key)
     if err then
-        core.log.error("failed to get key from dict: ", err)
+        log.error("failed to get key from dict: ", err)
         return default
     end
 
@@ -67,7 +68,9 @@ end
 local config_local = require("apisix.core.config_local")
 local json = require("apisix.core.json")
 local file = require("agent.file")
-local log = require("apisix.core.log")
+local util = require("apisix.cli.util")
+local constants = require("apisix.constants")
+
 local config_version = 0
 local config_data
 local old_local_conf = config_local.local_conf
@@ -75,12 +78,14 @@ config_local.local_conf = function(force)
     local latest_config_version = get_config_from_dict("config_version", 0)
     if not force and config_data then
         if latest_config_version <= config_version then
+            log.info("found cached config_data in hook")
             return config_data
         end
     end
 
     local default_conf, err = old_local_conf(force)
     if not default_conf then
+        log.error("failed to get default_conf: ", err)
         return nil, err
     end
 
@@ -92,12 +97,27 @@ config_local.local_conf = function(force)
     --- Enable the kubernetes discovery by default.
     local latest_config_payload = get_config_from_dict("config_payload", "{\"api7_discovery\": {\"kubernetes\": [], \"nacos\": []}}")
     if not latest_config_payload then
+        log.warn("couldnt find config payload in shdict")
         return default_conf
     end
 
-    local config_data_from_control_plane, err = json.decode(latest_config_payload)
-    if err then
-        return nil, err
+    local config_data_from_control_plane, decode_err
+    if default_conf.deployment.config_provider == "yaml" then
+        local dp_config, err = util.read_file(constants.DP_CONF_FILE)
+        if not dp_config then
+            log.error("failed to read dp_config file: ", err)
+            return nil, err
+        end
+        local config
+        config, decode_err = json.decode(dp_config)
+        config_data_from_control_plane = config.config and config.config.config_payload
+    else
+        config_data_from_control_plane, decode_err = json.decode(latest_config_payload)
+    end
+
+    if not config_data_from_control_plane then
+        log.error("failed to parse dp_config data: ", decode_err)
+        return nil, decode_err
     end
 
     -- clone default_conf to avoid modifying the default_conf
@@ -105,6 +125,7 @@ config_local.local_conf = function(force)
 
     local ok, err = file.merge_conf(config_data, config_data_from_control_plane)
     if not ok then
+        log.error("failed to get merge conf: ", err)
         return nil, err
     end
 
@@ -217,10 +238,12 @@ apisix.http_init_worker = function(...)
         wrapper.discovery.init_worker()
     end
 
-    local timers  = require("apisix.timers")
-    timers.register_timer(heartbeat_timer_name, heartbeat, true)
-    timers.register_timer(telemetry_timer_name, upload_metrics, true)
-    timers.register_timer(report_healthcheck_timer_name, report_healthcheck)
+    local local_conf = config_local.local_conf()
+    local config_provider = core.table.try_read_attr(local_conf, "deployment", "role_data_plane", "config_provider")
+    if config_provider and config_provider == "etcd" then
+        local timers  = require("apisix.timers")
+        timers.register_timer(heartbeat_timer_name, heartbeat, true)
+        timers.register_timer(telemetry_timer_name, upload_metrics, true)
+        timers.register_timer(report_healthcheck_timer_name, report_healthcheck)
+    end
 end
-
-return _M

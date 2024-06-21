@@ -15,6 +15,7 @@
 -- limitations under the License.
 --
 return {
+    DP_CONF_FILE = "dp_conf.json",
     RPC_ERROR = 0,
     RPC_PREPARE_CONF = 1,
     RPC_HTTP_REQ_CALL = 2,
