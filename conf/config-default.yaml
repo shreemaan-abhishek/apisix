@@ -668,4 +668,8 @@ deployment:
       #sni:                         # the SNI for etcd TLS requests. If missed, the host part of the URL will be used.
 
 api7ee:
+  telemetry:
+    enable: true # enable telemetry data report to the control plane
+    interval: 15 # interval in seconds to send telemetry data to the control plane
+    max_metrics_size: 33554432 # max size in bytes(32M) of the metrics data sent to the control plane, if the size exceeds, the data will be truncated
   healthcheck_report_interval: 120 # healthcheck data report interval in seconds

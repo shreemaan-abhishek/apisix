@@ -158,12 +158,6 @@ local function hook()
         endpoint = etcd_conf.host[1]
     end
 
-    local max_metrics_size = 1024 * 1024 * 32
-    local max_metrics_size_str = getenv("API7_CONTROL_PLANE_MAX_METRICS_SIZE_DEBUG")
-    if max_metrics_size_str and max_metrics_size_str ~= "" then
-        max_metrics_size = tonumber(max_metrics_size_str)
-    end
-
     local ssl_cert_path
     local ssl_key_path
     if etcd_conf.tls and etcd_conf.tls.cert then
@@ -179,11 +173,25 @@ local function hook()
         healthcheck_report_interval = 60 * 2
     end
 
+    local telemetry = core.table.try_read_attr(local_conf, "api7ee", "telemetry")
+    if not telemetry then
+        telemetry = {}
+    end
+    if telemetry.enable == nil then
+        telemetry.enable = true
+    end
+    if telemetry.interval == nil then
+        telemetry.interval = 15
+    end
+    if telemetry.max_metrics_size == nil then
+        telemetry.max_metrics_size = 1024 * 1024 * 32
+    end
+
     api7_agent = agent.new({
         endpoint = endpoint,
         ssl_cert_path = ssl_cert_path,
         ssl_key_path = ssl_key_path,
-        max_metrics_size = max_metrics_size,
+        telemetry = telemetry,
         healthcheck_report_interval = healthcheck_report_interval,
     })
 
@@ -241,7 +249,12 @@ apisix.http_init_worker = function(...)
     if core.config.type == "etcd" then
         local timers  = require("apisix.timers")
         timers.register_timer(heartbeat_timer_name, heartbeat, true)
-        timers.register_timer(telemetry_timer_name, upload_metrics, true)
+        if api7_agent.telemetry.enable then
+            timers.register_timer(telemetry_timer_name, upload_metrics, true)
+            core.log.info("registered timer to send telemetry data to control plane")
+        else
+            core.log.info("disabled send telemetry data to control plane")
+        end
         timers.register_timer(report_healthcheck_timer_name, report_healthcheck)
     else
         core.log.warn("skipped registering timer because config type: ", core.config.type)

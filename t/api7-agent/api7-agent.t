@@ -97,10 +97,8 @@ _EOC_
     $block->set_value("extra_init_by_lua", $extra_init_by_lua);
 
     if (!$block->request) {
-        if (!defined $block->stream_enable) {
+        if (!$block->stream_request) {
             $block->set_value("request", "GET /t");
-        } else {
-            $block->set_value("stream_request", "GET /apisix/prometheus/metrics HTTP/1.0\r\nHost: 127.0.0.1:9100\r\n\r\n");
         }
     }
 
@@ -153,7 +151,7 @@ upload metrics to control plane successfully
 
 
 
-=== TEST 3: upload metrics success
+=== TEST 3: set telemetry interval
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -163,16 +161,18 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1980
+api7ee:
+  telemetry:
+    interval: 1
 --- config
     location /t {
         content_by_lua_block {
             ngx.say("ok")
         }
     }
---- wait: 17
+--- wait: 2
 --- error_log
-receive data plane metrics
-metrics size: 141
+registered timer to send telemetry data to control plane
 upload metrics to control plane successfully
 
 
@@ -181,21 +181,25 @@ upload metrics to control plane successfully
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_MAX_METRICS_SIZE_DEBUG=8;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
     export_addr:
       port: 1980
+api7ee:
+  telemetry:
+    interval: 1
+    max_metrics_size: 8
 --- config
     location /t {
         content_by_lua_block {
             ngx.say("ok")
         }
     }
---- wait: 17
+--- wait: 2
 --- error_log
+registered timer to send telemetry data to control plane
 metrics size is too large, truncating it
 receive data plane metrics
 metrics size: 8
@@ -203,7 +207,31 @@ upload metrics to control plane successfully
 
 
 
-=== TEST 5: fetch prometheus metrics failed
+=== TEST 5: disable telemetry
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- yaml_config
+plugin_attr:
+  prometheus:
+    export_addr:
+      port: 1980
+api7ee:
+  telemetry:
+    enable: false
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("ok")
+        }
+    }
+--- error_log
+disabled send telemetry data to control plane
+
+
+
+=== TEST 6: fetch prometheus metrics failed
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
@@ -212,23 +240,25 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1234
+api7ee:
+  telemetry:
+    interval: 1
 --- config
     location /t {
         content_by_lua_block {
             ngx.say("ok")
         }
     }
---- wait: 17
+--- wait: 2
 --- error_log
 fetch prometheus metrics error
 
 
 
-=== TEST 6: get new config
+=== TEST 7: get new config
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_MAX_METRICS_SIZE_DEBUG=8;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
@@ -241,13 +271,12 @@ plugin_attr:
             ngx.say("ok")
         }
     }
---- wait: 17
 --- error_log
 config version changed, old version: 0, new version: 1
 
 
 
-=== TETS 7: create stream_proxy
+=== TEST 8: create stream_proxy
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -312,8 +341,7 @@ passed
 
 
 
-
-=== TETS 8: test stream route
+=== TEST 9: test stream route
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -327,13 +355,14 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1980
---- stream_enable
+--- stream_request
+mmm
 --- stream_response eval
-qr/200 OK/
+qr/400 Bad Request/
 
 
 
-=== TEST 9: test service discovery
+=== TEST 10: test service discovery
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;

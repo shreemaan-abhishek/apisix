@@ -174,7 +174,7 @@ end
 function _M.upload_metrics(self)
     local current_time = ngx_time()
     if self.last_metrics_uploading_time and
-            current_time - self.last_metrics_uploading_time < self.telemetry_collect_interval then
+            current_time - self.last_metrics_uploading_time < self.telemetry.interval then
         return
     end
 
@@ -199,10 +199,10 @@ function _M.upload_metrics(self)
 
     local metrics = res.body
 
-    if #metrics > self.max_metrics_size then
-        core.log.warn("metrics size is too large, truncating it, size: ", #metrics, ", after truncated: ", self.max_metrics_size)
+    if #metrics > self.telemetry.max_metrics_size then
+        core.log.warn("metrics size is too large, truncating it, size: ", #metrics, ", after truncated: ", self.telemetry.max_metrics_size)
         payload.truncated = true
-        metrics = string.sub(metrics, 1, self.max_metrics_size)
+        metrics = string.sub(metrics, 1, self.telemetry.max_metrics_size)
     end
 
     payload.metrics = metrics
@@ -352,9 +352,8 @@ function _M.new(agent_conf)
         ssl_cert_path = agent_conf.ssl_cert_path,
         ssl_key_path = agent_conf.ssl_key_path,
         heartbeat_interval = 10,
-        telemetry_collect_interval = 15,
+        telemetry = agent_conf.telemetry,
         healthcheck_report_interval = agent_conf.healthcheck_report_interval,
-        max_metrics_size = agent_conf.max_metrics_size or 1024 * 1024 * 32,
         last_heartbeat_time = nil,
         last_metrics_uploading_time = nil,
 
