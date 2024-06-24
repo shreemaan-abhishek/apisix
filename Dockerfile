@@ -90,6 +90,7 @@ COPY ./lua-resty-aws-s3 /usr/local/apisix/lua-resty-aws-s3
 COPY --chown=apisix:apisix ./apisix /usr/local/apisix/apisix
 COPY --chown=apisix:apisix ./agent /usr/local/apisix/agent
 COPY --chown=apisix:apisix ./conf/apisix.yaml /usr/local/apisix/conf/apisix.yaml
+COPY --chown=apisix:apisix ./dp_conf.json /usr/local/apisix/dp_conf.json
 COPY --chown=apisix:apisix ./conf/config.yaml /usr/local/apisix/conf/config.yaml
 COPY --chown=apisix:apisix ./conf/config-default.yaml /usr/local/apisix/conf/config-default.yaml
 COPY --chown=apisix:apisix ./ci/utils/api7-ljbc.sh /usr/local/apisix/api7-ljbc.sh
@@ -124,7 +125,7 @@ RUN bash /usr/local/apisix/linux-install-luarocks.sh && rm /usr/local/apisix/lin
 
 # clear up
 RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove --allow-remove-essential \
-    luarocks ca-certificates sudo gcc unzip make git wget \
+    luarocks sudo gcc unzip make git wget \
     python3-pip python3-wheel python3-setuptools \
     && rm -rf /usr/local/openresty/openssl3/share
 
