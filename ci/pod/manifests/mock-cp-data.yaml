@@ -47,6 +47,21 @@ routes:
       status: 1
       uris:
         - /get
+    - enable_websocket: false
+      id: ec300fbc-ad61-483b-9424-d0a7163ee648
+      methods:
+        - GET
+      name: route
+      plugins:
+        3rd-party:
+            _meta:
+                disable: false
+            body: this is custom_plugin custom body
+      priority: 0
+      service_id: a865641d-7439-4463-a31d-d97c862c5623
+      status: 1
+      uris:
+        - /ip
 services:
     - id: a865641d-7439-4463-a31d-d97c862c5623
       name: svc
@@ -89,4 +104,37 @@ upstreams:
       retry_timeout: 0
       scheme: http
       type: roundrobin
+custom_plugins:
+    - content: |
+        local core = require("apisix.core")
+        local schema = {
+            type = "object",
+            properties = {
+                body = {
+                    description = "body to replace response.",
+                    type = "string"
+                },
+            },
+            required = {"body"},
+        }
+
+        local plugin_name = "3rd-party"
+        local _M = {
+            version = 0.1,
+            priority = 12,
+            name = plugin_name,
+            schema = schema,
+        }
+
+        function _M.check_schema(conf)
+            return core.schema.check(schema, conf)
+        end
+
+        function _M.access(conf, ctx)
+            core.log.warn("running custom plugin")
+            return 200, conf.body
+        end
+
+        return _M
+      name: 3rd-party
 #END

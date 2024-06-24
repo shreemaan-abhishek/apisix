@@ -59,8 +59,12 @@ curl -s -o /dev/null -w "%{http_code}" -uba:secure http://127.0.0.1:9080/get | g
 curl -s -o /dev/null -w "%{http_code}" -uba:secure http://127.0.0.1:9080/get | grep 504 \
 || (echo "failed: request to route created from standalone config from mock s3"; exit 1)
 
-no_of_err=$(grep -c "has no healthy etcd endpoint available" logs/error.log || echo 0)
-if [[ no_of_err -gt 0 ]]; then
+curl http://127.0.0.1:9080/ip | grep "this is custom_plugin custom body" \
+|| (echo "failed: request to route with custom_plugin"; exit 1)
+
+exit_code=1 # non zero exit code
+grep -c "has no healthy etcd endpoint available" logs/error.log > /dev/null || exit_code=$?
+if [ $exit_code -eq 0 ]; then
   echo "failed: should not contain etcd endpoints unavailable error"
   exit 1
 fi

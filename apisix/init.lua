@@ -148,11 +148,11 @@ function _M.http_init_worker()
         end
     end
 
+    plugin.init_worker()
     local ok, custom_plugins = pcall(require, "agent.custom_plugins")
     if ok then
         custom_plugins.init_worker()
     end
-    plugin.init_worker()
     router.http_init_worker()
     require("apisix.http.service").init_worker()
     plugin_config.init_worker()
