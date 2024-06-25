@@ -153,9 +153,12 @@ end
 function _M.log(conf, ctx)
     local args = core.request.get_uri_args(ctx)
     local query_masked = false
-    local post_args = ngx.req.get_post_args(0)
+    local post_args = {}
     local post_args_masked = false
     local body = ngx.req.get_body_data()
+    if body then
+        post_args = ngx.req.get_post_args(0)
+    end
     local json_body
     local body_masked = false
 

@@ -51,7 +51,7 @@ __DATA__
                                 ]
                             },
                             "file-logger": {
-                                "path": "mask-query.log"
+                                "path": "mask-query.log.1"
                             }
                         },
                         "upstream": {
@@ -81,8 +81,7 @@ __DATA__
             local t = require("lib.test_admin").test
 
             local code = t("/hello?password=abc&token=xyz&card=1234-1234-1234-1234", ngx.HTTP_GET)
-
-            local fd, err = io.open("mask-query.log", "r")
+            local fd, err = io.open("mask-query.log.1", "r")
             if not fd then
                 core.log.error("failed to open file: ", err)
                 return
@@ -108,7 +107,7 @@ __DATA__
                 return
             end
 
-            os.remove("mask-query.log")
+            os.remove("mask-query.log.1")
             ngx.say("success")
         }
     }
@@ -149,7 +148,7 @@ success
                                 ]
                             },
                             "file-logger": {
-                                "path": "mask-header.log"
+                                "path": "mask-header.log.2"
                             }
                         },
                         "upstream": {
@@ -184,7 +183,7 @@ success
             headers["card"] = "1234-1234-1234-1234"
             local code = t("/hello", ngx.HTTP_GET, "", nil, headers)
 
-            local fd, err = io.open("mask-header.log", "r")
+            local fd, err = io.open("mask-header.log.2", "r")
             if not fd then
                 core.log.error("failed to open file: ", err)
                 return
@@ -205,7 +204,7 @@ success
                 return
             end
 
-            os.remove("mask-header.log")
+            os.remove("mask-header.log.2")
             ngx.say("success")
         }
     }
@@ -301,6 +300,7 @@ success
     }
 --- response_body
 success
+
 
 
 
@@ -420,3 +420,68 @@ success
     }
 --- response_body
 success
+
+
+
+=== TEST 9: plugin within global rule should not throw error for missing body.
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/global_rules/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "plugins": {
+                            "data-mask": {
+                                "request": [
+                                    {
+                                        "action": "remove",
+                                        "name": "password",
+                                        "type": "query"
+                                    },
+                                    {
+                                        "action": "replace",
+                                        "name": "token",
+                                        "type": "query",
+                                        "value": "*****"
+                                    },
+                                    {
+                                        "action": "regex",
+                                        "name": "card",
+                                        "regex": "(\\d+)\\-\\d+\\-\\d+\\-(\\d+)",
+                                        "type": "query",
+                                        "value": "$1-****-****-$2"
+                                    }
+                                ]
+                            },
+                            "file-logger": {
+                                "path": "mask-query.log.4"
+                            }
+                        }
+                }]]
+                )
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+
+
+
+=== TEST 10: verify
+--- config
+    location /t {
+        content_by_lua_block {
+            local core = require("apisix.core")
+            local t = require("lib.test_admin").test
+
+            local code = t("/random", ngx.HTTP_POST, "password=abc&token=xyz&card=1234-1234-1234-1234")
+
+            ngx.say("code: ", code)
+        }
+    }
+--- response_body
+code: 404
+--- no_error_log
+no request body found
