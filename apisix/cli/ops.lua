@@ -283,7 +283,7 @@ Please modify "admin_key" in conf/config.yaml .
 
     local enable_http = true
     if not yaml_conf.apisix.enable_admin and yaml_conf.apisix.stream_proxy and
-        yaml_conf.apisix.stream_proxy.only ~= false
+        yaml_conf.apisix.stream_proxy.only
     then
         enable_http = false
     end
