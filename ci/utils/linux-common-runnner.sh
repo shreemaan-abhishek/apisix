@@ -114,6 +114,11 @@ ci-env-stop:
     cat "${VAR_APISIX_HOME}/Makefile"
     printf "\n\n"
     cat "${VAR_APISIX_HOME}/.luacheckrc"
+
+    # after this PR: https://github.com/api7/api7-ee-3-gateway/pull/426/files
+    # stream_proxy.only should be specified explicitly
+    sed -i '28i\        only: true' "${VAR_APISIX_HOME}/t/cli/test_stream_config.sh"
+    sed -i '30i\        only: false' "${VAR_APISIX_HOME}/t/cli/test_prometheus_stream.sh"
 }
 
 test_env() {
