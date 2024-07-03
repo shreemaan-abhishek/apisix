@@ -80,7 +80,7 @@ function _M.init()
     for _, package_name in ipairs(config.lua_modules) do
       local package = require(package_name)
       local count = tab_item_count(package, {},depth)
-      core.log.info("package ", package_name, " table count is: ", count," for loaded: ",run_no)
+      core.log.warn("package ", package_name, " table count is: ", count," for loaded: ",run_no)
     end
     if stop or run_no ~= current_run then
       return
