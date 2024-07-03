@@ -36,6 +36,11 @@ jobs:
           make patch_apisix
           make install
 
+      - name: Modify the files
+        working-directory: workbench
+        run: |
+          sed -i 's/lua_module_hook/#lua_module_hook/' conf/config-default.yaml
+
       - name: Install lua-resty-openapi-validate
         run: |
           ./ci/utils/install-lua-resty-openapi-validate.sh

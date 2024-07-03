@@ -58,7 +58,7 @@ local function request(req_params, conf, ssl)
     req_params.certificate = conf.cert
     req_params.key = conf.key
     req_params.cafile = conf.cafile
-    req_params.verify = "none"
+    req_params.verify = conf.verify or "none"
 
     return https.request(req_params)
 end
@@ -80,6 +80,8 @@ local function send_request(url, opts)
         }, {
             cert = opts.ssl_cert_path,
             key = opts.ssl_key_path,
+            cafile = opts.ssl_ca_cert,
+            verify = opts.ssl_verify,
         }, ssl)
 
         if not resp_status then
@@ -100,7 +102,7 @@ local function send_request(url, opts)
         body = opts.body,
         headers = opts.headers,
         keepalive = true,
-        ssl_verify = false,
+        ssl_verify = opts.ssl_verify == "peer" and true or false,
         ssl_cert_path = opts.ssl_cert_path,
         ssl_key_path = opts.ssl_key_path,
     })
@@ -133,6 +135,8 @@ function _M.heartbeat(self, first)
         method =  "POST",
         body = post_heartbeat_payload,
         headers = headers,
+        ssl_verify = self.ssl_verify,
+        ssl_ca_cert = self.ssl_ca_cert,
         ssl_cert_path = self.ssl_cert_path,
         ssl_key_path = self.ssl_key_path,
     })
@@ -320,6 +324,8 @@ function _M.report_healthcheck(self)
         method = "POST",
         body = payload_data,
         headers = headers,
+        ssl_verify = self.ssl_verify,
+        ssl_ca_cert = self.ssl_ca_cert,
         ssl_cert_path = self.ssl_cert_path,
         ssl_key_path = self.ssl_key_path,
     })
@@ -351,6 +357,8 @@ function _M.new(agent_conf)
         healthcheck_url = agent_conf.endpoint .. "/api/dataplane/healthcheck",
         ssl_cert_path = agent_conf.ssl_cert_path,
         ssl_key_path = agent_conf.ssl_key_path,
+        ssl_ca_cert = agent_conf.ssl_ca_cert,
+        ssl_verify = agent_conf.ssl_verify,
         heartbeat_interval = 10,
         telemetry = agent_conf.telemetry,
         healthcheck_report_interval = agent_conf.healthcheck_report_interval,

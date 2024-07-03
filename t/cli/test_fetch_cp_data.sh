@@ -28,6 +28,7 @@ sleep 3
 export API7_GATEWAY_GROUP_SHORT_ID="default"
 export API7_CONTROL_PLANE_TOKEN="somerandomtoken"
 
+
 echo '
 apisix:
   lua_module_hook: "agent.hook"

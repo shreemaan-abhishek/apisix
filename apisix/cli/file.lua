@@ -133,23 +133,40 @@ local function replace_by_reserved_env_vars(conf)
 
     local cpCert = getenv("API7_CONTROL_PLANE_CERT")
     local cpKey = getenv("API7_CONTROL_PLANE_KEY")
-    if cpCert and cpKey and conf["deployment"] and conf["deployment"]["etcd"] then
-        local certPath = "/tmp/api7ee.crt"
-        local ok, err = util.write_file(certPath, cpCert)
-        if not ok then
-            util.die("failed to update nginx.conf: ", err, "\n")
-        end
 
-        local keyPath = "/tmp/api7ee.key"
-        local ok, err = util.write_file(keyPath, cpKey)
-        if not ok then
-            util.die("failed to update nginx.conf: ", err, "\n")
-        end
-
-        conf["deployment"]["etcd"]["tls"] = conf["deployment"]["etcd"]["tls"] or {}
-        conf["deployment"]["etcd"]["tls"]["cert"] = certPath
-        conf["deployment"]["etcd"]["tls"]["key"] = keyPath
+    if not cpCert or not cpKey or not conf["deployment"] or not conf["deployment"]["etcd"] then
+        return
     end
+
+    local certPath = "/tmp/api7ee.crt"
+    local ok, err = util.write_file(certPath, cpCert)
+    if not ok then
+        util.die("failed to update nginx.conf: ", err, "\n")
+    end
+
+    local keyPath = "/tmp/api7ee.key"
+    local ok, err = util.write_file(keyPath, cpKey)
+    if not ok then
+        util.die("failed to update nginx.conf: ", err, "\n")
+    end
+
+    conf["deployment"]["etcd"]["tls"] = conf["deployment"]["etcd"]["tls"] or {}
+    conf["deployment"]["etcd"]["tls"]["cert"] = certPath
+    conf["deployment"]["etcd"]["tls"]["key"] = keyPath
+
+    local ca = getenv("API7_CONTROL_PLANE_CA")
+    if not ca then
+        return
+    end
+
+    local caPath = "/tmp/api7ee_ca.crt"
+    local ok, err = util.write_file(caPath, ca)
+    if not ok then
+        util.die("failed to update nginx.conf: ", err, "\n")
+    end
+
+    conf["apisix"]["ssl"] = conf["apisix"]["ssl"] or {}
+    conf["apisix"]["ssl"]["ssl_trusted_certificate"] = caPath
 end
 
 

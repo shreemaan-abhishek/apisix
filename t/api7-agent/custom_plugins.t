@@ -14,7 +14,9 @@ add_block_preprocessor(sub {
 require "agent.hook";
 _EOC_
 
-    $block->set_value("extra_init_by_lua_start", $extra_init_by_lua_start);
+    if (!defined $block->extra_init_by_lua_start) {
+        $block->set_value("extra_init_by_lua_start", $extra_init_by_lua_start);
+    }
 
     my $http_config = $block->http_config // <<_EOC_;
 lua_shared_dict config 5m;
@@ -47,6 +49,10 @@ run_tests;
 __DATA__
 
 === TEST 1: create custom plugin test
+--- extra_init_by_lua_start
+--- extra_yaml_config
+apisix:
+  lua_module_hook: ""
 --- config
 location /t {
     content_by_lua_block {

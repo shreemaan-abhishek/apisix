@@ -3,12 +3,6 @@ local require = require
 local getenv = os.getenv
 local log = require("apisix.core.log")
 
-local control_plane_token = getenv("API7_CONTROL_PLANE_TOKEN")
-if not control_plane_token then
-    ngx.log(ngx.WARN, "missing API7_CONTROL_PLANE_TOKEN, the gateway will not connect to control plane")
-    return
-end
-
 -- set the JIT options before any code, to prevent error "changing jit stack size is not
 -- allowed when some regexs have already been compiled and cached"
 if require("ffi").os == "Linux" then
@@ -152,6 +146,7 @@ local api7_agent
 local function hook()
     local local_conf = config_local.local_conf()
     local etcd_conf = core.table.try_read_attr(local_conf, "deployment", "etcd")
+    local ssl_conf = core.table.try_read_attr(local_conf, "apisix", "ssl")
 
     local endpoint = getenv("API7_CONTROL_PLANE_ENDPOINT_DEBUG")
     if not endpoint or endpoint == "" then
@@ -160,12 +155,26 @@ local function hook()
 
     local ssl_cert_path
     local ssl_key_path
+    local ssl_ca_cert
+    local verify = false
+    local ssl_verify = "none"
     if etcd_conf.tls and etcd_conf.tls.cert then
         ssl_cert_path = etcd_conf.tls.cert
+        verify = true
     end
 
     if etcd_conf.tls and etcd_conf.tls.key then
         ssl_key_path = etcd_conf.tls.key
+        verify = true
+    end
+
+    if not etcd_conf.tls.verify then
+        verify = false
+    end
+
+    if verify then
+        ssl_ca_cert = ssl_conf and ssl_conf.ssl_trusted_certificate
+        ssl_verify = ssl_ca_cert and "peer" or "none"
     end
 
     local healthcheck_report_interval = core.table.try_read_attr(local_conf, "api7ee", "healthcheck_report_interval")
@@ -191,6 +200,8 @@ local function hook()
         endpoint = endpoint,
         ssl_cert_path = ssl_cert_path,
         ssl_key_path = ssl_key_path,
+        ssl_verify = ssl_verify,
+        ssl_ca_cert = ssl_ca_cert,
         telemetry = telemetry,
         healthcheck_report_interval = healthcheck_report_interval,
     })
@@ -201,7 +212,7 @@ local function hook()
     end
 
     for i = 1, 3 do
-        err = api7_agent:heartbeat(true)
+        local err = api7_agent:heartbeat(true)
         if err == nil then
             break
         end
