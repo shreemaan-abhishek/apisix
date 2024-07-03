@@ -45,4 +45,7 @@ return {
         ["/stream_routes"] = true,
         ["/plugin_metadata"] = true,
     },
+    SHDICT_REDIS_REMAINING = "remaining",
+    REDIS_COUNTER = "redis-counter",
+    REDIS_SYNCER = "timer"
 }

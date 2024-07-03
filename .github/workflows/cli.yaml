@@ -86,6 +86,7 @@ jobs:
         working-directory: workbench
         run: |
           project_compose_ci=ci/pod/docker-compose.common.yml make ci-env-up
+          project_compose_ci=ci/pod/docker-compose.redis.yml make ci-env-up
 
       - name: Linux Before install
         working-directory: workbench
