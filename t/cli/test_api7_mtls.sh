@@ -107,7 +107,6 @@ deployment:
 
 echo "" > logs/error.log
 
-#
   out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) API7_CONTROL_PLANE_CA=$(cat t/certs/mtls_ca.crt) make run 2>&1 || echo "ouch")
 if echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat'; then
     echo "failed: apisix should not echo \"bad certificate\" or \"should set ssl_trusted_certificat\""
@@ -119,6 +118,77 @@ sleep 6
 if grep -c "SSL_do_handshake() failed" logs/error.log > /dev/null; then
     echo "failed: failed to mtls handshake"
     exit 1
+fi
+
+echo "passed: certificate verify success expectedly"
+
+make stop
+sleep 3
+
+# failed: certificate host mismatch
+echo '
+deployment:
+  role: traditional
+  role_traditional:
+    config_provider: etcd
+  etcd:
+    host:
+      - "https://127.0.0.1:22379"
+    prefix: "/apisix"
+    tls:
+      verify: true
+  ' > conf/config.yaml
+
+echo "" > logs/error.log
+
+  out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) API7_CONTROL_PLANE_CA=$(cat t/certs/mtls_ca.crt) make run 2>&1 || echo "ouch")
+if echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat|certificate host mismatch'; then
+    echo "failed: apisix should not echo \"bad certificate\" or \"should set ssl_trusted_certificat\""
+    exit 1
+fi
+
+sleep 6
+
+if ! grep -c -E "certificate host mismatch|SSL certificate does not match" logs/error.log > /dev/null; then
+  echo "failed: error log should contain \"certificate host mismatch\""
+  exit 1
+fi
+
+make stop
+sleep 3
+
+echo "passed: certificate verify success expectedly"
+
+# success: certificate verify success expectedly
+echo '
+deployment:
+  role: traditional
+  role_traditional:
+    config_provider: etcd
+  etcd:
+    host:
+      - "https://127.0.0.1:22379"
+    prefix: "/apisix"
+    tls:
+      verify: true
+  ' > conf/config.yaml
+
+echo "" > logs/error.log
+
+  out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) API7_CONTROL_PLANE_CA=$(cat t/certs/mtls_ca.crt) API7_CONTROL_PLANE_SNI=admin.apisix.dev make run 2>&1 || echo "ouch")
+if echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat'; then
+    echo "failed: apisix should not echo \"bad certificate\" or \"should set ssl_trusted_certificat\""
+    exit 1
+fi
+
+if grep -c "SSL_do_handshake() failed" logs/error.log > /dev/null; then
+  echo "failed: failed to mtls handshake"
+  exit 1
+fi
+
+if grep -c "certificate host mismatch" logs/error.log > /dev/null; then
+  echo "failed: certificate host mismatch"
+  exit 1
 fi
 
 echo "passed: certificate verify success expectedly"

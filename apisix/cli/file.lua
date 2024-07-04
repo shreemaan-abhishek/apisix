@@ -120,8 +120,15 @@ _M.resolve_conf_var = resolve_conf_var
 local function replace_by_reserved_env_vars(conf)
     -- TODO: support more reserved environment variables
     -- support APISIX_DEPLOYMENT_ETCD_HOST and API7_CONTROL_PLANE_ENDPOINTS
+    if not conf["deployment"] or not conf["deployment"]["etcd"] then
+        return
+    end
+
+    -- Avoid SELinux strategy
+    local tmp_name = os.tmpname()
+
     local v = getenv("API7_CONTROL_PLANE_ENDPOINTS") or getenv("APISIX_DEPLOYMENT_ETCD_HOST")
-    if v and conf["deployment"] and conf["deployment"]["etcd"] then
+    if v then
         local val, _, err = dkjson.decode(v)
         if err or not val then
             print("parse ${API7_CONTROL_PLANE_ENDPOINTS} failed, error:", err)
@@ -131,26 +138,32 @@ local function replace_by_reserved_env_vars(conf)
         conf["deployment"]["etcd"]["host"] = val
     end
 
+    conf["deployment"]["etcd"]["tls"] = conf["deployment"]["etcd"]["tls"] or {}
+
+    local sni = getenv("API7_CONTROL_PLANE_SNI")
+    if sni then
+        conf["deployment"]["etcd"]["tls"]["sni"] = sni
+    end
+
     local cpCert = getenv("API7_CONTROL_PLANE_CERT")
     local cpKey = getenv("API7_CONTROL_PLANE_KEY")
 
-    if not cpCert or not cpKey or not conf["deployment"] or not conf["deployment"]["etcd"] then
+    if not cpCert or not cpKey then
         return
     end
 
-    local certPath = "/tmp/api7ee.crt"
+    local certPath = tmp_name .. "_api7ee.crt"
     local ok, err = util.write_file(certPath, cpCert)
     if not ok then
         util.die("failed to update nginx.conf: ", err, "\n")
     end
 
-    local keyPath = "/tmp/api7ee.key"
+    local keyPath = tmp_name .. "_api7ee.key"
     local ok, err = util.write_file(keyPath, cpKey)
     if not ok then
         util.die("failed to update nginx.conf: ", err, "\n")
     end
 
-    conf["deployment"]["etcd"]["tls"] = conf["deployment"]["etcd"]["tls"] or {}
     conf["deployment"]["etcd"]["tls"]["cert"] = certPath
     conf["deployment"]["etcd"]["tls"]["key"] = keyPath
 
@@ -159,7 +172,7 @@ local function replace_by_reserved_env_vars(conf)
         return
     end
 
-    local caPath = "/tmp/api7ee_ca.crt"
+    local caPath = tmp_name .. "_api7ee_ca.crt"
     local ok, err = util.write_file(caPath, ca)
     if not ok then
         util.die("failed to update nginx.conf: ", err, "\n")

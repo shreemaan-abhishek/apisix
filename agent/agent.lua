@@ -71,6 +71,7 @@ local function send_request(url, opts)
             ssl = true
         end
 
+        -- Lua does not verify the CN or SAN of the server certificate
         local resp_status, http_status = request({
             url = url,
             method = opts.method,
@@ -105,6 +106,7 @@ local function send_request(url, opts)
         ssl_verify = opts.ssl_verify == "peer" and true or false,
         ssl_cert_path = opts.ssl_cert_path,
         ssl_key_path = opts.ssl_key_path,
+        ssl_server_name = opts.ssl_server_name,
     })
 
     return res, err
@@ -139,6 +141,7 @@ function _M.heartbeat(self, first)
         ssl_ca_cert = self.ssl_ca_cert,
         ssl_cert_path = self.ssl_cert_path,
         ssl_key_path = self.ssl_key_path,
+        ssl_server_name = self.ssl_server_name,
     })
     if not res then
         core.log.error("heartbeat failed ", err)
@@ -328,6 +331,7 @@ function _M.report_healthcheck(self)
         ssl_ca_cert = self.ssl_ca_cert,
         ssl_cert_path = self.ssl_cert_path,
         ssl_key_path = self.ssl_key_path,
+        ssl_server_name = self.ssl_server_name,
     })
     if not res then
         core.log.warn("report healthcheck data failed: ", err)
@@ -359,12 +363,12 @@ function _M.new(agent_conf)
         ssl_key_path = agent_conf.ssl_key_path,
         ssl_ca_cert = agent_conf.ssl_ca_cert,
         ssl_verify = agent_conf.ssl_verify,
+        ssl_server_name = agent_conf.ssl_server_name,
         heartbeat_interval = 10,
         telemetry = agent_conf.telemetry,
         healthcheck_report_interval = agent_conf.healthcheck_report_interval,
         last_heartbeat_time = nil,
         last_metrics_uploading_time = nil,
-
         config_version = 0
     }
 

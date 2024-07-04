@@ -156,6 +156,7 @@ local function hook()
     local ssl_cert_path
     local ssl_key_path
     local ssl_ca_cert
+    local ssl_server_name = etcd_conf.tls and etcd_conf.tls.sni
     local verify = false
     local ssl_verify = "none"
     if etcd_conf.tls and etcd_conf.tls.cert then
@@ -203,6 +204,7 @@ local function hook()
         ssl_verify = ssl_verify,
         ssl_ca_cert = ssl_ca_cert,
         telemetry = telemetry,
+        ssl_server_name = ssl_server_name,
         healthcheck_report_interval = healthcheck_report_interval,
     })
 
