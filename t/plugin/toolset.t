@@ -91,10 +91,10 @@ return {
         }
     }
 --- grep_error_log eval
-qr/empty config found. unloading plugin/
+qr/empty config found for table_count.Running with default values/
 --- grep_error_log_out
-empty config found. unloading plugin
-empty config found. unloading plugin
+empty config found for table_count.Running with default values
+empty config found for table_count.Running with default values
 
 
 

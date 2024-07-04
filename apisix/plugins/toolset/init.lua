@@ -66,7 +66,7 @@ end
 
 
 local function sync()
-  core.log.warn("syncing toolset plugin")
+  core.log.info("syncing toolset plugin")
 	local plugin_configs = get_plugin_config()
   local processed_plugins = {}
   if plugin_configs then
@@ -74,13 +74,12 @@ local function sync()
       processed_plugins[plugin_name] = true
       -- checks if the config is different from cache
       if is_config_changed(plugin_name, plugin_config) then
-        if is_config_empty(plugin_config) then
-          core.log.warn("empty config found. unloading plugin: ", plugin_name)
-          perform_operation_for_plugin(plugin_name, plugin_config, unload)
-        else
+          if is_config_empty(plugin_config) then
+            -- allow executing even with empty config. Assuming the plugin will run with default values
+            core.log.warn("empty config found for ", plugin_name,".Running with default values")
+          end
           core.log.warn("config changed. reloading plugin: ", plugin_name)
           perform_operation_for_plugin(plugin_name, plugin_config, load)
-        end
       end
     end
   end
@@ -106,8 +105,8 @@ function _M.init()
     if plugins_config then
       for plugin_name, plugin_config in pairs(plugins_config) do
         if is_config_empty(plugin_config) then
-          core.log.warn("empty config found. skipping plugin: ", plugin_name)
-          return
+          -- allow executing even with empty config. Assuming the plugin will run with default values
+          core.log.warn("empty config found for ", plugin_name,".Running with default values")
         end
         perform_operation_for_plugin(plugin_name, plugin_config, load)
       end

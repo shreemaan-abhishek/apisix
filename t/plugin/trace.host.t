@@ -11,7 +11,7 @@ add_block_preprocessor(sub {
 
 my $user_yaml_config = <<_EOC_;
 plugins:
-  - trace
+  - toolset
   - serverless-post-function
 _EOC_
     $block->set_value("extra_yaml_config", $user_yaml_config);
@@ -68,7 +68,7 @@ done
             local t = require("lib.test_admin").test
             local http = require("resty.http")
 
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            local file, err = io.open("apisix/plugins/toolset/config.lua", "w+")
             if not file then
                 ngx.status = 500
                 ngx.say("Failed test: failed to open config file")
@@ -77,18 +77,16 @@ done
             local old = file:read("*all")
             file:write([[
 return {
-  rate = 100,
-  hosts = {"*.com"}
+  trace = {
+    rate = 100,
+    hosts = {"*.com"}
+  }
 }
 ]])
             file:close()
 
-            -- reload plugin
-            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
-            ngx.sleep(0.2)
-            if code > 300 then
-                return
-            end
+
+            ngx.sleep(2)
 
             local httpc = http.new()
 
@@ -111,7 +109,7 @@ trace:
             local t = require("lib.test_admin").test
             local http = require("resty.http")
 
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            local file, err = io.open("apisix/plugins/toolset/config.lua", "w+")
             if not file then
                 ngx.status = 500
                 ngx.say("Failed test: failed to open config file")
@@ -120,19 +118,17 @@ trace:
             local old = file:read("*all")
             file:write([[
 return {
-  rate = 100,
-  hosts = {"*.com"},
-  paths = {"/hello"}
+  trace = {
+    rate = 100,
+    hosts = {"*.com"},
+    paths = {"/hello"}
+  }
 }
 ]])
             file:close()
 
-            -- reload plugin
-            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
-            ngx.sleep(0.2)
-            if code > 300 then
-                return
-            end
+
+            ngx.sleep(2)
 
             local httpc = http.new()
 
@@ -152,7 +148,7 @@ trace:
         content_by_lua_block {
             local t = require("lib.test_admin").test
 
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            local file, err = io.open("apisix/plugins/toolset/config.lua", "w+")
             if not file then
                 ngx.status = 500
                 ngx.say("Failed test: failed to open config file")
@@ -161,19 +157,17 @@ trace:
             local old = file:read("*all")
             file:write([[
 return {
-  rate = 100,
-  hosts = {"abc.*"},
-  paths = {"/hello"}
+  trace = {
+    rate = 100,
+    hosts = {"abc.*"},
+    paths = {"/hello"}
+  }
 }
 ]])
             file:close()
 
-            -- reload plugin
-            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
-            ngx.sleep(0.2)
-            if code > 300 then
-                return
-            end
+
+            ngx.sleep(2)
 
             local http = require("resty.http")
             local httpc = http.new()
@@ -198,7 +192,7 @@ trace:
             local http = require("resty.http")
             local httpc = http.new()
 
-            local file, err = io.open("apisix/plugins/trace/config.lua", "w+")
+            local file, err = io.open("apisix/plugins/toolset/config.lua", "w+")
             if not file then
                 ngx.status = 500
                 ngx.say("Failed test: failed to open config file")
@@ -207,19 +201,17 @@ trace:
             local old = file:read("*all")
             file:write([[
 return {
-  rate = 1,
-  hosts = {"abc.*"},
-  paths = {"/hello"}
+  trace = {
+    rate = 1,
+    hosts = {"abc.*"},
+    paths = {"/hello"}
+  }
 }
 ]])
             file:close()
 
-            -- reload plugin
-            local code, _, org_body = t('/apisix/admin/plugins/reload', ngx.HTTP_PUT)
-            ngx.sleep(0.2)
-            if code > 300 then
-                return
-            end
+
+            ngx.sleep(2)
 
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/nohello"
             local res, err = httpc:request_uri(uri, {headers = { ["Host"] = "abc.com" }})

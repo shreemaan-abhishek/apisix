@@ -3,7 +3,7 @@ local apisix = require("apisix")
 local core = require("apisix.core")
 local uuid = require("resty.jit-uuid")
 
-local conf_path = "apisix.plugins.trace.config"
+local conf_path = "apisix.plugins.toolset.config"
 
 local ngx = ngx
 local pairs = pairs
@@ -25,6 +25,7 @@ local old_http_log_phase
 local old_http_balancer_phase
 local old_http_header_filter_phase
 local old_http_body_filter_phase
+local old_resolve
 
 local schema = {}
 
@@ -230,7 +231,7 @@ end
 
 function _M.init()
   package.loaded[conf_path] = false
-  local trace_conf = require(conf_path)
+  local trace_conf = require(conf_path).trace
   core.log.info("trace_conf: ", core.json.encode(trace_conf))
 
   local conf = core.config.local_conf()
@@ -239,8 +240,27 @@ function _M.init()
     router_name = conf.apisix.router.http or router_name
   end
 
+  local dns = require("apisix.core.dns.client")
+  if dns then
+    if not old_resolve then
+      old_resolve = dns.resolve
+    end
+  
+    dns.resolve = function (...)
+      local match_start = ngx.now()
+      ngx.ctx.dns_lt = localtime_msec(match_start)
+      local ret = old_resolve(...)
+      ngx.update_time()
+  
+      ngx.ctx.dns_resolve_timespan = ngx.now() - match_start
+      return ret
+    end
+  end
+
   local router = require("apisix.http.router." .. router_name)
-  old_match_route = router.match
+  if not old_match_route then
+    old_match_route = router.match
+  end
   router.match = function(...)
     local match_start = ngx.now()
     ngx.ctx.match_lt = localtime_msec(match_start)
@@ -251,7 +271,9 @@ function _M.init()
     ngx.ctx.match_timespan = ngx.now() - match_start
   end
 
-  old_http_access_phase = apisix.http_access_phase
+  if not old_http_access_phase then
+    old_http_access_phase = apisix.http_access_phase
+  end
   apisix.http_access_phase = function(...)
     ngx.ctx.trace = false
     preprocess(trace_conf, ngx.ctx)
@@ -277,7 +299,9 @@ function _M.init()
     end
   end
 
-  old_http_balancer_phase = apisix.http_balancer_phase
+  if not old_http_balancer_phase then
+    old_http_balancer_phase = apisix.http_balancer_phase
+  end
   apisix.http_balancer_phase = function(...)
     if not ngx.ctx.trace then
       old_http_balancer_phase(...)
@@ -302,7 +326,9 @@ function _M.init()
     end
   end
 
-  old_http_header_filter_phase = apisix.http_header_filter_phase
+  if not old_http_header_filter_phase then
+    old_http_header_filter_phase = apisix.http_header_filter_phase
+  end
   apisix.http_header_filter_phase = function(...)
     if not ngx.ctx.trace then
       old_http_header_filter_phase(...)
@@ -318,7 +344,9 @@ function _M.init()
     end
   end
 
-  old_http_body_filter_phase = apisix.http_body_filter_phase
+  if not old_http_body_filter_phase then
+    old_http_body_filter_phase = apisix.http_body_filter_phase
+  end
   apisix.http_body_filter_phase = function(...)
     local body_filter_start = ngx.now()
     if not ngx.ctx.trace then
@@ -338,7 +366,9 @@ function _M.init()
     end
   end
 
-  old_http_log_phase = apisix.http_log_phase
+  if not old_http_log_phase then
+    old_http_log_phase = apisix.http_log_phase
+  end
   apisix.http_log_phase = function(...)
     if not ngx.ctx.trace then
       old_http_log_phase(...)
@@ -372,6 +402,9 @@ function _M.init()
       if total_time >= (trace_conf.timespan_threshold or 0)  then
         add_entry("access", timespan(ngx.ctx.access_timespan), ngx.ctx.access_lt)
         add_entry("\\_match_route", timespan(ngx.ctx.match_timespan), ngx.ctx.match_lt)
+        if ngx.ctx.dns_resolve_timespan then
+          add_entry("\\_dns_resolve", timespan(ngx.ctx.dns_resolve_timespan), ngx.ctx.dns_lt)
+        end
         if not premature then
           add_entry("balancer", timespan(ngx.ctx.balancer_timespan), ngx.ctx.balancer_lt)
           add_entry(PHASE_UPSTREAM,
