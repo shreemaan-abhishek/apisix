@@ -87,14 +87,15 @@ install_module() {
     
     # ensure APISIX's `make install` test passes (make install is tested by diffing apisix dir with install dir using diff -rq)
     # https://github.com/apache/apisix/blob/77704832ec91117f5ca7171811ae5f0d3f1494fe/ci/linux_apisix_current_luarocks_runner.sh#L40-L41
-    sed -i '298i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/toolset/src/trace' "${VAR_APISIX_HOME}/Makefile"
-    sed -i '299i __to_replace__	$(ENV_INSTALL) apisix/plugins/toolset/src/trace/*.lua $(ENV_INST_LUADIR)/apisix/plugins/toolset/src/trace/' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '298i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/trace' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '299i __to_replace__	$(ENV_INSTALL) apisix/plugins/trace/*.lua $(ENV_INST_LUADIR)/apisix/plugins/trace/' "${VAR_APISIX_HOME}/Makefile"
 
     sed -i '300i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/toolset' "${VAR_APISIX_HOME}/Makefile"
     sed -i '301i __to_replace__	$(ENV_INSTALL) apisix/plugins/toolset/*.lua $(ENV_INST_LUADIR)/apisix/plugins/toolset/' "${VAR_APISIX_HOME}/Makefile"
 
     sed -i '302i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/toolset/src/table-count' "${VAR_APISIX_HOME}/Makefile"
     sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/toolset/src/table-count/*.lua $(ENV_INST_LUADIR)/apisix/plugins/toolset/src/table-count/' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/toolset/src/*.lua $(ENV_INST_LUADIR)/apisix/plugins/toolset/src/' "${VAR_APISIX_HOME}/Makefile"
 
     echo '
 ### ci-env-stop : CI env temporary stop
