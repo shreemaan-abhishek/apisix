@@ -30,9 +30,6 @@ local mt = {
     __index = _M
 }
 
-local to_be_synced = {}
-local redis_confs = {}
-
 local script = core.string.compress_script([=[
     local ttl = redis.call('ttl', KEYS[1])
     if ttl < 0 then
@@ -73,7 +70,7 @@ function _M.incoming(self, key, cost)
     local counter = self.counter
 
     if conf.sync_interval ~= -1 then
-        local delay, remaining, ttl = util.rate_limit_with_delayed_sync(conf, counter, to_be_synced, redis_confs, key, cost, limit, window, script)
+        local delay, remaining, ttl = util.rate_limit_with_delayed_sync(conf, counter, key, cost, limit, window, script)
         return delay, remaining, ttl
     end
     local ttl = 0

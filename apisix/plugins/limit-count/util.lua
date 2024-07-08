@@ -3,11 +3,15 @@ local consts = require("apisix.constants")
 local redis_new = require("resty.redis").new
 local rediscluster = require("resty.rediscluster")
 
+local floor = math.floor
+
 local ngx_timer = ngx.timer
 local redis_stop
 local redis_cluster_stop
 local _M = {}
-
+local syncer_started
+local to_be_synced = {}
+local redis_confs = {}
 
 local function redis_cli(conf)
   local red = redis_new()
@@ -88,7 +92,7 @@ local function new_redis_cluster(conf)
 end
 
 
-local function sync_counter_data(premature, counter, to_be_synced, redis_confs, script)
+local function sync_counter_data(premature, counter, script)
   if premature then
     return
   end
@@ -123,42 +127,49 @@ local function sync_counter_data(premature, counter, to_be_synced, redis_confs, 
     end
 
     local remaining = res[1]
-    local ttl = res[2]
+    local ttl = tonumber(res[2])
+    if not ttl then
+      ttl = 0
+    end
+    ttl = floor(ttl) -- float to int
+
     core.log.info("syncing shdict num_req counter to redis. remaining: ", remaining, " ttl: ", ttl, " reqs: ", num_reqs)
     counter:set(key .. consts.SHDICT_REDIS_REMAINING, tonumber(remaining), tonumber(ttl))
-    counter:set(key .. consts.REDIS_COUNTER, 0)
+    counter:incr(key .. consts.REDIS_COUNTER, 0 - num_reqs)
 
     if (not redis_stop and (conf.policy == "redis")) or (not redis_cluster_stop and (conf.policy == "redis-cluster")) then
-      local ok, err = ngx_timer.at(conf.sync_interval, sync_counter_data, counter, to_be_synced, redis_confs, script)
+      local ok, err = ngx_timer.at(conf.sync_interval, sync_counter_data, counter, script)
       if not ok then
         core.log.error("failed to create redis syncer timer: ", err, ". New main redis syncer will be created.")
-        counter:set(consts.REDIS_SYNCER, false) -- next incoming request will pick this up and create a new timer
+        syncer_started = false -- next incoming request will pick this up and create a new timer
       end
     end
   end
 end
 
-function _M.rate_limit_with_delayed_sync(conf, counter, to_be_synced, redis_confs, key, cost, limit, window, script)
-  local syncer_started = counter:get(consts.REDIS_SYNCER)
+function _M.rate_limit_with_delayed_sync(conf, counter, key, cost, limit, window, script)
+  local err
   if not syncer_started then
-    local ok, err = ngx_timer.at(conf.sync_interval, sync_counter_data, counter, to_be_synced, redis_confs, script)
-    if ok then
-      counter:set(consts.REDIS_SYNCER, true)
-    else
-      core.log.error("failed to create main redis syncer timer: ", err, ". Will retry next time.")
-    end
+    syncer_started, err = ngx_timer.at(conf.sync_interval, sync_counter_data, counter, script)
+  end
+
+  if not syncer_started then
+    core.log.error("failed to create main redis syncer timer: ", err, ". Will retry next time.")
   end
 
   to_be_synced[key] = true -- add to table for syncing
   redis_confs[key] = conf
 
-  local incr, ierr = counter:incr(key .. consts.REDIS_COUNTER, cost, 1)
+  local incr, ierr = counter:incr(key .. consts.REDIS_COUNTER, cost, 0)
   if not incr then
     return nil, "failed to incr num req shdict: " .. ierr, 0
   end
   core.log.info("num reqs passed since sync to redis: ", incr)
 
-  local ttl = 0
+  local ttl, _ = counter:ttl(key .. consts.SHDICT_REDIS_REMAINING)
+  if not ttl then
+    ttl = 0
+  end
   local remaining, err = counter:incr(key .. consts.SHDICT_REDIS_REMAINING, 0 - cost, limit, window)
   if not remaining then
     return nil, err, ttl

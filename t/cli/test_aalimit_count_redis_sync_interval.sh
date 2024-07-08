@@ -111,3 +111,10 @@ curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9080/get | grep 200 || (
 sleep $sync_time
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9081/get | grep 504 || (echo "failed: third request to dp-B should fail"; exit 1)
 curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:9080/get | grep 504 || (echo "failed: third request to dp-A should also fail"; exit 1)
+
+# test ttl
+o=$(curl http://127.0.0.1:9080/get -i || echo "")
+echo $?
+echo $o | grep -c "X-RateLimit-Reset: [^0]$" && exit 8 # if ttl is still displayed as zero fail the test
+
+echo "tests passing"
