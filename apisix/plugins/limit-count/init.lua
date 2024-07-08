@@ -67,9 +67,6 @@ local policy_to_additional_properties = {
             redis_ssl_verify = {
                 type = "boolean", default = false,
             },
-            sync_interval = {
-                type = "integer", default = -1
-            },
         },
         required = {"redis_host"},
     },
@@ -96,9 +93,6 @@ local policy_to_additional_properties = {
             },
             redis_cluster_ssl_verify = {
                 type = "boolean", default = false,
-            },
-            sync_interval = {
-                type = "integer", default = -1
             },
         },
         required = {"redis_cluster_nodes", "redis_cluster_name"},

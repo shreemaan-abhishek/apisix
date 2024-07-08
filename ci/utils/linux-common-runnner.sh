@@ -116,17 +116,6 @@ ci-env-stop:
     printf "\n\n"
     cat "${VAR_APISIX_HOME}/.luacheckrc"
 
-    # t/cli/test_validate_config.sh runs `git checkout conf/config-default.yaml`
-    # due to which some important modifications (like shared dict declarations) in
-    # config-default.yaml are lost this causes some tests to fail so we need to
-    # use git commit to preserve those changes
-    git config --global user.email "foo@example.com"
-    git config --global user.name "Foo Bar"
-    pushd workbench
-    git add conf/config-default.yaml
-    git commit -m "preserve changes"
-    popd
-
     # after this PR: https://github.com/api7/api7-ee-3-gateway/pull/426/files
     # stream_proxy.only should be specified explicitly
     sed -i '28i\        only: true' "${VAR_APISIX_HOME}/t/cli/test_stream_config.sh"

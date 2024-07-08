@@ -15,11 +15,11 @@
 -- limitations under the License.
 --
 
+local rediscluster = require("resty.rediscluster")
 local core = require("apisix.core")
-local util = require("apisix.plugins.limit-count.util")
 local setmetatable = setmetatable
 local tostring = tostring
-local ngx_shared = ngx.shared
+local ipairs = ipairs
 
 local _M = {}
 
@@ -28,7 +28,9 @@ local mt = {
     __index = _M
 }
 
+
 local script = core.string.compress_script([=[
+    assert(tonumber(ARGV[3]) >= 1, "cost must be at least 1")
     local ttl = redis.call('ttl', KEYS[1])
     if ttl < 0 then
         redis.call('set', KEYS[1], ARGV[1] - ARGV[3], 'EX', ARGV[2])
@@ -38,8 +40,41 @@ local script = core.string.compress_script([=[
 ]=])
 
 
+local function new_redis_cluster(conf)
+    local config = {
+        -- can set different name for different redis cluster
+        name = conf.redis_cluster_name,
+        serv_list = {},
+        read_timeout = conf.redis_timeout,
+        auth = conf.redis_password,
+        dict_name = "plugin-limit-count-redis-cluster-slot-lock",
+        connect_opts = {
+            ssl = conf.redis_cluster_ssl,
+            ssl_verify = conf.redis_cluster_ssl_verify,
+        }
+    }
+
+    for i, conf_item in ipairs(conf.redis_cluster_nodes) do
+        local host, port, err = core.utils.parse_addr(conf_item)
+        if err then
+            return nil, "failed to parse address: " .. conf_item
+                        .. " err: " .. err
+        end
+
+        config.serv_list[i] = {ip = host, port = port}
+    end
+
+    local red_cli, err = rediscluster:new(config)
+    if not red_cli then
+        return nil, "failed to new redis cluster: " .. err
+    end
+
+    return red_cli
+end
+
+
 function _M.new(plugin_name, limit, window, conf)
-    local red_cli, err = util.new_redis_cluster(conf)
+    local red_cli, err = new_redis_cluster(conf)
     if not red_cli then
         return nil, err
     end
@@ -50,7 +85,6 @@ function _M.new(plugin_name, limit, window, conf)
         conf = conf,
         plugin_name = plugin_name,
         red_cli = red_cli,
-        counter = ngx_shared["plugin-limit-count-redis-cluster-counter"],
     }
 
     return setmetatable(self, mt)
@@ -62,13 +96,6 @@ function _M.incoming(self, key, cost)
     local limit = self.limit
     local window = self.window
     key = self.plugin_name .. tostring(key)
-    local counter = self.counter
-    local conf = self.conf
-
-    if conf.sync_interval ~= -1 then
-        local delay, remaining, ttl = util.rate_limit_with_delayed_sync(conf, counter, key, cost, limit, window, script)
-        return delay, remaining, ttl
-    end
 
     local ttl = 0
     local res, err = red:eval(script, 1, key, limit, window, cost or 1)
@@ -86,9 +113,5 @@ function _M.incoming(self, key, cost)
     return 0, remaining, ttl
 end
 
-
-function _M.destroy()
-    util.redis_cluster_syncer_stop()
-end
 
 return _M
