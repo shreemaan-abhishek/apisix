@@ -1,6 +1,6 @@
 #!/bin/bash
 
-dirs=("./apisix" "./agent")
+dirs=("/usr/local/apisix/apisix" "/usr/local/apisix/agent")
 
 for dir in "${dirs[@]}"; do
     find "$dir" -type f -name '*.lua' | while read -r file
