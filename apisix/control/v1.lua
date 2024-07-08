@@ -23,11 +23,13 @@ local get_upstreams = upstream_mod.upstreams
 local collectgarbage = collectgarbage
 local ipairs = ipairs
 local str_format = string.format
+local ngx = ngx
 local ngx_var = ngx.var
-
+local events
 
 local _M = {}
 
+_M.RELOAD_EVENT = 'control-api-plugin-reload'
 
 function _M.schema()
     local http_plugins, stream_plugins = plugin.get_all({
@@ -59,6 +61,16 @@ function _M.schema()
         stream_plugins = stream_plugins,
     }
     return 200, schema
+end
+
+function _M.post_reload_plugins()
+    events = require("resty.worker.events")
+    local success, err = events.post(_M.RELOAD_EVENT, ngx.req.get_method(), ngx.time())
+    if not success then
+        core.response.exit(503, err)
+    end
+
+    core.response.exit(200, "done")
 end
 
 
@@ -373,5 +385,12 @@ return {
         uris = {"/plugin_metadata/*"},
         handler = _M.dump_plugin_metadata,
     },
+    -- /v1/plugins/reload
+    {
+        methods = {"PUT"},
+        uris = {"/plugins/reload"},
+        handler = _M.post_reload_plugins,
+    },
+    reload_event = _M.RELOAD_EVENT,
     get_health_checkers = _M.get_health_checkers,
 }
