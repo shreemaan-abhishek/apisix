@@ -118,4 +118,5 @@ build-image: ## Build docker image
 # disable etcd tls verify to avoid configure ssl_trusted_certificate
 	@sed -i 's/verify: true/verify: false/' conf/config-default.yaml
 	@docker build -t api7-ee-3-gateway:dev .
+	@if docker run --entrypoint cat --rm -i api7-ee-3-gateway:dev /usr/local/apisix/apisix/core.lua | file - | grep -q 'ASCII text'; then echo "code obfuscation did not work"; exit 1; fi
 .PHONY: build-image
