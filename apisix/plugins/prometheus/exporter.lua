@@ -160,10 +160,6 @@ function _M.http_init(prometheus_enabled_in_stream)
             "The free space of each nginx shared DICT since APISIX start",
             {"name"})
 
-    metrics.service_registry_status = prometheus:gauge("service_registry_status",
-            "Service registry status from health check",
-            {"service_registry_id", "ip", "port"})
-
     -- per service
 
     -- The consumer label indicates the name of consumer corresponds to the
@@ -464,17 +460,6 @@ local function collect(ctx, stream_only)
 
     metrics.node_info:set(1, gen_arr(hostname))
 
-    -- update service_registry_status metrics
-    metrics.service_registry_status:reset()
-    if discovery_ok then
-        local stats = discovery.get_health_checkers()
-        for id, nodes in pairs(stats) do
-            for _, stat in ipairs(nodes) do
-                metrics.service_registry_status:set((stat.status == "healthy") and 1 or 0,
-                    gen_arr(id, stat.ip, stat.port))
-            end
-        end
-    end
 
     core.response.set_header("content_type", "text/plain")
     return 200, core.table.concat(prometheus:metric_data())

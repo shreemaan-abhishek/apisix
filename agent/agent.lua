@@ -243,15 +243,45 @@ function _M.upload_metrics(self)
     core.log.info(msg)
 end
 
-function _M.report_healthcheck(self)
-    local current_time = ngx_time()
-    if self.last_report_healthcheck_time and
-            current_time - self.last_report_healthcheck_time < self.healthcheck_report_interval then
+local function push_healthcheck_data(self, url, data, kind)
+    if #data == 0 then
+        core.log.info(kind, "no new healthcheck data to report")
         return
     end
 
-    self.last_report_healthcheck_time = current_time
+    local payload_data = core.json.encode({
+        instance_id = payload.instance_id,
+        data = data
+    })
 
+    local res, err = send_request(url, {
+        method = "POST",
+        body = payload_data,
+        headers = headers,
+        ssl_verify = self.ssl_verify,
+        ssl_ca_cert = self.ssl_ca_cert,
+        ssl_cert_path = self.ssl_cert_path,
+        ssl_key_path = self.ssl_key_path,
+        ssl_server_name = self.ssl_server_name,
+    })
+
+    if not res then
+        core.log.warn(kind, "report healthcheck data failed: ", err)
+        return
+    end
+
+    if res.status ~= 200 then
+        core.log.warn(kind, "report healthcheck data failed: payload: ", payload_data, ", response status: ", res.status,
+                ", response body: ", core.json.encode(res.body))
+        return
+    end
+
+    local msg = str_format("dp instance \'%s\' report healthcheck data successfully", payload.instance_id)
+    core.log.info(kind, msg)
+end
+
+
+local function report_upstream_healthcheck(self)
     -- Control API in version 3.2
     -- https://apisix.apache.org/zh/docs/apisix/3.2/control-api/#get-v1healthcheck
     -- UPGRADE NOTICE:
@@ -315,50 +345,58 @@ function _M.report_healthcheck(self)
         :: continue ::
     end
 
-    if #data == 0 then
-        core.log.debug("no new healthcheck data to report")
-        return
-    end
-    local payload_data = core.json.encode({
-        instance_id = payload.instance_id,
-        data = data
-    })
-    local res, err = send_request(self.healthcheck_url, {
-        method = "POST",
-        body = payload_data,
-        headers = headers,
-        ssl_verify = self.ssl_verify,
-        ssl_ca_cert = self.ssl_ca_cert,
-        ssl_cert_path = self.ssl_cert_path,
-        ssl_key_path = self.ssl_key_path,
-        ssl_server_name = self.ssl_server_name,
-    })
-    if not res then
-        core.log.warn("report healthcheck data failed: ", err)
-        return
-    end
-    if res.status ~= 200 then
-        core.log.warn("report healthcheck data failed: payload: " .. payload_data .. ", response status: " .. res.status ..
-                ", response body: " .. core.json.encode(res.body))
-        return
-    end
+    push_healthcheck_data(self, self.healthcheck_url, data, "[UPSTREAM] ")
 
+    -- set cache
     for _, upstream in core.config_util.iterate_values(data) do
         for _, node in core.config_util.iterate_values(upstream.nodes) do
             local cache_key = upstream.upstream_id .. "_" .. node.host .. ":" .. node.port
             healthcheck_cache:set(cache_key, node.status, HEALTHCHECK_CACHE_TTL)
         end
     end
-
-    local msg = str_format("dp instance \'%s\' report healthcheck data successfully", payload.instance_id)
-    core.log.info(msg)
 end
+
+
+local function report_service_registry_healthcheck(self)
+    local stats = discovery.get_health_checkers()
+    local healthcheck_data = core.table.new(128, 0)
+    for id, nodes in pairs(stats) do
+        for _, stat in ipairs(nodes) do
+            core.table.insert(healthcheck_data,
+                {
+                    service_registry_id = id,
+                    status = (stat.status == "healthy") and 1 or 0,
+                    hostname = payload.hostname,
+                    time = ngx_time()
+                }
+            )
+        end
+    end
+
+    push_healthcheck_data(self, self.service_registry_healthcheck_url, healthcheck_data, "[SERVICE REGISTRY] ")
+end
+
+
+function _M.report_healthcheck(self)
+    local current_time = ngx_time()
+    if self.last_report_healthcheck_time and
+            current_time - self.last_report_healthcheck_time < self.healthcheck_report_interval then
+        return
+    end
+
+    self.last_report_healthcheck_time = current_time
+
+    report_upstream_healthcheck(self)
+    report_service_registry_healthcheck(self)
+end
+
 
 function _M.new(agent_conf)
     local self = {
         heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
         metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
         healthcheck_url = agent_conf.endpoint .. "/api/dataplane/healthcheck",
+        service_registry_healthcheck_url = agent_conf.endpoint .. "/api/dataplane/service_registry_healthcheck",
         ssl_cert_path = agent_conf.ssl_cert_path,
         ssl_key_path = agent_conf.ssl_key_path,
         ssl_ca_cert = agent_conf.ssl_ca_cert,
