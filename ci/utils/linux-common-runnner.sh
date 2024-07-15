@@ -76,6 +76,14 @@ install_module() {
 
     cat "${VAR_CUR_HOME}/.luacheckrc" >> "${VAR_APISIX_HOME}/.luacheckrc"
 
+    # remove some Lua files and test cases
+    # inspect.t causes flaky test failure, and nobody uses it in ee so remove it:
+    rm -rf "${VAR_APISIX_HOME}/apisix/inspect/"
+    rm -f "${VAR_APISIX_HOME}/t/lib/test_inspect.lua"
+    rm -f "${VAR_APISIX_HOME}/apisix/plugins/inspect.lua" "${VAR_APISIX_HOME}/t/plugin/inspect.t"
+    sed -i '/\$(ENV_INSTALL) -d \$(ENV_INST_LUADIR)\/apisix\/inspect/d' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '/\$(ENV_INSTALL) apisix\/inspect\/\*\.lua \$(ENV_INST_LUADIR)\/apisix\/inspect\//d' "${VAR_APISIX_HOME}/Makefile"
+
     # use ee's rockspec
     cp -av "${VAR_CUR_HOME}/api7-master-0.rockspec" "${VAR_APISIX_HOME}/rockspec/"
     sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/g' "${VAR_APISIX_HOME}/Makefile"
@@ -84,7 +92,7 @@ install_module() {
 
     sed -i 's/API7/APISIX/g' "${VAR_APISIX_HOME}/apisix/init.lua"
     sed -i '/npm config set registry/ i \    npm config set strict-ssl false\n' "${VAR_APISIX_HOME}/ci/common.sh"
-    
+
     # ensure APISIX's `make install` test passes (make install is tested by diffing apisix dir with install dir using diff -rq)
     # https://github.com/apache/apisix/blob/77704832ec91117f5ca7171811ae5f0d3f1494fe/ci/linux_apisix_current_luarocks_runner.sh#L40-L41
     sed -i '298i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/trace' "${VAR_APISIX_HOME}/Makefile"

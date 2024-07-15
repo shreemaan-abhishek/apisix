@@ -137,7 +137,6 @@ udp-logger
 file-logger
 clickhouse-logger
 tencent-cloud-cls
-inspect
 example-plugin
 aws-lambda
 azure-functions

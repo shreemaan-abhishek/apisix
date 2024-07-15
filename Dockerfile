@@ -13,7 +13,7 @@ FROM debian:bullseye-slim AS runtime-builder
 
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV BUILD_LATEST="1.1.1"
- 
+
 COPY --from=go-builder /usr/local/go /usr/local/go
 COPY ./ci/linux-install-openresty.sh /linux-install-openresty.sh
 
@@ -47,6 +47,8 @@ RUN set -ex; \
     apt update \
     && apt install -y apisix=${APISIX_VERSION}-0 \
     && apt-get purge -y --auto-remove \
+    && rm -rf /usr/local/apisix/apisix/inspect \
+    && rm -f /usr/local/apisix/apisix/plugins/inspect.lua \
     && rm -f /etc/apt/sources.list.d/openresty.list /etc/apt/sources.list.d/apisix.list \
     && apisix version
 
