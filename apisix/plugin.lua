@@ -36,6 +36,7 @@ local tostring      = tostring
 local error         = error
 local loadstring    = loadstring
 local is_http       = ngx.config.subsystem == "http"
+local ngx_decode_base64 = ngx.decode_base64
 local local_plugins_hash    = core.table.new(0, 32)
 local stream_local_plugins  = core.table.new(32, 0)
 local stream_local_plugins_hash = core.table.new(0, 32)
@@ -143,7 +144,11 @@ local function load_plugin(name, plugins_list, plugin_type, plugin_object, is_cu
                     core.log.info("could not find custom plugin [", name, "], it might be due to the order of etcd events, will retry loading when custom plugin available")
                     return
                 end
-                local success, plugin_func = pcall(loadstring, custom_plugin.value.content, name)
+                local content = ngx_decode_base64(custom_plugin.value.content)
+                if not content then
+                    content = custom_plugin.value.content
+                end
+                local success, plugin_func = pcall(loadstring, content, name)
                 if success and plugin_func then
                     plugin = plugin_func()
                     ok = true

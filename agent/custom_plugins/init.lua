@@ -1,5 +1,6 @@
 local core = require("apisix.core")
 local error = error
+local ngx_decode_base64 = ngx.decode_base64
 
 local custom_plugins
 
@@ -15,7 +16,11 @@ local custom_plugin_schema = {
 }
 
 local function checker(conf)
-    local _, err = load(conf.content)
+    local content = ngx_decode_base64(conf.content)
+    if not content then
+        content = conf.content
+    end
+    local _, err = load(content)
     if err then
         return nil, "failed to load plugin string" .. err
     end
@@ -29,7 +34,7 @@ function _M.init_worker()
         local plugin_pkg
         custom_plugins, err = core.config.new("/custom_plugins", {
             automatic = true,
-            schema = custom_plugin_schema,
+            item_schema = custom_plugin_schema,
             checker = checker,
             filter = function(item)
                 if not plugin_pkg then
@@ -37,7 +42,11 @@ function _M.init_worker()
                 end
 
                 if item.value and item.value.name then
-                    local plugin_func = load(item.value.content, item.value.name)
+                    local content = ngx_decode_base64(item.value.content)
+                    if not content then
+                        content = item.value.content
+                    end
+                    local plugin_func = load(content, item.value.name)
                     plugin_pkg.refresh_plugin(item.value.name, nil, plugin_func and plugin_func(), true)
                 end
             end

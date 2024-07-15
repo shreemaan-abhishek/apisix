@@ -39,6 +39,15 @@ _EOC_
 
     $block->set_value("extra_init_by_lua", $extra_init_by_lua);
 
+    my $extra_yaml_config = $block->extra_yaml_config // <<_EOC_;
+plugin_attr:
+  prometheus:
+    export_addr:
+      port: 1980
+_EOC_
+
+    $block->set_value("extra_yaml_config", $extra_yaml_config);
+
     if ((!defined $block->error_log) && (!defined $block->no_error_log)) {
         $block->set_value("no_error_log", "[error]\n[alert]");
     }
@@ -79,15 +88,6 @@ done
 
 
 === TEST 2: create route with test plugins
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
---- yaml_config
-plugin_attr:
-  prometheus:
-    export_addr:
-      port: 1980
 --- config
     location /t {
         content_by_lua_block {
@@ -157,6 +157,83 @@ plugin_attr:
                 return
             end
 
+            ngx.say("success")
+        }
+    }
+--- request
+GET /t
+--- response_body
+success
+
+
+
+=== TEST 3: generate bytecode file from test custom plugin
+--- exec
+luajit -bg t/api7-agent/testdata/test.lua t/api7-agent/testdata/test.luac
+
+
+
+=== TEST 4: create route with custom plugin in bytecode form
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local core = require("apisix.core")
+
+            local file, err = io.open("t/api7-agent/testdata/test.luac", "rb")
+            if not file then
+                ngx.say(err)
+                return
+            end
+
+            local data, err = file:read("*all")
+            file:close()
+            if not data then
+                ngx.say(err)
+                return
+            end
+
+            local key = "/custom_plugins/test"
+            local val = {
+                name = "test",
+                content = ngx.encode_base64(data)
+            }
+            local _, err = core.etcd.set(key, val)
+            if err then
+                ngx.say(err)
+                return
+            end
+
+            assert(core.etcd.set("/plugins", {{name = "test", is_custom = true}}))
+
+            ngx.sleep(0.2)
+
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "plugins": {
+                        "test": {
+                            "body":"binary test"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "uri": "/hello"
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+
+            if body ~= "passed" then
+                ngx.say(body)
+                return
+            end
 
             ngx.say("success")
         }
@@ -168,16 +245,15 @@ success
 
 
 
-=== TEST 3: update plugin list first
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
---- yaml_config
-plugin_attr:
-  prometheus:
-    export_addr:
-      port: 1980
+=== TEST 5: request route with binary custom plugin
+--- request
+GET /hello
+--- response_body chomp
+binary test
+
+
+
+=== TEST 6: update plugin list first
 --- config
     location /t {
         content_by_lua_block {
@@ -244,3 +320,34 @@ GET /t
 success
 --- error_log
 could not find custom plugin [test2], it might be due to the order of etcd events, will retry loading when custom plugin available
+
+
+
+=== TEST 7: bad lua code
+--- config
+    location /t {
+        content_by_lua_block {
+            local core = require("apisix.core")
+            local key = "/custom_plugins/bad"
+            local val = {
+                name = "bad",
+                content = ngx.encode_base64("bad lua code")
+            }
+            local _, err = core.etcd.set(key, val)
+            if err then
+                ngx.say(err)
+                return
+            end
+
+            ngx.sleep(1)
+
+            ngx.say("success")
+        }
+    }
+--- request
+GET /t
+--- response_body
+success
+--- error_log
+failed to load plugin string[string "bad lua code"]
+failed to check item data of [/apisix/custom_plugins]
