@@ -38,7 +38,7 @@ function _M.init_worker()
 
                 if item.value and item.value.name then
                     local plugin_func = load(item.value.content, item.value.name)
-                    plugin_pkg.refresh_plugin(item.value.name, nil, plugin_func and plugin_func())
+                    plugin_pkg.refresh_plugin(item.value.name, nil, plugin_func and plugin_func(), true)
                 end
             end
         })

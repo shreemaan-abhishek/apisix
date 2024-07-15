@@ -121,7 +121,7 @@ local function unload_plugin(name, plugin_type)
 end
 
 
-local function load_plugin(name, plugins_list, plugin_type, plugin_object)
+local function load_plugin(name, plugins_list, plugin_type, plugin_object, is_custom)
     local ok, plugin
 
     if plugin_object then
@@ -137,20 +137,20 @@ local function load_plugin(name, plugins_list, plugin_type, plugin_object)
             if plugin_type == PLUGIN_TYPE_STREAM then
                 pkg_name = "apisix.stream.plugins." .. name
             end
-
-            ok, plugin = pcall(require, pkg_name)
-
-            -- If not ok, try to loaded from custom plugins
-            if not ok and include_custom_plugins then
+            if is_custom then
                 local custom_plugin = custom_plugins.get(name)
-                if custom_plugin then
-                    local success, plugin_func = pcall(loadstring, custom_plugin.value.content, name)
-                    if success and plugin_func then
-                        plugin = plugin_func()
-                        ok = true
-                        pkg_loaded[pkg_name] = plugin
-                    end
+                if not custom_plugin then
+                    core.log.info("could not find custom plugin [", name, "], it might be due to the order of etcd events, will retry loading when custom plugin available")
+                    return
                 end
+                local success, plugin_func = pcall(loadstring, custom_plugin.value.content, name)
+                if success and plugin_func then
+                    plugin = plugin_func()
+                    ok = true
+                    pkg_loaded[pkg_name] = plugin
+                end
+            else 
+                ok, plugin = pcall(require, pkg_name)
             end
         end
     end
@@ -210,13 +210,13 @@ local function load_plugin(name, plugins_list, plugin_type, plugin_object)
 end
 
 
-function _M.refresh_plugin(plugin_name, plugin_type, plugin_object)
+function _M.refresh_plugin(plugin_name, plugin_type, plugin_object, is_custom)
     if local_plugins_hash[plugin_name] then
         unload_plugin(plugin_name, plugin_type or PLUGIN_TYPE_HTTP)
     end
 
     local temporary_plugin_list = {}
-    load_plugin(plugin_name, temporary_plugin_list, plugin_type, plugin_object)
+    load_plugin(plugin_name, temporary_plugin_list, plugin_type, plugin_object, is_custom)
     if #temporary_plugin_list == 0 then
         return
     end
@@ -242,9 +242,14 @@ function _M.refresh_plugin(plugin_name, plugin_type, plugin_object)
 end
 
 
-local function load(plugin_names, wasm_plugin_names)
+local function load(plugins, wasm_plugin_names)
     local processed = {}
-    for _, name in ipairs(plugin_names) do
+    local custom_plugins = {}
+    for _, plugin in pairs(plugins) do
+        local name = plugin.name
+        if plugin.is_custom then
+            custom_plugins[name] = true
+        end
         if processed[name] == nil then
             processed[name] = true
         end
@@ -274,7 +279,8 @@ local function load(plugin_names, wasm_plugin_names)
             ty = PLUGIN_TYPE_HTTP_WASM
             name = value
         end
-        load_plugin(name, local_plugins, ty)
+        local is_custom = custom_plugins[name]
+        load_plugin(name, local_plugins, ty, nil, is_custom)
     end
 
     -- sort by plugin's priority
@@ -297,9 +303,14 @@ local function load(plugin_names, wasm_plugin_names)
 end
 
 
-local function load_stream(plugin_names)
+local function load_stream(plugins)
     local processed = {}
-    for _, name in ipairs(plugin_names) do
+    local custom_plugins = {}
+    for _, plugin in pairs(plugins) do
+        local name = plugin.name
+        if plugin.is_custom then
+            custom_plugins[name] = true
+        end
         if processed[name] == nil then
             processed[name] = true
         end
@@ -315,7 +326,8 @@ local function load_stream(plugin_names)
     core.table.clear(stream_local_plugins_hash)
 
     for name in pairs(processed) do
-        load_plugin(name, stream_local_plugins, PLUGIN_TYPE_STREAM)
+        local is_custom = custom_plugins[name]
+        load_plugin(name, stream_local_plugins, PLUGIN_TYPE_STREAM, is_custom)
     end
 
     -- sort by plugin's priority
@@ -340,9 +352,9 @@ local function load_stream(plugin_names)
 end
 
 
-local function get_plugin_names(config)
-    local http_plugin_names
-    local stream_plugin_names
+local function get_plugins(config)
+    local http_plugins = {}
+    local stream_plugins = {}
 
     if not config then
         -- called during starting or hot reload in admin
@@ -352,13 +364,14 @@ local function get_plugin_names(config)
             -- the error is unrecoverable, so we need to raise it
             error("failed to load the configuration file: " .. err)
         end
-
-        http_plugin_names = local_conf.plugins
-        stream_plugin_names = local_conf.stream_plugins
+        for _, name in ipairs(local_conf.plugins) do
+            core.table.insert(http_plugins, {name = name})
+        end
+        for _,name in ipairs(local_conf.stream_plugins) do
+            core.table.insert(stream_plugins, {name = name})
+        end
     else
         -- called during synchronizing plugin data
-        http_plugin_names = {}
-        stream_plugin_names = {}
         local plugins_conf = config.value
         -- plugins_conf can be nil when another instance writes into etcd key "/apisix/plugins/"
         if not plugins_conf then
@@ -367,25 +380,25 @@ local function get_plugin_names(config)
 
         for _, conf in ipairs(plugins_conf) do
             if conf.stream then
-                core.table.insert(stream_plugin_names, conf.name)
+                core.table.insert(stream_plugins, {name = conf.name, is_custom = conf.is_custom})
             else
-                core.table.insert(http_plugin_names, conf.name)
+                core.table.insert(http_plugins,  {name = conf.name, is_custom = conf.is_custom})
             end
         end
     end
 
-    return false, http_plugin_names, stream_plugin_names
+    return false, http_plugins, stream_plugins
 end
 
 
 function _M.load(config)
-    local ignored, http_plugin_names, stream_plugin_names = get_plugin_names(config)
+    local ignored, http_plugins, stream_plugins = get_plugins(config)
     if ignored then
         return local_plugins
     end
 
     if ngx.config.subsystem == "http" then
-        if not http_plugin_names then
+        if not http_plugins then
             core.log.error("failed to read plugin list from local file")
         else
             local wasm_plugin_names = {}
@@ -393,17 +406,17 @@ function _M.load(config)
                 wasm_plugin_names = local_conf.wasm.plugins
             end
 
-            local ok, err = load(http_plugin_names, wasm_plugin_names)
+            local ok, err = load(http_plugins, wasm_plugin_names)
             if not ok then
                 core.log.error("failed to load plugins: ", err)
             end
         end
     end
 
-    if not stream_plugin_names then
+    if not stream_plugins then
         core.log.warn("failed to read stream plugin list from local file")
     else
-        local ok, err = load_stream(stream_plugin_names)
+        local ok, err = load_stream(stream_plugins)
         if not ok then
             core.log.error("failed to load stream plugins: ", err)
         end
@@ -839,7 +852,21 @@ end
 
 
 function _M.init_worker()
-    local _, http_plugin_names, stream_plugin_names = get_plugin_names()
+    local _, http_plugins, stream_plugins = get_plugins()
+    local http_plugin_names, stream_plugin_names
+    if http_plugins then
+        http_plugin_names = core.table.new(#http_plugins, 0)
+        for _, plugin in ipairs(http_plugins) do
+            core.table.insert(http_plugin_names, plugin.name)
+        end
+    end
+
+    if stream_plugins then
+        stream_plugin_names = core.table.new(#stream_plugins, 0)
+        for _, plugin in ipairs(stream_plugins) do
+            core.table.insert(stream_plugin_names, plugin.name)
+        end
+    end
 
     -- some plugins need to be initialized in init* phases
     if is_http and core.table.array_find(http_plugin_names, "prometheus") then

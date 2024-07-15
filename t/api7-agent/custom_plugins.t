@@ -93,7 +93,7 @@ plugin_attr:
         content_by_lua_block {
             local t = require("lib.test_admin").test
             local core = require("apisix.core")
-            assert(core.etcd.set("/plugins", {{name = "test"}}))
+            assert(core.etcd.set("/plugins", {{name = "test", is_custom = true}}))
 
             ngx.sleep(0.2)
 
@@ -183,7 +183,7 @@ plugin_attr:
         content_by_lua_block {
             local t = require("lib.test_admin").test
             local core = require("apisix.core")
-            assert(core.etcd.set("/plugins", {{name = "test2"}}))
+            assert(core.etcd.set("/plugins", {{name = "test2", is_custom = true}}))
 
             ngx.sleep(0.2)
 
@@ -243,4 +243,4 @@ GET /t
 --- response_body
 success
 --- error_log
-err: module 'apisix.plugins.test2' not found
+could not find custom plugin [test2], it might be due to the order of etcd events, will retry loading when custom plugin available
