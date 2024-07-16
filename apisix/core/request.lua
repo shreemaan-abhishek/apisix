@@ -231,7 +231,7 @@ function _M.set_uri_args(ctx, args)
 end
 
 
-function _M.get_post_args(ctx)
+function _M.get_post_args(ctx, max_req_post_args)
     if not ctx then
         ctx = ngx.ctx.api_ctx
     end
@@ -241,7 +241,7 @@ function _M.get_post_args(ctx)
 
         -- use 0 to avoid truncated result and keep the behavior as the
         -- same as other platforms
-        local args, err = req_get_post_args(0)
+        local args, err = req_get_post_args(max_req_post_args or 100)
         if not args then
             -- do we need a way to handle huge post forms?
             log.error("the post form is too large: ", err)

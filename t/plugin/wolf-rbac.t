@@ -475,7 +475,7 @@ qr/success to change password/
 
 
 
-=== TEST 28: change password by post raw args, greater than 100 args is ok
+=== TEST 28: change password by post raw args, greater than 100 args is not ok
 --- config
 location /t {
     content_by_lua_block {
@@ -499,8 +499,8 @@ location /t {
         ngx.say(real_body)
     }
 }
---- response_body_like eval
-qr/success to change password/
+--- error_log eval
+qr/request_to_wolf_server\(\): request .* failed/
 
 
 

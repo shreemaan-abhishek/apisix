@@ -56,6 +56,11 @@ local schema = {
             exclusiveMinimum = 0,
             default = 1024 * 1024,
         },
+        max_req_post_args = {
+            type = "integer",
+            default = 100,
+            minimum = 0,
+        }
     },
 }
 
@@ -77,7 +82,7 @@ function _M.check_schema(conf)
 end
 
 
-function regex_replace(origin, regex, new)
+local function regex_replace(origin, regex, new)
     local res, _, err = re_sub(origin, regex, new, "jo")
     if not res then
         core.log.error("failed to replace (" .. origin .. ") by regex (".. regex ..
@@ -87,7 +92,7 @@ function regex_replace(origin, regex, new)
 end
 
 
-function mask_table(tab, conf)
+local function mask_table(tab, conf)
     if not tab[conf.name] then
         return false
     end
@@ -157,7 +162,7 @@ function _M.log(conf, ctx)
     local post_args_masked = false
     local body = ngx.req.get_body_data()
     if body then
-        post_args = ngx.req.get_post_args(0)
+        post_args = ngx.req.get_post_args(conf.max_req_post_args)
     end
     local json_body
     local body_masked = false

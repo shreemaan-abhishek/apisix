@@ -485,3 +485,169 @@ success
 code: 404
 --- no_error_log
 no request body found
+
+
+
+=== TEST 11: create plugin with default value for `max_req_post_args`
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "plugins": {
+                            "data-mask": {
+                                "request": [
+                                    {
+                                        "action": "regex",
+                                        "body_format": "urlencoded",
+                                        "name": "arg100",
+                                        "regex": "(\\d+)$",
+                                        "type": "body",
+                                        "value": "$1"
+                                    }
+                                ]
+                            },
+                            "file-logger": {
+                                "include_req_body": true,
+                                "path": "mask-urlencoded-body.log"
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1982": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/hello"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+
+
+
+=== TEST 12: verify default value for `max_req_post_args``
+--- config
+    location /t {
+        content_by_lua_block {
+            local core = require("apisix.core")
+            local t = require("lib.test_admin").test
+
+            local url_encoded = "arg1=1"
+            for i = 2, 110, 1 do
+                url_encoded = url_encoded .. "&arg" .. i .. "=" .. i
+            end
+
+            local code = t("/hello", ngx.HTTP_POST, url_encoded)
+
+            local fd, err = io.open("mask-urlencoded-body.log", "r")
+            if not fd then
+                core.log.error("failed to open file: ", err)
+                return
+            end
+            local line = fd:read()
+            local log = core.json.decode(line)
+            local match100, err = ngx.re.match(log.request.body, "arg100=100")
+            local match101, err = ngx.re.match(log.request.body, "arg101=101")
+            os.remove("mask-urlencoded-body.log")
+            if match100 and not match101 then
+                ngx.say("success")
+                return
+            end
+            ngx.say(match)
+            ngx.say(err)
+        }
+    }
+--- response_body
+success
+
+
+
+=== TEST 13: create plugin with custom `max_req_post_args` value
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "plugins": {
+                            "data-mask": {
+                                "request": [
+                                    {
+                                        "action": "regex",
+                                        "body_format": "urlencoded",
+                                        "name": "arg10",
+                                        "regex": "(\\d+)$",
+                                        "type": "body",
+                                        "value": "$1"
+                                    }
+                                ],
+                                "max_req_post_args": 10
+                            },
+                            "file-logger": {
+                                "include_req_body": true,
+                                "path": "mask-urlencoded-body.log"
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1982": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/hello"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+
+
+
+=== TEST 14: verify number of args
+--- config
+    location /t {
+        content_by_lua_block {
+            local core = require("apisix.core")
+            local t = require("lib.test_admin").test
+
+            local url_encoded = "arg1=1"
+            for i = 2, 110, 1 do
+                url_encoded = url_encoded .. "&arg" .. i .. "=" .. i
+            end
+
+            local code = t("/hello", ngx.HTTP_POST, url_encoded)
+
+            local fd, err = io.open("mask-urlencoded-body.log", "r")
+            if not fd then
+                core.log.error("failed to open file: ", err)
+                return
+            end
+            local line = fd:read()
+            local log = core.json.decode(line)
+            local match10, err = ngx.re.match(log.request.body, "arg10=10")
+            local match11, err = ngx.re.match(log.request.body, "arg11=11")
+            os.remove("mask-urlencoded-body.log")
+            if match10 and not match11 then
+                ngx.say("success")
+                return
+            end
+            ngx.say(match)
+            ngx.say(err)
+
+        }
+    }
+--- response_body
+success
