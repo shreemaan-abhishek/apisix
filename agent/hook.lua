@@ -273,3 +273,12 @@ apisix.http_init_worker = function(...)
         core.log.warn("skipped registering timer because config type: ", core.config.type)
     end
 end
+
+local old_http_log_phase = apisix.http_log_phase
+apisix.http_log_phase = function (...)
+    local _, err = config_dict:incr("api_calls_counter", 1, 0)
+    if err ~= nil then
+        core.log.error("failed to increase api_calls_counter in dict, error: ", err)
+    end
+    old_http_log_phase(...)
+end

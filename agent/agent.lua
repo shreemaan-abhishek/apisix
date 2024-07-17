@@ -118,7 +118,15 @@ function _M.heartbeat(self, first)
             current_time - self.last_heartbeat_time < self.heartbeat_interval then
         return
     end
+    payload.api_calls = 0
+    local api_calls, err = config_dict:get("api_calls_counter")
+    if api_calls ~= nil then
+        payload.api_calls = api_calls - self.api_calls_counter_last_value
+    end
 
+    if err ~= nil then
+        core.log.error("failed get api_calls_counter from dict, error: ", err)
+    end
     if not first then
         self.last_heartbeat_time = current_time
     end
@@ -151,6 +159,11 @@ function _M.heartbeat(self, first)
     if res.status ~= 200 then
         core.log.warn("heartbeat failed, status: " .. res.status .. ", body: ", core.json.encode(res.body))
         return
+    end
+
+    -- Reset counter only when heartbeat success.
+    if api_calls ~= nil then
+        self.api_calls_counter_last_value = api_calls
     end
 
     local resp_body = utils.parse_resp(res.body)
@@ -392,6 +405,14 @@ end
 
 
 function _M.new(agent_conf)
+    local init_api_calls, err = config_dict:get("api_calls_counter")
+    if init_api_calls == nil then
+        init_api_calls = 0
+    end
+    if err ~= nil then
+        core.log.error("failed get api_calls_counter from dict, error: ", err)
+        return nil
+    end
     local self = {
         heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
         metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
@@ -407,7 +428,8 @@ function _M.new(agent_conf)
         healthcheck_report_interval = agent_conf.healthcheck_report_interval,
         last_heartbeat_time = nil,
         last_metrics_uploading_time = nil,
-        config_version = 0
+        config_version = 0,
+        api_calls_counter_last_value = init_api_calls,
     }
 
     return setmetatable(self, mt)
