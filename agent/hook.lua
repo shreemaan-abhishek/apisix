@@ -23,6 +23,9 @@ if require("ffi").os == "Linux" then
 end
 
 local AUTH_HEADER = "Control-Plane-Token"
+local GATEWAY_INSTANCE_ID_HEADER = "Gateway-Instance-ID"
+
+local id = require("apisix.core.id")
 
 local function update_conf_for_etcd(etcd_conf)
     if not etcd_conf then
@@ -34,6 +37,10 @@ local function update_conf_for_etcd(etcd_conf)
     end
 
     etcd_conf.extra_headers[AUTH_HEADER] = getenv("API7_CONTROL_PLANE_TOKEN")
+    local instance_id = id.get()
+    if instance_id then
+        etcd_conf.extra_headers[GATEWAY_INSTANCE_ID_HEADER] = instance_id
+    end
 
     return etcd_conf
 end
@@ -72,7 +79,7 @@ config_local.local_conf = function(force)
     local latest_config_version = get_config_from_dict("config_version", 0)
     if not force and config_data then
         if latest_config_version <= config_version then
-            log.info("found cached config_data in hook")
+            log.debug("found cached config_data in hook")
             return config_data
         end
     end
@@ -124,6 +131,9 @@ config_local.local_conf = function(force)
     end
 
     config_data.etcd = update_conf_for_etcd(config_data.etcd)
+    log.info("conf for etcd updated, the extra header ", GATEWAY_INSTANCE_ID_HEADER, ": ",
+        config_data.etcd.extra_headers[GATEWAY_INSTANCE_ID_HEADER])
+
     config_version = latest_config_version
 
     log.info("succeed to merge the config from control plane, version: ", config_version)

@@ -396,3 +396,26 @@ passed
 discovery: dns init worker
 discovery: nacos init worker
 discovery: kubernetes init worker
+
+
+
+=== TEST 11: retrieve ETCD config with extra header
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- yaml_config
+apisix:
+  id: ba5fe070
+api7ee:
+  telemetry:
+    enable: false
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("ok")
+        }
+    }
+--- log_level: info
+--- error_log
+conf for etcd updated, the extra header Gateway-Instance-ID: ba5fe070
