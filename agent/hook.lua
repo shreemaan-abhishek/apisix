@@ -131,8 +131,10 @@ config_local.local_conf = function(force)
     end
 
     config_data.etcd = update_conf_for_etcd(config_data.etcd)
-    log.info("conf for etcd updated, the extra header ", GATEWAY_INSTANCE_ID_HEADER, ": ",
-        config_data.etcd.extra_headers[GATEWAY_INSTANCE_ID_HEADER])
+    if config_data.etcd then
+        log.info("conf for etcd updated, the extra header ", GATEWAY_INSTANCE_ID_HEADER, ": ",
+                config_data.etcd.extra_headers[GATEWAY_INSTANCE_ID_HEADER])
+    end
 
     config_version = latest_config_version
 
