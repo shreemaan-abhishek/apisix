@@ -40,7 +40,7 @@ sudo apt-get install -y libldap2-dev openresty-pcre-dev openresty-zlib-dev build
 
 SSL_LIB_VERSION=${SSL_LIB_VERSION-openssl}
 ENABLE_FIPS=${ENABLE_FIPS:-"false"}
-APISIX_RUNTIME=${APISIX_RUNTIME:-"1.1.1"}
+APISIX_RUNTIME=${APISIX_RUNTIME:-"1.1.2"}
 OPENRESTY_PREFIX=${OPENRESTY_PREFIX:-"/usr/local/openresty"}
 BUILD_LATEST=${BUILD_LATEST:-"latest"}
 OPENRESTY_VERSION=${OPENRESTY_VERSION:-"default"}
