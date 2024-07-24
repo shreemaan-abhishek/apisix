@@ -1107,11 +1107,13 @@ _M.encrypt_conf = encrypt_conf
 
 
 check_plugin_metadata = function(item)
-    if enable_gde() then
-        decrypt_conf(item.id, item, core.schema.TYPE_METADATA)
+    local ok, err = check_single_plugin_schema(item.id, item,
+                                               core.schema.TYPE_METADATA, true)
+    if ok and enable_gde() then
+        decrypt_conf(item.name, item, core.schema.TYPE_METADATA)
     end
 
-    return true
+    return ok, err
 end
 
 
