@@ -65,7 +65,8 @@ plugin_metadata:
 GET /hello
 --- error_log
 "remote_addr":"127.0.0.1"
-
+--- no_error_log
+failed to get schema for plugin:
 
 
 === TEST 2: sanity
@@ -87,3 +88,4 @@ plugin_metadata:
 GET /hello
 --- error_log
 failed to check item data of [plugin_metadata]
+
