@@ -375,14 +375,18 @@ local function report_service_registry_healthcheck(self)
     local healthcheck_data = core.table.new(128, 0)
     for id, nodes in pairs(stats) do
         for _, stat in ipairs(nodes) do
-            core.table.insert(healthcheck_data,
-                {
-                    service_registry_id = id,
-                    status = (stat.status == "healthy") and 1 or 0,
-                    hostname = payload.hostname,
-                    time = ngx_time()
-                }
-            )
+            local counter = stat.counter
+            if counter.http_failure >= 1 or counter.tcp_failure >= 1
+                or counter.timeout_failure >= 1 or counter.success >= 2 then
+                    core.table.insert(healthcheck_data,
+                        {
+                            service_registry_id = id,
+                            status = (stat.status == "healthy") and 1 or 0,
+                            hostname = payload.hostname,
+                            time = ngx_time()
+                        }
+                    )
+            end
         end
     end
 
