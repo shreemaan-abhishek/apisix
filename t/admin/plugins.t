@@ -111,7 +111,6 @@ api7-traffic-split
 traffic-split
 redirect
 response-rewrite
-soap
 oas-validator
 degraphql
 kafka-proxy

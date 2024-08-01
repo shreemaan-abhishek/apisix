@@ -122,7 +122,6 @@ plugins:    # plugin list
   - kafka-proxy
   - grpc-transcode
   - grpc-web
-  - soap
   - public-api
   - prometheus
   - datadog

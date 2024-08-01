@@ -17,26 +17,6 @@ services:
     networks:
       - api7
 
-  soap-server:
-    hostname: soap-server
-    build:
-      context: ci/pod/soap-server
-      dockerfile: Dockerfile
-    restart: always
-    networks:
-      - api7
-
-  soap-proxy:
-    hostname: soap-proxy
-    build:
-      context: ci/pod/soap-proxy
-      dockerfile: Dockerfile
-    restart: always
-    ports:
-      - "15001:5000"
-    networks:
-      - api7
-
 networks:
   api7:
     driver: bridge

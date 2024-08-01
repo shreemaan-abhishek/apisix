@@ -1,6 +1,3 @@
-[submodule "api7-soap-proxy"]
-	path = api7-soap-proxy
-	url = git@github.com:api7/api7-soap-proxy.git
 [submodule "lua-resty-openapi-validate"]
 	path = lua-resty-openapi-validate
 	url = git@github.com:api7/lua-resty-openapi-validate.git

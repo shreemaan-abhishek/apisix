@@ -40,7 +40,6 @@ _EOC_
         /usr/bin/apisix init_etcd
     fi
 
-    nohup gunicorn --log-config logging.conf --bind 127.0.0.1:5000 --chdir /usr/local/api7-soap-proxy/ soap_proxy:app > /usr/local/api7-soap-proxy/error.log 2>&1 &
     exec /usr/local/openresty/bin/openresty -p /usr/local/apisix -g 'daemon off;'
 fi
 
