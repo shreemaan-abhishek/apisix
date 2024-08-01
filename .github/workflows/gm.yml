@@ -61,7 +61,7 @@ jobs:
           ./ci/utils/install-lua-resty-openapi-validate.sh workbench
 
       - name: Cache deps
-        uses: buildjet/cache@v3
+        uses: buildjet/cache@v4
         env:
           cache-name: cache-deps
         with:
@@ -70,7 +70,7 @@ jobs:
 
       - name: Cache Tongsuo compilation
         id: cache-tongsuo
-        uses: buildjet/cache@v3
+        uses: buildjet/cache@v4
         env:
           cache-name: cache-tongsuo
         with:
