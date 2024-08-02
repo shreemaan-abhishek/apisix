@@ -100,6 +100,10 @@ COPY --chown=apisix:apisix ./api7-master-0.rockspec /usr/local/apisix/api7-maste
 
 USER root
 
+RUN apt update && apt-get -y install --no-install-recommends \
+    ca-certificates sudo gcc unzip make git wget\
+    zlib1g-dev libxml2-dev libxslt-dev
+
 RUN bash /usr/local/apisix/api7-ljbc.sh && rm /usr/local/apisix/api7-ljbc.sh
 
 WORKDIR /usr/local/apisix
