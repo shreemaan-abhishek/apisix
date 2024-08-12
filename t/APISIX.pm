@@ -858,21 +858,10 @@ deployment:
   admin:
     admin_key: null
 _EOC_
-
     if ($yaml_config !~ m/deployment:/) {
-        # TODO: remove this temporary option once we have using gRPC by default
-        if ($ENV{TEST_CI_USE_GRPC}) {
-            $default_deployment .= <<_EOC_;
-  etcd:
-    host:
-      - "http://127.0.0.1:2379"
-    prefix: /apisix
-    use_grpc: true
-_EOC_
-        }
-
         $yaml_config = $default_deployment . $yaml_config;
     }
+
 
     if ($block->extra_yaml_config) {
         $yaml_config .= $block->extra_yaml_config;

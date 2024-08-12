@@ -1,12 +1,4 @@
-# --- Build etcdctl ---
-# we can delete this part after etcd release a new version with go1.20+
 FROM golang:1.21.5 AS go-builder
-
-WORKDIR /go
-
-RUN git clone -b release-3.5 https://github.com/etcd-io/etcd.git && cd etcd && make
-
-
 # --- Form apisix-docker ---
 # --- refer: https://github.com/apache/apisix-docker/blob/master/debian/Dockerfile
 FROM debian:bullseye-slim AS runtime-builder
@@ -54,8 +46,6 @@ RUN set -ex; \
 
 
 FROM debian:bullseye-slim
-
-COPY --from=go-builder /go/etcd/bin/etcdctl /usr/local/openresty/bin/etcdctl
 COPY --from=go-builder /usr/local/go /usr/local/go
 COPY --from=runtime-builder /usr/local/openresty /usr/local/openresty
 COPY --from=apisix-builder /usr/local/apisix /usr/local/apisix

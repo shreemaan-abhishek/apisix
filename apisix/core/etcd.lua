@@ -80,17 +80,6 @@ local function _new(etcd_conf)
         log.info("The configuration of `etcd.tls.sni` was not found, so use etcd host as sni: ", etcd_conf.sni)
     end
 
-    if etcd_conf.use_grpc then
-        if ngx_get_phase() == "init" then
-            etcd_conf.use_grpc = false
-        else
-            local ok = pcall(require, "resty.grpc")
-            if not ok then
-                etcd_conf.use_grpc = false
-            end
-        end
-    end
-
     local etcd_cli, err = etcd.new(etcd_conf)
     if not etcd_cli then
         return nil, nil, err
@@ -355,10 +344,6 @@ do
                 tmp_etcd_cli, prefix, err = new_without_proxy()
                 if not tmp_etcd_cli then
                     return nil, nil, err
-                end
-
-                if tmp_etcd_cli.use_grpc then
-                    etcd_cli_init_phase = tmp_etcd_cli
                 end
 
                 return tmp_etcd_cli, prefix
