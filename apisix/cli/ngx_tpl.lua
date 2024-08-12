@@ -68,8 +68,10 @@ env {*name*};
 thread_pool grpc-client-nginx-module threads=1;
 
 lua {
-    {% if enabled_stream_plugins["prometheus"] then %}
+    {% if meta.lua_shared_dict["prometheus-metrics"] then %}
     lua_shared_dict prometheus-metrics {* meta.lua_shared_dict["prometheus-metrics"] *};
+    {% else %}
+    lua_shared_dict prometheus-metrics 10m
     {% end %}
 }
 
@@ -144,17 +146,40 @@ stream {
     lua_max_running_timers {* max_running_timers *};
     {% end %}
 
+    {% if stream.lua_shared_dict["lrucache-lock-stream"] then %}
     lua_shared_dict lrucache-lock-stream {* stream.lua_shared_dict["lrucache-lock-stream"] *};
+    {% else %}
+    lua_shared_dict lrucache-lock-stream 10m;
+    {% end %}
+
+    {% if stream.lua_shared_dict["etcd-cluster-health-check-stream"] then %}
     lua_shared_dict etcd-cluster-health-check-stream {* stream.lua_shared_dict["etcd-cluster-health-check-stream"] *};
+    {% else %}
+    lua_shared_dict etcd-cluster-health-check-stream 10m;
+    {% end %}
+
+    {% if stream.lua_shared_dict["worker-events-stream"] then %}
     lua_shared_dict worker-events-stream {* stream.lua_shared_dict["worker-events-stream"] *};
+    {% else %}
+    lua_shared_dict worker-events-stream 10m;
+    {% end %}
+    
+    
+    {% if stream.lua_shared_dict["config-stream"] then %}
     lua_shared_dict config-stream {* stream.lua_shared_dict["config-stream"] *};
+    {% else %}
+    lua_shared_dict config-stream 10m;
+    {% end %}
+
 
     {% if enabled_discoveries["tars"] then %}
     lua_shared_dict tars-stream {* stream.lua_shared_dict["tars-stream"] *};
     {% end %}
 
-    {% if enabled_stream_plugins["limit-conn"] then %}
+    {% if stream.lua_shared_dict["plugin-limit-conn-stream"] then %}
     lua_shared_dict plugin-limit-conn-stream {* stream.lua_shared_dict["plugin-limit-conn-stream"] *};
+    {% else %}  
+    lua_shared_dict plugin-limit-conn-stream 10m
     {% end %}
 
     # for discovery shared dict
@@ -265,14 +290,53 @@ http {
     lua_max_running_timers {* max_running_timers *};
     {% end %}
 
+    {% if http.lua_shared_dict["internal-status"] then %}
     lua_shared_dict internal-status {* http.lua_shared_dict["internal-status"] *};
+    {% else %}
+    lua_shared_dict internal-status 10m;
+    {% end %}
+    
+    {% if http.lua_shared_dict["upstream-healthcheck"] then %}
     lua_shared_dict upstream-healthcheck {* http.lua_shared_dict["upstream-healthcheck"] *};
+    {% else %}
+    lua_shared_dict upstream-healthcheck 10m;
+    {% end %}
+
+    {% if http.lua_shared_dict["worker-events"] then %}
     lua_shared_dict worker-events {* http.lua_shared_dict["worker-events"] *};
+    {% else %}
+    lua_shared_dict worker-events 10m;
+    {% end %}
+    
+    {% if http.lua_shared_dict["lrucache-lock"] then %}
     lua_shared_dict lrucache-lock {* http.lua_shared_dict["lrucache-lock"] *};
+    {% else %}
+     lua_shared_dict lrucache-lock 10m;
+    {% end %}
+  
+    {% if http.lua_shared_dict["balancer-ewma"] then %}
     lua_shared_dict balancer-ewma {* http.lua_shared_dict["balancer-ewma"] *};
+    {% else %}
+    lua_shared_dict balancer-ewma 10m;
+    {% end %}
+
+    {% if http.lua_shared_dict["balancer-ewma-locks"] then %}
     lua_shared_dict balancer-ewma-locks {* http.lua_shared_dict["balancer-ewma-locks"] *};
+    {% else %}
+    lua_shared_dict balancer-ewma-locks 10m;
+    {% end %}
+
+    {% if http.lua_shared_dict["balancer-ewma-last-touched-at"] then %}
     lua_shared_dict balancer-ewma-last-touched-at {* http.lua_shared_dict["balancer-ewma-last-touched-at"] *};
+    {% else %}
+    lua_shared_dict balancer-ewma-last-touched-at 10m;
+    {% end %}
+   
+    {% if http.lua_shared_dict["etcd-cluster-health-check"] then %}
     lua_shared_dict etcd-cluster-health-check {* http.lua_shared_dict["etcd-cluster-health-check"] *}; # etcd health check
+    {% else %}
+    lua_shared_dict etcd-cluster-health-check 10m; # etcd health check
+    {% end %}
 
     # for discovery shared dict
     {% if discovery_shared_dicts then %}
@@ -282,67 +346,117 @@ http {
     {% end %}
 
     {% if enabled_discoveries["tars"] then %}
+    {% if http.lua_shared_dict["tars"] then %}
     lua_shared_dict tars {* http.lua_shared_dict["tars"] *};
+    {% else %}
+    lua_shared_dict tars 10m;
+    {% end %}
     {% end %}
 
-    {% if enabled_plugins["limit-conn"] then %}
+    {% if http.lua_shared_dict["plugin-limit-conn"] then %}
     lua_shared_dict plugin-limit-conn {* http.lua_shared_dict["plugin-limit-conn"] *};
+    {% else %}
+    lua_shared_dict plugin-limit-conn 10m
     {% end %}
 
-    {% if enabled_plugins["limit-req"] then %}
+    {% if http.lua_shared_dict["plugin-limit-req"] then %}
     lua_shared_dict plugin-limit-req {* http.lua_shared_dict["plugin-limit-req"] *};
+    {% else %}
+    lua_shared_dict plugin-limit-req 10m
     {% end %}
 
-    {% if enabled_plugins["limit-count"] then %}
+    {% if http.lua_shared_dict["plugin-limit-count"] then %}
     lua_shared_dict plugin-limit-count {* http.lua_shared_dict["plugin-limit-count"] *};
+    {% else %}
+    lua_shared_dict plugin-limit-count 10m;
+    {% end %}
+
+    {% if http.lua_shared_dict["plugin-limit-count-redis-cluster-slot-lock"] then %}
     lua_shared_dict plugin-limit-count-redis-cluster-slot-lock {* http.lua_shared_dict["plugin-limit-count-redis-cluster-slot-lock"] *};
+    {% else %}
+    lua_shared_dict plugin-limit-count-redis-cluster-slot-lock 10m;
+    {% end %}
+
+    {% if http.lua_shared_dict["plugin-limit-count"] then %}
     lua_shared_dict plugin-limit-count-reset-header {* http.lua_shared_dict["plugin-limit-count"] *};
+    {% else %}
+    lua_shared_dict plugin-limit-count-reset-header 10m;
     {% end %}
+    
 
-    {% if enabled_plugins["graphql-limit-count"] then %}
+    {% if http.lua_shared_dict["plugin-graphql-limit-count"] then %}
     lua_shared_dict plugin-graphql-limit-count {* http.lua_shared_dict["plugin-graphql-limit-count"] *};
+    {% else %}
+    lua_shared_dict plugin-graphql-limit-count 10m;
+    {% end %}
+
+    {% if http.lua_shared_dict["plugin-graphql-limit-count"] then %}
     lua_shared_dict plugin-graphql-limit-count-reset-header {* http.lua_shared_dict["plugin-graphql-limit-count"] *};
+    {% else %}
+    lua_shared_dict plugin-graphql-limit-count-reset-header 10m;
     {% end %}
 
-    {% if enabled_plugins["prometheus"] and not enabled_stream_plugins["prometheus"] then %}
-    lua_shared_dict prometheus-metrics {* http.lua_shared_dict["prometheus-metrics"] *};
-    {% end %}
-
-    {% if enabled_plugins["skywalking"] then %}
+    {% if http.lua_shared_dict.tracing_buffer then %}
     lua_shared_dict tracing_buffer {* http.lua_shared_dict.tracing_buffer *}; # plugin: skywalking
+    {% else %}
+    lua_shared_dict tracing_buffer 10m; # plugin: skywalking
     {% end %}
 
-    {% if enabled_plugins["api-breaker"] then %}
+    {% if http.lua_shared_dict["plugin-api-breaker"] then %}
     lua_shared_dict plugin-api-breaker {* http.lua_shared_dict["plugin-api-breaker"] *};
+    {% else %}
+    lua_shared_dict plugin-api-breaker 10m;
     {% end %}
+    
 
-    {% if enabled_plugins["openid-connect"] or enabled_plugins["authz-keycloak"] then %}
-    # for openid-connect and authz-keycloak plugin
+    {% if http.lua_shared_dict["discovery"] then %}
     lua_shared_dict discovery {* http.lua_shared_dict["discovery"] *}; # cache for discovery metadata documents
+    {% else %}
+    lua_shared_dict discovery 10m; # cache for discovery metadata documents
     {% end %}
-
-    {% if enabled_plugins["openid-connect"] then %}
+    
     # for openid-connect plugin
+    {% if http.lua_shared_dict["jwks"] then %}
     lua_shared_dict jwks {* http.lua_shared_dict["jwks"] *}; # cache for JWKs
+    {% else %}
+    lua_shared_dict jwks 10m; # cache for JWKs
+    {% end %}
+
+    {% if http.lua_shared_dict["introspection"] then %}
     lua_shared_dict introspection {* http.lua_shared_dict["introspection"] *}; # cache for JWT verification results
+    {% else %}
+    lua_shared_dict introspection 10m; # cache for JWT verification results
     {% end %}
-
-    {% if enabled_plugins["cas-auth"] then %}
+   
+    {% if http.lua_shared_dict["cas-auth"] then %}
     lua_shared_dict cas_sessions {* http.lua_shared_dict["cas-auth"] *};
-    {% end %}
+    {% else %}
+    lua_shared_dict cas_sessions 10m;
+    {% end %}  
 
-    {% if enabled_plugins["saml-auth"] then %}
+
+    {% if http.lua_shared_dict["saml_sessions"] then %}
     lua_shared_dict saml_sessions {* http.lua_shared_dict["saml_sessions"] *};
-    {% end %}
+    {% else %}
+    lua_shared_dict saml_sessions 10m;
+    {% end %}  
 
-    {% if enabled_plugins["authz-keycloak"] then %}
+
+
     # for authz-keycloak
+    {% if http.lua_shared_dict["access-tokens"] then %}
     lua_shared_dict access-tokens {* http.lua_shared_dict["access-tokens"] *}; # cache for service account access tokens
-    {% end %}
+    {% else %}
+    lua_shared_dict access-tokens 10m; # cache for service account access tokens
+    {% end %}  
 
-    {% if enabled_plugins["ext-plugin-pre-req"] or enabled_plugins["ext-plugin-post-req"] then %}
+
+    {% if http.lua_shared_dict["ext-plugin"] then %}
     lua_shared_dict ext-plugin {* http.lua_shared_dict["ext-plugin"] *}; # cache for ext-plugin
-    {% end %}
+    {% else %}
+    lua_shared_dict ext-plugin 10m; # cache for ext-plugin
+    {% end %}  
+
 
     {% if config_center == "xds" then %}
     lua_shared_dict xds-config  10m;
@@ -356,9 +470,7 @@ http {
     {% end %}
     {% end %}
 
-    {% if enabled_plugins["error-log-logger"] then %}
-        lua_capture_error_log  10m;
-    {% end %}
+    lua_capture_error_log  10m;
 
     lua_ssl_verify_depth 5;
     ssl_session_timeout 86400;
@@ -445,7 +557,6 @@ http {
         {% end %}
     }
 
-    {% if enabled_plugins["dubbo-proxy"] then %}
     upstream apisix_dubbo_backend {
         server 0.0.0.1;
         balancer_by_lua_block {
@@ -459,7 +570,6 @@ http {
         keepalive_requests {* http.upstream.keepalive_requests *};
         keepalive_timeout {* http.upstream.keepalive_timeout *};
     }
-    {% end %}
 
     {% if use_apisix_base then %}
     apisix_delay_client_max_body_check on;
@@ -511,7 +621,7 @@ http {
     }
     {% end %}
 
-    {% if enabled_plugins["prometheus"] and prometheus_server_addr then %}
+    {% if prometheus_server_addr then %}
     server {
         {% if use_apisix_base then %}
             listen {* prometheus_server_addr *} enable_process=privileged_agent;
@@ -596,15 +706,12 @@ http {
     {% end %}
 
     {% if deployment_role ~= "control_plane" then %}
-
-    {% if enabled_plugins["proxy-cache"] then %}
     # for proxy cache
     {% for _, cache in ipairs(proxy_cache.zones) do %}
     {% if cache.disk_path and cache.cache_levels and cache.disk_size then %}
     proxy_cache_path {* cache.disk_path *} levels={* cache.cache_levels *} keys_zone={* cache.name *}:{* cache.memory_size *} inactive=1d max_size={* cache.disk_size *} use_temp_path=off;
     {% else %}
     lua_shared_dict {* cache.name *} {* cache.memory_size *};
-    {% end %}
     {% end %}
 
     map $upstream_cache_zone $upstream_cache_zone_info {
@@ -705,11 +812,9 @@ http {
             {% end %}
             # http server location configuration snippet ends
 
-            {% if enabled_plugins["dubbo-proxy"] then %}
             set $dubbo_service_name          '';
             set $dubbo_service_version       '';
             set $dubbo_method                '';
-            {% end %}
 
             access_by_lua_block {
                 apisix.http_access_phase()
@@ -733,7 +838,6 @@ http {
             proxy_set_header   X-Forwarded-Host     $var_x_forwarded_host;
             proxy_set_header   X-Forwarded-Port     $var_x_forwarded_port;
 
-            {% if enabled_plugins["proxy-cache"] then %}
             ###  the following configuration is to cache response content from upstream server
 
             set $upstream_cache_zone            off;
@@ -751,13 +855,10 @@ http {
             proxy_no_cache                      $upstream_no_cache;
             proxy_cache_bypass                  $upstream_cache_bypass;
 
-            {% end %}
 
             proxy_pass      $upstream_scheme://apisix_backend$upstream_uri;
 
-            {% if enabled_plugins["proxy-mirror"] then %}
             mirror          /proxy_mirror;
-            {% end %}
 
             header_filter_by_lua_block {
                 apisix.http_header_filter_phase()
@@ -792,7 +893,6 @@ http {
             proxy_set_header   X-Forwarded-Host     $var_x_forwarded_host;
             proxy_set_header   X-Forwarded-Port     $var_x_forwarded_port;
 
-            {% if enabled_plugins["proxy-cache"] then %}
             ###  the following configuration is to cache response content from upstream server
             proxy_cache                         $upstream_cache_zone;
             proxy_cache_valid                   any {% if proxy_cache.cache_ttl then %} {* proxy_cache.cache_ttl *} {% else %} 10s {% end %};
@@ -804,13 +904,9 @@ http {
             proxy_no_cache                      $upstream_no_cache;
             proxy_cache_bypass                  $upstream_cache_bypass;
 
-            {% end %}
-
             proxy_pass      $upstream_scheme://apisix_backend$upstream_uri;
 
-            {% if enabled_plugins["proxy-mirror"] then %}
             mirror          /proxy_mirror;
-            {% end %}
 
             header_filter_by_lua_block {
                 apisix.http_header_filter_phase()
@@ -849,9 +945,7 @@ http {
             grpc_socket_keepalive on;
             grpc_pass         $upstream_scheme://apisix_backend;
 
-            {% if enabled_plugins["proxy-mirror"] then %}
             mirror           /proxy_mirror_grpc;
-            {% end %}
 
             header_filter_by_lua_block {
                 apisix.http_header_filter_phase()
@@ -866,7 +960,6 @@ http {
             }
         }
 
-        {% if enabled_plugins["dubbo-proxy"] then %}
         location @dubbo_pass {
             access_by_lua_block {
                 apisix.dubbo_access_phase()
@@ -888,9 +981,7 @@ http {
                 apisix.http_log_phase()
             }
         }
-        {% end %}
 
-        {% if enabled_plugins["proxy-mirror"] then %}
         location = /proxy_mirror {
             internal;
 
@@ -916,9 +1007,7 @@ http {
             proxy_set_header Host $upstream_host;
             proxy_pass $upstream_mirror_uri;
         }
-        {% end %}
 
-        {% if enabled_plugins["proxy-mirror"] then %}
         location = /proxy_mirror_grpc {
             internal;
 
@@ -942,7 +1031,6 @@ http {
             {% end %}
             grpc_pass $upstream_mirror_host;
         }
-        {% end %}
     }
     {% end %}
 
