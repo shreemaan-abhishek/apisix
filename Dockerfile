@@ -1,18 +1,26 @@
-FROM golang:1.21.5 AS go-builder
 # --- Form apisix-docker ---
 # --- refer: https://github.com/apache/apisix-docker/blob/master/debian/Dockerfile
 FROM debian:bullseye-slim AS runtime-builder
 
-ENV PATH="/usr/local/go/bin:${PATH}"
-ENV BUILD_LATEST="1.1.1"
-
-COPY --from=go-builder /usr/local/go /usr/local/go
-COPY ./ci/linux-install-openresty.sh /linux-install-openresty.sh
-
-RUN apt update \
-    && apt install -y wget gnupg ca-certificates unzip make git sudo \
-    && chmod +x /linux-install-openresty.sh \
-    && /linux-install-openresty.sh
+RUN apt update && apt install -y wget gnupg ca-certificates
+RUN set -ex; \
+    arch=$(dpkg --print-architecture); \
+    wget -O - https://openresty.org/package/pubkey.gpg | apt-key add -; \
+    case "${arch}" in \
+      amd64) \
+        echo "deb https://openresty.org/package/debian bullseye openresty" | tee /etc/apt/sources.list.d/openresty.list \
+        ;; \
+      arm64) \
+        echo "deb https://openresty.org/package/arm64/debian bullseye openresty" | tee /etc/apt/sources.list.d/openresty.list \
+        ;; \
+    esac; \
+    apt update \
+    && apt install -y openresty-pcre openresty-zlib \
+    && set -ex; \
+    arch=$(dpkg --print-architecture); \
+    wget https://github.com/api7/apisix-build-tools/releases/download/apisix-runtime/1.1.3/apisix-runtime_1.1.3-0.debianbullseye-slim_${arch}.deb; \
+    dpkg -i ./apisix-runtime_1.1.3-0.debianbullseye-slim_${arch}.deb
+RUN rm /usr/local/openresty/bin/etcdctl && rm -rf /usr/local/openresty/openssl3/share
 
 FROM debian:bullseye-slim AS apisix-builder
 
@@ -46,7 +54,6 @@ RUN set -ex; \
 
 
 FROM debian:bullseye-slim
-COPY --from=go-builder /usr/local/go /usr/local/go
 COPY --from=runtime-builder /usr/local/openresty /usr/local/openresty
 COPY --from=apisix-builder /usr/local/apisix /usr/local/apisix
 COPY --from=apisix-builder /usr/bin/apisix /usr/bin/apisix
@@ -90,25 +97,20 @@ COPY --chown=apisix:apisix ./api7-master-0.rockspec /usr/local/apisix/api7-maste
 
 USER root
 
-RUN apt update && apt-get -y install --no-install-recommends \
-    ca-certificates sudo gcc unzip make git wget\
-    zlib1g-dev libxml2-dev libxslt-dev
-
 RUN bash /usr/local/apisix/api7-ljbc.sh && rm /usr/local/apisix/api7-ljbc.sh
 
 WORKDIR /usr/local/apisix
 
-RUN bash /usr/local/apisix/linux-install-luarocks.sh && rm /usr/local/apisix/linux-install-luarocks.sh \
-    && export PATH=$PATH:/usr/local/go/bin && export CGO_ENABLED=1 \
+# build deps
+RUN apt update \
+    && apt-get -y install --no-install-recommends ca-certificates sudo gcc unzip make git wget zlib1g-dev libxml2-dev libxslt-dev \
+    && wget -O go.tar.gz https://go.dev/dl/go1.21.5.linux-$(dpkg --print-architecture).tar.gz && tar -C /usr/local -xzf go.tar.gz && rm -f go.tar.gz \
+    && bash /usr/local/apisix/linux-install-luarocks.sh && rm /usr/local/apisix/linux-install-luarocks.sh \
+    && export PATH=$PATH:/usr/local/go/bin CGO_ENABLED=1 \
     && luarocks config variables.OPENSSL_DIR /usr/local/openresty/openssl3 \
     && ENV_OPENSSL_PREFIX=/usr/local/openresty/openssl3 make deps \
-    && go clean -cache -modcache && rm -rf /usr/local/go
-
-# clear up
-RUN SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove --allow-remove-essential \
-    luarocks sudo gcc unzip make git wget \
-    python3-pip python3-wheel python3-setuptools \
-    && rm -rf /usr/local/openresty/openssl3/share
+    && go clean -cache -modcache && rm -rf /usr/local/go \
+    && SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove --allow-remove-essential luarocks sudo gcc unzip make git wget golang-go
 
 RUN groupadd --system --gid 636 apisix \
     && useradd --system --gid apisix --no-create-home --shell /usr/sbin/nologin --uid 636 apisix \
