@@ -9,6 +9,10 @@ project_version   ?= 0.0.1
 project_ci_runner ?= $(CURDIR)/ci/utils/linux-common-runnner.sh
 ENV_LUAROCKS           ?= luarocks
 
+REGISTRY ?= hkccr.ccs.tencentyun.com
+REGISTRY_NAMESPACE ?= api7-dev
+IMAGE_TAG ?= dev
+
 # Hyper-converged Infrastructure
 ENV_OS_NAME          ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
 ENV_HELP_PREFIX_SIZE ?= 15
@@ -115,6 +119,6 @@ build-image: ## Build docker image
 	@sed -i '/- server-info/d' conf/config-default.yaml
 	@sed -i 's/#- opentelemetry/- opentelemetry/' conf/config-default.yaml
 	@sed -i 's/#- batch-request/- batch-request/' conf/config-default.yaml
-	@docker build -t api7-ee-3-gateway:dev .
+	@docker buildx build --push -t ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} --platform linux/amd64,linux/arm64 .
 	@if docker run --entrypoint cat --rm -i api7-ee-3-gateway:dev /usr/local/apisix/apisix/core.lua | file - | grep -q 'ASCII text'; then echo "code obfuscation did not work"; exit 1; fi
 .PHONY: build-image
