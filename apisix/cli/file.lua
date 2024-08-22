@@ -19,7 +19,6 @@ local yaml = require("tinyyaml")
 local profile = require("apisix.core.profile")
 local util = require("apisix.cli.util")
 local dkjson = require("dkjson")
-
 local pairs = pairs
 local type = type
 local tonumber = tonumber
@@ -116,17 +115,15 @@ end
 
 _M.resolve_conf_var = resolve_conf_var
 
-
-local function replace_by_reserved_env_vars(conf)
+-- If override_by_env is true, then the environment variables will override the data stored in /tmp files
+local function replace_by_reserved_env_vars(conf, override_by_env)
     -- TODO: support more reserved environment variables
     -- support APISIX_DEPLOYMENT_ETCD_HOST and API7_CONTROL_PLANE_ENDPOINTS
     if not conf["deployment"] or not conf["deployment"]["etcd"] then
         return
     end
 
-    -- Avoid SELinux strategy
-    local tmp_name = os.tmpname()
-
+    local path = "/tmp/"
     local v = getenv("API7_CONTROL_PLANE_ENDPOINTS") or getenv("APISIX_DEPLOYMENT_ETCD_HOST")
     if v then
         local val, _, err = dkjson.decode(v)
@@ -145,41 +142,44 @@ local function replace_by_reserved_env_vars(conf)
         conf["deployment"]["etcd"]["tls"]["sni"] = sni
     end
 
-    local cpCert = getenv("API7_CONTROL_PLANE_CERT")
-    local cpKey = getenv("API7_CONTROL_PLANE_KEY")
+    local cp_cert = getenv("API7_CONTROL_PLANE_CERT")
+    local cp_key = getenv("API7_CONTROL_PLANE_KEY")
 
-    if not cpCert or not cpKey then
+    if not cp_cert or not cp_key then
         return
     end
 
-    local certPath = tmp_name .. "_api7ee.crt"
-    local ok, err = util.write_file(certPath, cpCert)
-    if not ok then
-        util.die("failed to update nginx.conf: ", err, "\n")
+    local cert_path = path .. "api7ee.crt"
+    local key_path = path .. "api7ee.key"
+    if override_by_env then
+        local ok, err = util.write_file(cert_path, cp_cert)
+        if not ok then
+            util.die("failed to update cert: ", err, "\n")
+        end
+        local ok, err = util.write_file(key_path, cp_key)
+        if not ok then
+            util.die("failed to update key: ", err, "\n")
+        end
     end
 
-    local keyPath = tmp_name .. "_api7ee.key"
-    local ok, err = util.write_file(keyPath, cpKey)
-    if not ok then
-        util.die("failed to update nginx.conf: ", err, "\n")
-    end
-
-    conf["deployment"]["etcd"]["tls"]["cert"] = certPath
-    conf["deployment"]["etcd"]["tls"]["key"] = keyPath
+    conf["deployment"]["etcd"]["tls"]["cert"] = cert_path
+    conf["deployment"]["etcd"]["tls"]["key"] = key_path
 
     local ca = getenv("API7_CONTROL_PLANE_CA")
     if not ca then
         return
     end
 
-    local caPath = tmp_name .. "_api7ee_ca.crt"
-    local ok, err = util.write_file(caPath, ca)
-    if not ok then
-        util.die("failed to update nginx.conf: ", err, "\n")
+    local ca_path = path .. "api7ee_ca.crt"
+    if override_by_env then
+        local ok, err = util.write_file(ca_path, ca)
+        if not ok then
+            util.die("failed to update ca cert: ", err, "\n")
+        end
     end
 
     conf["apisix"]["ssl"] = conf["apisix"]["ssl"] or {}
-    conf["apisix"]["ssl"]["ssl_trusted_certificate"] = caPath
+    conf["apisix"]["ssl"]["ssl_trusted_certificate"] = ca_path
 end
 
 
@@ -258,7 +258,7 @@ local function merge_conf(base, new_tab, ppath)
 end
 
 
-function _M.read_yaml_conf(apisix_home)
+function _M.read_yaml_conf(apisix_home, override_by_env)
     if apisix_home then
         profile.apisix_home = apisix_home .. "/"
     end
@@ -351,7 +351,7 @@ function _M.read_yaml_conf(apisix_home)
         end
     end
 
-    replace_by_reserved_env_vars(default_conf)
+    replace_by_reserved_env_vars(default_conf, override_by_env)
 
     return default_conf
 end

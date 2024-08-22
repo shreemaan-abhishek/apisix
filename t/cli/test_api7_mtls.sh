@@ -192,3 +192,32 @@ if grep -c "certificate host mismatch" logs/error.log > /dev/null; then
 fi
 
 echo "passed: certificate verify success expectedly"
+
+#certificate should be stored in files
+echo '
+deployment:
+  role: traditional
+  role_traditional:
+    config_provider: etcd
+  etcd:
+    host:
+      - "https://127.0.0.1:22379"
+    prefix: "/apisix"
+    tls:
+      verify: true
+  ' > conf/config.yaml
+
+echo "" > logs/error.log
+  out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) make init 2>&1 || echo "ouch")
+
+#check if file exists
+if [ ! -f /tmp/api7ee.crt ]; then
+  echo "failed: /tmp/api7ee.crt not found"
+  exit 1
+fi
+if [ ! -f /tmp/api7ee.key ]; then
+  echo "failed: /tmp/api7ee.key not found"
+  exit 1
+fi
+
+echo "passed: files created for crt and key successfully"
