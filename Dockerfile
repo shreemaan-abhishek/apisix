@@ -110,9 +110,8 @@ RUN apt update \
     && luarocks config variables.OPENSSL_DIR /usr/local/openresty/openssl3 \
     && ENV_OPENSSL_PREFIX=/usr/local/openresty/openssl3 make deps \
     && go clean -cache -modcache && rm -rf /usr/local/go \
-    && SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove --allow-remove-essential luarocks sudo gcc unzip make git wget golang-go
-
-RUN groupadd --system --gid 636 apisix \
+    && SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove --allow-remove-essential luarocks sudo gcc unzip make git wget golang-go \
+    && groupadd --system --gid 636 apisix \
     && useradd --system --gid apisix --no-create-home --shell /usr/sbin/nologin --uid 636 apisix \
     && chown -R apisix:apisix /usr/local/apisix
 
