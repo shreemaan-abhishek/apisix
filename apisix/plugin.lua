@@ -1023,7 +1023,7 @@ end
 local function decrypt_conf(name, conf, schema_type)
     local schema = get_plugin_schema_for_gde(name, schema_type)
     if not schema then
-        core.log.warn("failed to get schema for plugin: ", name)
+        core.log.error("failed to get schema for plugin: ", name)
         return
     end
 

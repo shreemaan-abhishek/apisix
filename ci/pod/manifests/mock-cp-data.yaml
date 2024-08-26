@@ -137,4 +137,11 @@ custom_plugins:
 
         return _M
       name: 3rd-party
+      id: 3rd-party
+plugins:
+    - name: basic-auth
+    - name: limit-count
+    - name: prometheus
+    - name: 3rd-party
+      is_custom: true
 #END
