@@ -71,11 +71,11 @@ install_module() {
     cp -av "${VAR_CUR_HOME}/t" "${VAR_APISIX_HOME}"
     # remove grpc related test cases and lua files
     rm -rf "${VAR_APISIX_HOME}/t/deployment/grpc"
-    rm "${VAR_APISIX_HOME}/t/core/etcd-grpc-auth.t"
-    rm "${VAR_APISIX_HOME}/t/core/etcd-grpc-mtls.t"
-    rm "${VAR_APISIX_HOME}/t/core/grpc.t"
-    eval rm "${VAR_APISIX_HOME}/t/cli/test_etcd_grpc*"
-    rm "${VAR_APISIX_HOME}/apisix/core/grpc.lua"
+    rm -f "${VAR_APISIX_HOME}/t/core/etcd-grpc-auth.t"
+    rm -f "${VAR_APISIX_HOME}/t/core/etcd-grpc-mtls.t"
+    rm -f "${VAR_APISIX_HOME}/t/core/grpc.t"
+    eval rm -f "${VAR_APISIX_HOME}/t/cli/test_etcd_grpc*"
+    rm -f "${VAR_APISIX_HOME}/apisix/core/grpc.lua"
     cp -av "${VAR_CUR_HOME}/conf" "${VAR_APISIX_HOME}"
 
     cp -av "${VAR_CUR_HOME}/agent" "${VAR_APISIX_HOME}"
