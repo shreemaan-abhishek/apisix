@@ -99,7 +99,7 @@ local labels_def = {
 
 local rule_name_def = {
     type = "string",
-    maxLength = 100,
+    maxLength = 65536,
     minLength = 1,
 }
 
@@ -372,17 +372,10 @@ local private_key_schema = {
 }
 
 
-local upstream_name = {
-    type = "string",
-    minLength = 1,
-    maxLength = 1024,
-}
-
-
 local upstream_schema = {
     type = "object",
     properties = {
-        name = upstream_name,
+        name = rule_name_def,
         create_time = timestamp_def,
         update_time = timestamp_def,
         nodes = nodes_schema,

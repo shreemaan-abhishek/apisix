@@ -1228,7 +1228,7 @@ GET /t
         content_by_lua_block {
             local t = require("lib.test_admin").test
             local code, body = t('/apisix/admin/services/1', ngx.HTTP_PUT,
-                require("toolkit.json").encode({name = ("1"):rep(101)}))
+                require("toolkit.json").encode({name = ("1"):rep(65537)}))
 
             ngx.status = code
             ngx.print(body)
@@ -1238,7 +1238,7 @@ GET /t
 GET /t
 --- error_code: 400
 --- response_body
-{"error_msg":"invalid configuration: property \"name\" validation failed: string too long, expected at most 100, got 101"}
+{"error_msg":"invalid configuration: property \"name\" validation failed: string too long, expected at most 65536, got 65537"}
 
 
 
