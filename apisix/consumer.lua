@@ -18,6 +18,7 @@ local core           = require("apisix.core")
 local secret         = require("apisix.secret")
 local plugin         = require("apisix.plugin")
 local plugin_checker = require("apisix.plugin").plugin_checker
+local check_schema   = require("apisix.core.schema").check
 local error          = error
 local ipairs         = ipairs
 local pairs          = pairs
@@ -72,6 +73,21 @@ local function plugin_consumer()
     return plugins
 end
 
+local function is_credential_etcd_key(key)
+    if not key then
+        return false
+    end
+
+    local uri_segs = core.utils.split_uri(key)
+    return uri_segs[2] == "apisix" and uri_segs[3] == "consumers" and uri_segs[5] == "credentials"
+end
+
+_M.is_credential_etcd_key = is_credential_etcd_key
+
+function _M.get_consumer_key_from_credential_key(key)
+    local uri_segs = core.utils.split_uri(key)
+    return "/consumers/" .. uri_segs[3]
+end
 
 function _M.plugin(plugin_name)
     local plugin_conf = core.lrucache.global("/consumers",
@@ -119,8 +135,18 @@ function _M.consumers_kv(plugin_name, consumer_conf, key_attr)
     return consumers
 end
 
+local function check_consumer(consumer, key)
+    local data_valid
+    local err
+    if is_credential_etcd_key(key) then
+        data_valid, err = check_schema(core.schema.credential, consumer)
+    else
+        data_valid, err = check_schema(core.schema.consumer, consumer)
+    end
+    if not data_valid then
+        return data_valid, err
+    end
 
-local function check_consumer(consumer)
     return plugin_checker(consumer, core.schema.TYPE_CONSUMER)
 end
 
@@ -139,7 +165,6 @@ function _M.init_worker()
     local err
     local cfg = {
         automatic = true,
-        item_schema = core.schema.consumer,
         checker = check_consumer,
     }
     if core.config.type ~= "etcd" then

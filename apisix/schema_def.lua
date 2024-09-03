@@ -723,6 +723,18 @@ _M.consumer = {
     required = {"username"},
 }
 
+_M.credential = {
+    type = "object",
+    properties = {
+        id = id_schema,
+        plugins = plugins_schema,
+        labels = labels_def,
+        create_time = timestamp_def,
+        update_time = timestamp_def,
+        desc = desc_def,
+    },
+}
+
 
 _M.upstream = upstream_schema
 _M.upstream_name = upstream_name

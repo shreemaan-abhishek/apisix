@@ -352,7 +352,7 @@ GET /t
             assert(etcd.set("/ab", "ab"))
             local res, err = etcd.get("/a", true)
             ngx.status = res.status
-            ngx.say(res.body.node.value)
+            ngx.say(res.body.list[1].value)
         }
     }
 --- request
