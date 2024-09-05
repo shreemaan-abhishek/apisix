@@ -727,7 +727,10 @@ _M.credential = {
     type = "object",
     properties = {
         id = id_schema,
-        plugins = plugins_schema,
+        plugins = {
+            type = "object",
+            maxProperties = 1,
+        },
         labels = labels_def,
         create_time = timestamp_def,
         update_time = timestamp_def,

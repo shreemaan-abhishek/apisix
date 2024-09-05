@@ -320,7 +320,34 @@ GET /t
 
 
 
-=== TEST 11: delete consumer
+=== TEST 11: create a credential has more than one plugin: should not ok
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/consumers/jack/credentials/xxx-yyy-zzz',
+                ngx.HTTP_PUT,
+                [[{
+                     "plugins": {
+                         "key-auth": {"key": "the-key"},
+                         "basic-auth": {"username": "the-user", "password": "the-password"}
+                     }
+                }]]
+            )
+
+            ngx.status = code
+            ngx.print(body)
+        }
+    }
+--- request
+GET /t
+--- error_code: 400
+--- response_body
+{"error_msg":"invalid configuration: property \"plugins\" validation failed: expect object to have at most 1 properties"}
+
+
+
+=== TEST 12: delete consumer
 --- config
     location /t {
         content_by_lua_block {
@@ -340,7 +367,7 @@ passed
 
 
 
-=== TEST 12: list credentials: should get 404 because the consumer is deleted
+=== TEST 13: list credentials: should get 404 because the consumer is deleted
 --- config
     location /t {
         content_by_lua_block {

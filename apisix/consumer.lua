@@ -15,6 +15,7 @@
 -- limitations under the License.
 --
 local core           = require("apisix.core")
+local config_local   = require("apisix.core.config_local")
 local secret         = require("apisix.secret")
 local plugin         = require("apisix.plugin")
 local plugin_checker = require("apisix.plugin").plugin_checker
@@ -23,6 +24,7 @@ local error          = error
 local ipairs         = ipairs
 local pairs          = pairs
 local type           = type
+local string_sub     = string.sub
 local consumers
 
 
@@ -33,6 +35,45 @@ local _M = {
 local lrucache = core.lrucache.new({
     ttl = 300, count = 512
 })
+
+local function remove_etcd_prefix(key)
+    local prefix = ""
+    local local_conf = config_local.local_conf()
+    if local_conf.etcd and local_conf.etcd.prefix then
+        prefix = local_conf.etcd.prefix
+    end
+    return string_sub(key, #prefix + 1)
+end
+
+-- /{etcd.prefix}/consumers/{username}/credentials/{credential_id} --> {username}
+local function get_username_from_credential_etcd_key(key)
+    local uri_segs = core.utils.split_uri(remove_etcd_prefix(key))
+    return uri_segs[3]
+end
+
+local function is_credential_etcd_key(key)
+    if not key then
+        return false
+    end
+
+    local uri_segs = core.utils.split_uri(remove_etcd_prefix(key))
+    return uri_segs[2] == "consumers" and uri_segs[4] == "credentials"
+end
+
+local function filter_consumers_list(data_list)
+    if #data_list == 0 then
+        return data_list
+    end
+
+    local list = {}
+    for _, item in ipairs(data_list) do
+        if not (type(item) == "table" and is_credential_etcd_key(item.key)) then
+            core.table.insert(list, item)
+        end
+    end
+
+    return list
+end
 
 local function plugin_consumer()
     local plugins = {}
@@ -56,7 +97,22 @@ local function plugin_consumer()
                     }
                 end
 
-                local new_consumer = core.table.clone(consumer.value)
+                local new_consumer
+                if is_credential_etcd_key(consumer.key) then
+                    local username = get_username_from_credential_etcd_key(consumer.key)
+                    local the_consumer = consumers:get(username)
+                    if the_consumer and the_consumer.value then
+                        new_consumer = core.table.clone(the_consumer.value)
+                    else
+                        -- Normally wouldn't get here: it should belong to a consumer for any credential.
+                        core.log.error("failed to get the consumer for the credential, a wild credential has appeared! credential key: ",
+                                consumer.key, ", consumer name: ", username)
+                        goto CONTINUE
+                    end
+                else
+                    new_consumer = core.table.clone(consumer.value)
+                end
+
                 -- Note: the id here is the key of consumer data, which
                 -- is 'username' field in admin
                 new_consumer.consumer_name = new_consumer.id
@@ -73,16 +129,7 @@ local function plugin_consumer()
     return plugins
 end
 
-local function is_credential_etcd_key(key)
-    if not key then
-        return false
-    end
-
-    local uri_segs = core.utils.split_uri(key)
-    return uri_segs[2] == "apisix" and uri_segs[3] == "consumers" and uri_segs[5] == "credentials"
-end
-
-_M.is_credential_etcd_key = is_credential_etcd_key
+_M.filter_consumers_list = filter_consumers_list
 
 function _M.get_consumer_key_from_credential_key(key)
     local uri_segs = core.utils.split_uri(key)
@@ -110,7 +157,7 @@ function _M.consumers()
         return nil, nil
     end
 
-    return consumers.values, consumers.conf_version
+    return filter_consumers_list(consumers.values), consumers.conf_version
 end
 
 

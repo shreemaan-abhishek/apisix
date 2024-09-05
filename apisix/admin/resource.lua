@@ -50,21 +50,6 @@ local function split_typ_and_id(id, sub_path)
     return typ, id
 end
 
-local function filter_consumers_list(data_list)
-    if #data_list == 0 then
-        return data_list
-    end
-
-    local list = {}
-    for _, item in ipairs(data_list) do
-        if not apisix_consumer.is_credential_etcd_key(item.key) then
-            core.table.insert(list, item)
-        end
-    end
-
-    return list
-end
-
 
 function _M:check_conf(id, conf, need_id, typ)
     if self.name == "secrets" then
@@ -154,7 +139,7 @@ function _M:get(id, conf, sub_path)
 
     -- consumers etcd range response will include credentials, so need to filter out them
     if self.name == "consumers" and res.body.list then
-        res.body.list = filter_consumers_list(res.body.list)
+        res.body.list = apisix_consumer.filter_consumers_list(res.body.list)
         res.body.total = #res.body.list
     end
 
