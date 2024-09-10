@@ -288,12 +288,12 @@ local function retrieve_hmac_fields(ctx)
     local hmac_params = {}
     local auth_string = core.request.header(ctx, "Authorization")
     if not auth_string then
-        return hmac_params
+        return nil, "missing Authorization header"
     end
 
-		if not auth_string:match("^Signature") then
-		    return hmac_params, "Authorization header does not start with 'Signature'"
-		end
+    if not auth_string:match("^Signature") then
+        return nil, "Authorization header does not start with 'Signature'"
+    end
 
     local signature_fields = auth_string:sub(10):gmatch('[^,]+')
 
