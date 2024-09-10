@@ -93,7 +93,7 @@ end
 
 
 local metric_url
-function _M.fetch_metrics()
+function _M.fetch_metrics(http_timeout)
     if not metric_url then
         local attr = plugin.plugin_attr("prometheus")
         local metric_host = attr.export_addr and attr.export_addr.host or "127.0.0.1"
@@ -107,7 +107,7 @@ function _M.fetch_metrics()
         return nil, err
     end
 
-    httpc:set_timeout(3 * 1000)
+    httpc:set_timeout(http_timeout)
     return httpc:request_uri(metric_url, { method="GET" })
 end
 

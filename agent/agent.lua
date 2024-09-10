@@ -97,7 +97,7 @@ local function send_request(url, opts)
 
     local http_cli = resty_http.new()
 
-    http_cli:set_timeout(3 * 1000)
+    http_cli:set_timeout(opts.http_timeout)
     local res, err = http_cli:request_uri(url, {
         method = opts.method,
         body = opts.body,
@@ -145,6 +145,7 @@ function _M.heartbeat(self, first)
         method =  "POST",
         body = post_heartbeat_payload,
         headers = headers,
+        http_timeout = self.http_timeout,
         ssl_verify = self.ssl_verify,
         ssl_ca_cert = self.ssl_ca_cert,
         ssl_cert_path = self.ssl_cert_path,
@@ -207,7 +208,7 @@ function _M.upload_metrics(self)
     -- Since we should get the metrics of nginx status,
     -- and we can't start sub-request in timer,
     -- so we should send request to APISIX metrics port.
-    local res, err = utils.fetch_metrics()
+    local res, err = utils.fetch_metrics(self.http_timeout)
     if err then
         core.log.error("fetch prometheus metrics error ", err)
         return
@@ -229,7 +230,7 @@ function _M.upload_metrics(self)
 
     local http_cli = resty_http.new()
 
-    http_cli:set_timeout(3 * 1000)
+    http_cli:set_timeout(self.http_timeout)
 
     local res, err = http_cli:request_uri(self.metrics_url, {
         method =  "POST",
@@ -271,6 +272,7 @@ local function push_healthcheck_data(self, url, data, kind)
         method = "POST",
         body = payload_data,
         headers = headers,
+        http_timeout = self.http_timeout,
         ssl_verify = self.ssl_verify,
         ssl_ca_cert = self.ssl_ca_cert,
         ssl_cert_path = self.ssl_cert_path,
@@ -417,6 +419,10 @@ function _M.new(agent_conf)
         core.log.error("failed get api_calls_counter from dict, error: ", err)
         return nil
     end
+    local http_timeout = 30 * 1000
+    if agent_conf.http_timeout then
+        http_timeout = tonumber(agent_conf.http_timeout:match("%d+")) * 1000
+    end
     local self = {
         heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
         metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
@@ -430,6 +436,7 @@ function _M.new(agent_conf)
         heartbeat_interval = 10,
         telemetry = agent_conf.telemetry,
         healthcheck_report_interval = agent_conf.healthcheck_report_interval,
+        http_timeout = http_timeout,
         last_heartbeat_time = nil,
         last_metrics_uploading_time = nil,
         config_version = 0,
