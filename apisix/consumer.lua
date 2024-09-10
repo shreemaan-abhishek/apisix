@@ -60,6 +60,11 @@ local function is_credential_etcd_key(key)
     return uri_segs[2] == "consumers" and uri_segs[4] == "credentials"
 end
 
+local function get_credential_id_from_etcd_key(key)
+    local uri_segs = core.utils.split_uri(remove_etcd_prefix(key))
+    return uri_segs[5]
+end
+
 local function filter_consumers_list(data_list)
     if #data_list == 0 then
         return data_list
@@ -103,6 +108,7 @@ local function plugin_consumer()
                     local the_consumer = consumers:get(username)
                     if the_consumer and the_consumer.value then
                         new_consumer = core.table.clone(the_consumer.value)
+                        new_consumer.credential_id = get_credential_id_from_etcd_key(consumer.key)
                     else
                         -- Normally wouldn't get here: it should belong to a consumer for any credential.
                         core.log.error("failed to get the consumer for the credential, a wild credential has appeared! credential key: ",
@@ -111,6 +117,10 @@ local function plugin_consumer()
                     end
                 else
                     new_consumer = core.table.clone(consumer.value)
+                end
+
+                if consumer.value.labels then
+                    new_consumer.custom_id = consumer.value.labels["custom_id"]
                 end
 
                 -- Note: the id here is the key of consumer data, which
@@ -149,6 +159,10 @@ function _M.attach_consumer(ctx, consumer, conf)
     ctx.consumer_name = consumer.consumer_name
     ctx.consumer_group_id = consumer.group_id
     ctx.consumer_ver = conf.conf_version
+
+    core.request.set_header(ctx, "X-Consumer-Username", consumer.username)
+    core.request.set_header(ctx, "X-Credential-Identifier", consumer.credential_id)
+    core.request.set_header(ctx, "X-Consumer-Custom-ID", consumer.custom_id)
 end
 
 
