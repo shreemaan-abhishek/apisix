@@ -96,6 +96,7 @@ plugins:    # plugin list
   - multi-auth
   - acl
   - consumer-restriction
+  - attach-consumer-label
   - forward-auth
   - opa
   - authz-keycloak

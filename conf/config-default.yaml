@@ -451,6 +451,7 @@ plugins:                          # plugin list (sorted by priority)
   - key-auth                       # priority: 2500
   - acl                            # priority: 2410
   - consumer-restriction           # priority: 2400
+  - attach-consumer-label          # priority: 2399
   - forward-auth                   # priority: 2002
   - opa                            # priority: 2001
   - authz-keycloak                 # priority: 2000

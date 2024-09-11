@@ -89,6 +89,7 @@ jwt-auth
 key-auth
 acl
 consumer-restriction
+attach-consumer-label
 forward-auth
 opa
 authz-keycloak
