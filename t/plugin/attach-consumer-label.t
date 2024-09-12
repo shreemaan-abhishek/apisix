@@ -15,8 +15,10 @@ __DATA__
         content_by_lua_block {
             local plugin = require("apisix.plugins.attach-consumer-label")
             local ok, err = plugin.check_schema({
-                ["X-Consumer-Department"] = "department",
-                ["X-Consumer-Company"] = "$company"
+                headers = {
+                    ["X-Consumer-Department"] = "department",
+                    ["X-Consumer-Company"] = "$company"
+                }
             })
             if not ok then
                 ngx.say(err)
@@ -29,7 +31,7 @@ __DATA__
 --- request
 GET /t
 --- response_body
-failed to validate additional property X-Consumer-Department: failed to match pattern "^\\$.*" with "department"
+property "headers" validation failed: failed to validate additional property X-Consumer-Department: failed to match pattern "^\\$.*" with "department"
 --- no_error_log
 [error]
 
@@ -41,8 +43,10 @@ failed to validate additional property X-Consumer-Department: failed to match pa
         content_by_lua_block {
             local plugin = require("apisix.plugins.attach-consumer-label")
             local ok, err = plugin.check_schema({
-                ["X-Consumer-Department"] = "$department",
-                ["X-Consumer-Company"] = "$company"
+                headers = {
+                    ["X-Consumer-Department"] = "$department",
+                    ["X-Consumer-Company"] = "$company"
+                }
             })
             if not ok then
                 ngx.say(err)
@@ -123,8 +127,13 @@ passed
                     "uri": "/echo",
                     "plugins": {
                         "attach-consumer-label": {
-                            "X-Consumer-Department": "$department",
-                            "X-Consumer-Company": "$company"
+                            "_meta": {
+                                "disable": false
+                            },
+                            "headers": {
+                                "X-Consumer-Department": "$department",
+                                "X-Consumer-Company": "$company"
+                            }
                         }
                     },
                     "upstream": {
@@ -177,9 +186,11 @@ GET /echo
                     "plugins": {
                         "key-auth": {},
                         "attach-consumer-label": {
-                            "X-Consumer-Department": "$department",
-                            "X-Consumer-Company": "$company",
-                            "X-Consumer-Role": "$role"
+                            "headers": {
+                                "X-Consumer-Department": "$department",
+                                "X-Consumer-Company": "$company",
+                                "X-Consumer-Role": "$role"
+                            }
                         }
                     },
                     "upstream": {

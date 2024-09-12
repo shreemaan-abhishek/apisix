@@ -3,12 +3,16 @@ local plugin_name = "attach-consumer-label"
 
 local schema = {
     type = "object",
-    properties = {},
-    additionalProperties = {
-        type = "string",
-        pattern = "^\\$.*"
+    properties = {
+        headers = {
+            type = "object",
+            additionalProperties = {
+                type = "string",
+                pattern = "^\\$.*"
+            },
+            minProperties = 1
+        },
     },
-    minProperties = 1
 }
 
 local _M = {
@@ -34,7 +38,7 @@ function _M.access(conf, ctx)
         return
     end
 
-    for header, label_key in pairs(conf) do
+    for header, label_key in pairs(conf.headers) do
         -- remove leading $ character
         local label_value = labels[label_key:sub(2)]
         core.request.set_header(ctx, header, label_value)
