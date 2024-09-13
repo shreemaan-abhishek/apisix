@@ -9,7 +9,55 @@ run_tests;
 
 __DATA__
 
-=== TEST 1: invalid schema (missing $ prefix)
+=== TEST 1: invalid schema (missing headers)
+--- config
+    location /t {
+        content_by_lua_block {
+            local plugin = require("apisix.plugins.attach-consumer-label")
+            local ok, err = plugin.check_schema({})
+            if not ok then
+                ngx.say(err)
+                return
+            end
+
+            ngx.say("done")
+        }
+    }
+--- request
+GET /t
+--- response_body
+property "headers" is required
+--- no_error_log
+[error]
+
+
+
+=== TEST 2: invalid schema (headers is an empty object)
+--- config
+    location /t {
+        content_by_lua_block {
+            local plugin = require("apisix.plugins.attach-consumer-label")
+            local ok, err = plugin.check_schema({
+                headers = {}
+            })
+            if not ok then
+                ngx.say(err)
+                return
+            end
+
+            ngx.say("done")
+        }
+    }
+--- request
+GET /t
+--- response_body
+property "headers" validation failed: expect object to have at least 1 properties
+--- no_error_log
+[error]
+
+
+
+=== TEST 3: invalid schema (missing $ prefix)
 --- config
     location /t {
         content_by_lua_block {
@@ -37,7 +85,7 @@ property "headers" validation failed: failed to validate additional property X-C
 
 
 
-=== TEST 2: valid schema
+=== TEST 4: valid schema
 --- config
     location /t {
         content_by_lua_block {
@@ -65,7 +113,7 @@ done
 
 
 
-=== TEST 3: add consumer with labels
+=== TEST 5: add consumer with labels
 --- config
     location /t {
         content_by_lua_block {
@@ -116,7 +164,7 @@ passed
 
 
 
-=== TEST 4: add route with only attach-consumer-label plugin (no key-auth)
+=== TEST 6: add route with only attach-consumer-label plugin (no key-auth)
 --- config
     location /t {
         content_by_lua_block {
@@ -163,7 +211,7 @@ passed
 
 
 
-=== TEST 5: access without auth (should not contain consumer labels)
+=== TEST 7: access without auth (should not contain consumer labels)
 --- request
 GET /echo
 --- response_headers
@@ -174,7 +222,7 @@ GET /echo
 
 
 
-=== TEST 6: add route with attach-consumer-label plugin (with key-auth)
+=== TEST 8: add route with attach-consumer-label plugin (with key-auth)
 --- config
     location /t {
         content_by_lua_block {
@@ -220,7 +268,7 @@ passed
 
 
 
-=== TEST 7: access with auth (should contain consumer labels headers, but no x-consumer-role)
+=== TEST 9: access with auth (should contain consumer labels headers, but no x-consumer-role)
 --- request
 GET /echo
 --- more_headers
@@ -235,7 +283,7 @@ X-Consumer-Department: devops
 
 
 
-=== TEST 8: modify consumer without labels
+=== TEST 10: modify consumer without labels
 --- config
     location /t {
         content_by_lua_block {
@@ -265,7 +313,7 @@ passed
 
 
 
-=== TEST 9: access with auth (should not contain headers because consumer has no labels)
+=== TEST 11: access with auth (should not contain headers because consumer has no labels)
 --- request
 GET /echo
 --- more_headers

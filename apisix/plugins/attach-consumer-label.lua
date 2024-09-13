@@ -13,6 +13,7 @@ local schema = {
             minProperties = 1
         },
     },
+    required = {"headers"},
 }
 
 local _M = {
