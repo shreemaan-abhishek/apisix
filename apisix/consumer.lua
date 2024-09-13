@@ -45,8 +45,8 @@ local function remove_etcd_prefix(key)
     return string_sub(key, #prefix + 1)
 end
 
--- /{etcd.prefix}/consumers/{username}/credentials/{credential_id} --> {username}
-local function get_username_from_credential_etcd_key(key)
+-- /{etcd.prefix}/consumers/{consumer_name}/credentials/{credential_id} --> {consumer_name}
+local function get_consumer_name_from_credential_etcd_key(key)
     local uri_segs = core.utils.split_uri(remove_etcd_prefix(key))
     return uri_segs[3]
 end
@@ -87,12 +87,15 @@ local function plugin_consumer()
         return plugins
     end
 
-    for _, consumer in ipairs(consumers.values) do
-        if type(consumer) ~= "table" then
+    -- consumers.values is the list that got from etcd by prefix key {etcd_prefix}/consumers.
+    -- So it contains consumers and credentials.
+    -- The val in the for-loop may be a Consumer or a Credential.
+    for _, val in ipairs(consumers.values) do
+        if type(val) ~= "table" then
             goto CONTINUE
         end
 
-        for name, config in pairs(consumer.value.plugins or {}) do
+        for name, config in pairs(val.value.plugins or {}) do
             local plugin_obj = plugin.get(name)
             if plugin_obj and plugin_obj.type == "auth" then
                 if not plugins[name] then
@@ -102,34 +105,38 @@ local function plugin_consumer()
                     }
                 end
 
-                local new_consumer
-                if is_credential_etcd_key(consumer.key) then
-                    local username = get_username_from_credential_etcd_key(consumer.key)
-                    local the_consumer = consumers:get(username)
+                -- if the val is a Consumer, clone it to the local consumer;
+                -- if the val is a Credential, to get the Consumer by consumer_name and then clone it to the local consumer.
+                local consumer
+                if is_credential_etcd_key(val.key) then
+                    local consumer_name = get_consumer_name_from_credential_etcd_key(val.key)
+                    local the_consumer = consumers:get(consumer_name)
                     if the_consumer and the_consumer.value then
-                        new_consumer = core.table.clone(the_consumer.value)
-                        new_consumer.credential_id = get_credential_id_from_etcd_key(consumer.key)
+                        consumer = core.table.clone(the_consumer.value)
+                        consumer.credential_id = get_credential_id_from_etcd_key(val.key)
                     else
                         -- Normally wouldn't get here: it should belong to a consumer for any credential.
                         core.log.error("failed to get the consumer for the credential, a wild credential has appeared! credential key: ",
-                                consumer.key, ", consumer name: ", username)
+                                val.key, ", consumer name: ", consumer_name)
                         goto CONTINUE
                     end
                 else
-                    new_consumer = core.table.clone(consumer.value)
+                    consumer = core.table.clone(val.value)
                 end
 
-                if consumer.value.labels then
-                    new_consumer.custom_id = consumer.value.labels["custom_id"]
+                -- if the consumer has labels, set the field custom_id to it.
+                -- the custom_id is used to set in the request headers to the upstream.
+                if consumer.labels then
+                    consumer.custom_id = consumer.labels["custom_id"]
                 end
 
                 -- Note: the id here is the key of consumer data, which
                 -- is 'username' field in admin
-                new_consumer.consumer_name = new_consumer.id
-                new_consumer.auth_conf = config
-                new_consumer.modifiedIndex = consumer.modifiedIndex
-                core.log.info("consumer:", core.json.delay_encode(new_consumer))
-                core.table.insert(plugins[name].nodes, new_consumer)
+                consumer.consumer_name = consumer.id
+                consumer.auth_conf = config
+                consumer.modifiedIndex = val.modifiedIndex
+                core.log.info("consumer:", core.json.delay_encode(consumer))
+                core.table.insert(plugins[name].nodes, consumer)
             end
         end
 
