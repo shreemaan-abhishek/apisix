@@ -137,58 +137,6 @@ ci-env-stop:
     sed -i '30i\        only: false' "${VAR_APISIX_HOME}/t/cli/test_prometheus_stream.sh"
 }
 
-test_env() {
-    export_or_prefix
-
-    ./bin/apisix init
-
-    failed_msg="failed: failed to configure etcd host with reserved environment variable"
-
-    # should failed
-    out=$(API7_CONTROL_PLANE_ENDPOINTS='["http://127.0.0.1:2333"]' ./bin/apisix init_etcd 2>&1 || true)
-    if ! echo "$out" | grep "connection refused"; then
-        echo $failed_msg
-        exit 1
-    fi
-
-    # should success
-    out=$(API7_CONTROL_PLANE_ENDPOINTS='["http://127.0.0.1:2379"]' ./bin/apisix init_etcd 2>&1 || true)
-    if echo "$out" | grep "connection refused" > /dev/null; then
-        echo $failed_msg
-        exit 1
-    fi
-
-}
-
-
-run_case() {
-    export_or_prefix
-
-    ./bin/apisix init
-    ./bin/apisix init_etcd
-
-    git submodule update --init --recursive
-
-    # test proxy-buffering plugin
-    apt -y install python3
-    pip3 install sseclient-py aiohttp-sse
-    ./bin/apisix start
-    sleep 2
-    t/plugin/test_proxy_buffering.sh
-    ./bin/apisix stop
-
-    FLUSH_ETCD=1 prove -I../test-nginx/lib -I./ -r -s t/admin/routes2.t t/admin/consumers.t t/admin/credentials.t t/node/service-path-prefix.t \
-        t/api7-agent \
-        t/plugin/graphql-proxy-cache \
-        t/plugin/traffic-label.t t/plugin/traffic-label2.t \
-        t/plugin/limit-count-redis-cluster3.t t/plugin/limit-count-redis4.t t/plugin/limit-count5.t \
-        t/plugin/graphql-limit-count \
-        t/plugin/acl* \
-        t/plugin/data-mask* \
-        t/plugin/saml-auth.t \
-        t/plugin/api7-traffic-split*
-}
-
 # =======================================
 # Entry
 # =======================================
@@ -207,12 +155,6 @@ install_module)
     ;;
 install_deps)
     install_deps "$@"
-    ;;
-run_case)
-    run_case "$@"
-    ;;
-test_env)
-    test_env "$@"
     ;;
 *)
     func_echo_error_status "Unknown method: ${case_opt}"
