@@ -30,7 +30,17 @@ local function check_conf(_id, conf, _need_id, schema)
     return true, nil
 end
 
-local function get_key(_id, _conf, sub_path, _args)
+-- get_credential_etcd_key is used to splice the credential's etcd key (without prefix) from credential_id and sub_path.
+-- Parameter credential_id is from the uri or payload; sub_path is in the form of {consumer_name}/credentials or {consumer_name}/credentials/{credential_id}.
+-- Only if GET credentials list, credential_id is nil, sub_path is like {consumer_name}/credentials, so return value is /consumers/{consumer_name}/credentials.
+-- In the other methods, credential_id is not nil, return value is /consumers/{consumer_name}/credentials/{credential_id}.
+local function get_credential_etcd_key(credential_id, _conf, sub_path, _args)
+    if credential_id then
+        local uri_segs = core.utils.split_uri(sub_path)
+        local consumer_name = uri_segs[1]
+        return "/consumers/" .. consumer_name .. "/credentials/" .. credential_id
+    end
+
     return "/consumers/" .. sub_path
 end
 
@@ -39,6 +49,6 @@ return resource.new({
     kind = "credential",
     schema = core.schema.credential,
     checker = check_conf,
-    get_key = get_key,
+    get_resource_etcd_key = get_credential_etcd_key,
     unsupported_methods = {"post", "patch"}
 })

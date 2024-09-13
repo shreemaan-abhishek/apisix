@@ -120,8 +120,8 @@ function _M:get(id, conf, sub_path)
 
     -- some resources(consumers) have sub resources(credentials),
     -- the key format of sub resources will differ from the main resource
-    if self.get_key then
-        key = self.get_key(id, conf, sub_path)
+    if self.get_resource_etcd_key then
+        key = self.get_resource_etcd_key(id, conf, sub_path)
     end
 
     local res, err = core.etcd.get(key, not id)
@@ -222,8 +222,8 @@ function _M:put(id, conf, sub_path, args)
 
     key = key .. "/" .. id
 
-    if self.get_key then
-        key = self.get_key(id, conf, sub_path, args)
+    if self.get_resource_etcd_key then
+        key = self.get_resource_etcd_key(id, conf, sub_path, args)
     end
 
     if self.name == "credentials" then
@@ -288,8 +288,8 @@ function _M:delete(id, conf, sub_path, uri_args)
 
     key = key .. "/" .. id
 
-    if self.get_key then
-        key = self.get_key(id, conf, sub_path, uri_args)
+    if self.get_resource_etcd_key then
+        key = self.get_resource_etcd_key(id, conf, sub_path, uri_args)
     end
 
     if self.delete_checker and uri_args.force ~= "true" then

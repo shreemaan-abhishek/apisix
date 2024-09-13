@@ -383,3 +383,94 @@ GET /t
 --- error_code: 404
 --- response_body
 {"message":"Key not found"}
+
+
+
+=== TEST 14: add a consumer
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/consumers',
+                ngx.HTTP_PUT,
+                [[{
+                     "username":"jack"
+                }]]
+            )
+
+            if ngx.status >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 15: add a credential with key-auth for the consumer jack (id in the payload but not in uri), should success
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/consumers/jack/credentials',
+                ngx.HTTP_PUT,
+                [[{
+                     "id": "d79a5aa3",
+                     "desc": "key-auth for jack",
+                     "plugins": {
+                         "key-auth": {
+                             "key": "the-key"
+                         }
+                     }
+                }]],
+                [[{
+                    "value":{
+                        "desc":"key-auth for jack",
+                        "id":"d79a5aa3",
+                        "plugins":{"key-auth":{"key":"the-key"}}
+                    },
+                    "key":"/apisix/consumers/jack/credentials/d79a5aa3"
+                }]]
+            )
+
+            ngx.status = code
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 16: add a credential with key-auth for the consumer jack but missing id in uri and payload, should fail
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/consumers/jack/credentials',
+                ngx.HTTP_PUT,
+                [[{
+                     "desc": "key-auth for jack",
+                     "plugins": {
+                         "key-auth": {
+                             "key": "the-key"
+                         }
+                     }
+                }]]
+            )
+
+            ngx.status = code
+            ngx.print(body)
+        }
+    }
+--- request
+GET /t
+--- error_code: 400
+--- response_body
+{"error_msg":"missing credential id"}
