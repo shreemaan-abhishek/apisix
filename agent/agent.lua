@@ -127,9 +127,6 @@ function _M.heartbeat(self, first)
     if err ~= nil then
         core.log.error("failed get api_calls_counter from dict, error: ", err)
     end
-    if not first then
-        self.last_heartbeat_time = current_time
-    end
 
     payload.conf_server_revision = utils.get_conf_server_revision()
     payload.cores = ngx.worker.count()
@@ -152,6 +149,11 @@ function _M.heartbeat(self, first)
         ssl_key_path = self.ssl_key_path,
         ssl_server_name = self.ssl_server_name,
     })
+
+    if not first then
+        self.last_heartbeat_time = current_time
+    end
+
     if not res then
         core.log.error("heartbeat failed ", err)
         return
@@ -199,8 +201,6 @@ function _M.upload_metrics(self)
         return
     end
 
-    self.last_metrics_uploading_time = current_time
-
     local payload = {
         instance_id = core.id.get(),
     }
@@ -242,6 +242,7 @@ function _M.upload_metrics(self)
         ssl_key_path = self.ssl_key_path,
     })
 
+    self.last_metrics_uploading_time = current_time
     local resp_body
     if not res then
         core.log.error("upload metrics failed ", err)
