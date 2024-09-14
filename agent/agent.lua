@@ -118,6 +118,10 @@ function _M.heartbeat(self, first)
             current_time - self.last_heartbeat_time < self.heartbeat_interval then
         return
     end
+    if self.ongoing_heartbeat then
+        core.log.info("previous heartbeat request not finished yet")
+        return
+    end
     payload.api_calls = 0
     local api_calls, err = config_dict:get("api_calls_counter")
     if api_calls ~= nil then
@@ -138,6 +142,7 @@ function _M.heartbeat(self, first)
     }
 
     local post_heartbeat_payload = core.json.encode(payload)
+    self.ongoing_heartbeat = true
     local res, err = send_request(self.heartbeat_url, {
         method =  "POST",
         body = post_heartbeat_payload,
@@ -149,6 +154,7 @@ function _M.heartbeat(self, first)
         ssl_key_path = self.ssl_key_path,
         ssl_server_name = self.ssl_server_name,
     })
+    self.ongoing_heartbeat = false
 
     if not first then
         self.last_heartbeat_time = current_time
@@ -200,6 +206,10 @@ function _M.upload_metrics(self)
             current_time - self.last_metrics_uploading_time < self.telemetry.interval then
         return
     end
+    if self.ongoing_metrics_uploading then
+        core.log.info("previous metrics upload request not finished yet")
+        return
+    end
 
     local payload = {
         instance_id = core.id.get(),
@@ -232,6 +242,7 @@ function _M.upload_metrics(self)
 
     http_cli:set_timeout(self.http_timeout)
 
+    self.ongoing_metrics_uploading = true
     local res, err = http_cli:request_uri(self.metrics_url, {
         method =  "POST",
         body = core.json.encode(payload),
@@ -241,6 +252,7 @@ function _M.upload_metrics(self)
         ssl_cert_path = self.ssl_cert_path,
         ssl_key_path = self.ssl_key_path,
     })
+    self.ongoing_metrics_uploading = false
 
     self.last_metrics_uploading_time = current_time
     local resp_body
@@ -439,7 +451,9 @@ function _M.new(agent_conf)
         healthcheck_report_interval = agent_conf.healthcheck_report_interval,
         http_timeout = http_timeout,
         last_heartbeat_time = nil,
+        ongoing_heartbeat = false,
         last_metrics_uploading_time = nil,
+        ongoing_metrics_uploading = false,
         config_version = 0,
         api_calls_counter_last_value = init_api_calls,
     }

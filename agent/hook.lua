@@ -195,6 +195,11 @@ local function hook()
         healthcheck_report_interval = 60 * 2
     end
 
+    local http_timeout = core.table.try_read_attr(local_conf, "api7ee", "http_timeout")
+    if not http_timeout then
+        http_timeout = "30s"
+    end
+
     local telemetry = core.table.try_read_attr(local_conf, "api7ee", "telemetry")
     if not telemetry then
         telemetry = {}
@@ -218,6 +223,7 @@ local function hook()
         telemetry = telemetry,
         ssl_server_name = ssl_server_name,
         healthcheck_report_interval = healthcheck_report_interval,
+        http_timeout = http_timeout,
     })
 
     local skip_first_heartbeat = getenv("API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG")
