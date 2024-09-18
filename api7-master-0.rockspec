@@ -80,7 +80,8 @@ dependencies = {
     "nanoid = 0.1-1",
     "lua-resty-mediador = 0.1.2-1",
     "lua-resty-ldap = 0.1.0-0",
-    "jsonpath = 1.0-1"
+    "jsonpath = 1.0-1",
+    "api7-lua-resty-aws == 2.0.1-1",
 }
 
 build = {
