@@ -1,0 +1,64 @@
+name: Stress Testing
+
+on:
+  pull_request:
+    types: [labeled, synchronize]
+
+jobs:
+  stress-test:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-stress-testing')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3.2.0
+        with:
+          token: ${{ secrets.PERSONAL_TOKEN }}
+          submodules: recursive
+
+      - name: Check out APISIX repo
+        run: |
+          make init_apisix
+          make patch_apisix
+
+      - name: Login to Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ${{ secrets.PRIVATE_DOCKER_REGISTRY }}
+          username: ${{ secrets.PRIVATE_DOCKER_USERNAME }}
+          password: ${{ secrets.PRIVATE_DOCKER_PASSWORD }}
+
+      - name: Install wrk2 
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential libssl-dev git zlib1g-dev
+          sudo git clone https://github.com/giltene/wrk2.git
+          cd wrk2
+          sudo make
+          sudo cp wrk /usr/local/bin
+
+      - name: Download utilities
+        run: |
+          sudo apt install -y sysstat curl
+          yq --version
+          pwd
+      - name: Run stress test
+        run: |
+          cd ci/stress-testing ; ./stress-testing.sh -t all -f /home/runner/work/output.json
+
+      - name: Upload test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: stress-test-report
+          path: /home/runner/work/output.json
+
+      - name: Create markdown table
+        run: |
+          echo '```json' > /home/runner/work/output.md
+          cat /home/runner/work/output.json >> /home/runner/work/output.md
+          echo '```' >> /home/runner/work/output.md
+
+      - uses: mshick/add-pr-comment@v2
+        with:
+         message-path: |
+           /home/runner/work/output.md

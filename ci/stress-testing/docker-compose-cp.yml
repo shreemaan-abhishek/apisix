@@ -1,0 +1,82 @@
+version: "3.6"
+
+services:
+  prometheus:
+    image: bitnami/prometheus:2.44.0-debian-11-r7
+    hostname: prometheus
+    command:
+      - --config.file=/opt/bitnami/prometheus/conf/prometheus.yml
+      - --web.enable-remote-write-receiver
+    healthcheck:
+      test: ["CMD", "/opt/bitnami/prometheus/bin/promtool", "check", "healthy"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - api7
+
+  postgresql:
+    image: bitnami/postgresql:15.3.0-debian-11-r0
+    hostname: postgresql
+    user: root
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "api7ee"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    environment:
+      POSTGRES_USER: api7ee
+      POSTGRES_PASSWORD: changeme
+    networks:
+      - api7
+
+  api7-ee-dashboard:
+    image: hkccr.ccs.tencentyun.com/api7-dev/api7-ee-3-integrated:dev
+    hostname: dashboard
+    restart: always
+    volumes:
+      - ./dashboard_conf/conf.yaml:/usr/local/api7/conf/conf.yaml:ro
+    command:
+      - sh
+      - -c
+      - node server.js & /usr/local/api7/api7-ee-dashboard -c /usr/local/api7/conf/conf.yaml
+    ports:
+      - "7080:7080"
+      - "7443:7443"
+    healthcheck:
+      test: ["CMD", "nc", "-z", "127.0.0.1", "7443"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    networks:
+      - api7
+
+  api7-ee-dp-manager:
+    image: hkccr.ccs.tencentyun.com/api7-dev/api7-ee-dp-manager:dev
+    hostname: dp-manager
+    volumes:
+      - ./dp_manager_conf/conf.yaml:/usr/local/api7/conf/conf.yaml:ro
+    restart: always
+    command:
+      - /usr/local/api7/api7-ee-dp-manager
+      - -c
+      - /usr/local/api7/conf/conf.yaml
+    ports:
+      - "7900:7900"
+      - "7943:7943"
+    depends_on:
+      api7-ee-dashboard:
+        condition: service_healthy
+    networks:
+      - api7
+
+networks:
+  api7:
+    driver: bridge
+    ipam:
+      driver: default
