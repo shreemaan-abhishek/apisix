@@ -1381,6 +1381,7 @@ When `{secretmanager}` is `vault`:
 | uri    | True     | URI        | URI of the vault server.                                                                                              |                                                  |
 | prefix    | True    | string        | key prefix
 | token     | True    | string      | vault token. |                                                  |
+| namespace | False   | string       | Vault namespace, no default value | `admin` |
 
 Example Configuration:
 
