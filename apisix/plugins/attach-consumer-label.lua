@@ -27,7 +27,7 @@ function _M.check_schema(conf)
     return core.schema.check(schema, conf)
 end
 
-function _M.access(conf, ctx)
+function _M.before_proxy(conf, ctx)
     -- check if the consumer is exists in the context
     if not ctx.consumer then
         return

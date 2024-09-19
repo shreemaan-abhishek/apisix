@@ -323,3 +323,126 @@ apikey: key-a
 !X-Consumer-Department
 --- noerror_log
 [error]
+
+
+
+=== TEST 12: modify consumer with labels
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/consumers/jack',
+                ngx.HTTP_PUT,
+                [[{
+                    "username": "jack",
+                    "labels": {
+                        "department": "devops",
+                        "company": "api7"
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+                ngx.say(body)
+                return
+            end
+
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+--- no_error_log
+[error]
+
+
+
+=== TEST 13: modify route without attach-consumer-label plugin
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/echo",
+                    "plugins": {
+                        "key-auth": {}
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+                ngx.say(body)
+                return
+            end
+
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+--- no_error_log
+[error]
+
+
+
+=== TEST 14: add global rule with attach-consumer-label plugin
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/global_rules/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "plugins": {
+                        "attach-consumer-label": {
+                            "headers": {
+                                "X-Global-Consumer-Department": "$department",
+                                "X-Global-Consumer-Company": "$company"
+                            }
+                        }
+                    }
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+                ngx.say(body)
+                return
+            end
+
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+--- no_error_log
+[error]
+
+
+
+=== TEST 15: access with auth (should contain expected consumer labels headers)
+--- request
+GET /echo
+--- more_headers
+apikey: key-a
+--- response_headers
+X-Global-Consumer-Company: api7
+X-Global-Consumer-Department: devops
+--- no_error_log
+[error]
