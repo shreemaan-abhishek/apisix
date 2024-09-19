@@ -81,7 +81,7 @@ local function check_conf(id, conf, need_id, schema)
     end
 
     if conf.path_prefix then
-        if core.string.has_suffix(conf.path_prefix, "/") then
+        if #conf.path_prefix > 1 and core.string.has_suffix(conf.path_prefix, "/") then
             return nil, {error_msg = "path_prefix must not be ended with /"}
         end
     end

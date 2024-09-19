@@ -30,6 +30,92 @@ add_block_preprocessor(sub {
 
     my $extra_init_worker_by_lua = $block->extra_init_worker_by_lua // "";
     $extra_init_worker_by_lua .= <<_EOC_;
+function test_root_prefix()
+    local t = require("lib.test_admin")
+
+    assert(t.test('/apisix/admin/services/1',
+        ngx.HTTP_PUT,
+        [[
+            {
+                \"plugins\": {
+                    \"proxy-rewrite\": {
+                        \"regex_uri\": [\"^/foo/(.*)\",\"/\$1\"]
+                    }
+                },
+                \"path_prefix\": \"/\",
+                \"upstream\": {
+                    \"type\": \"roundrobin\",
+                    \"nodes\": {
+                        \"127.0.0.1:1980\": 1
+                    }
+                }
+            }
+        ]]
+    ))
+    ngx.sleep(0.5)
+
+    assert(t.test('/apisix/admin/routes/1',
+        ngx.HTTP_PUT,
+        [[
+            {
+                \"uri\": \"foo/hello\",
+                \"service_id\": \"1\"
+            }
+        ]]
+    ))
+    ngx.sleep(0.5)
+
+    local http = require "resty.http"
+    local httpc = http.new()
+    local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/foo/hello"
+    local res, err = httpc:request_uri(uri)
+    ngx.status = res.status
+    ngx.print(res.body)
+end
+
+function test_root_prefix_2()
+    local t = require("lib.test_admin")
+
+    assert(t.test('/apisix/admin/services/1',
+        ngx.HTTP_PUT,
+        [[
+            {
+                \"plugins\": {
+                    \"proxy-rewrite\": {
+                        \"regex_uri\": [\"^/foo/(.*)\",\"/\$1\"]
+                    }
+                },
+                \"path_prefix\": \"/\",
+                \"upstream\": {
+                    \"type\": \"roundrobin\",
+                    \"nodes\": {
+                        \"127.0.0.1:1980\": 1
+                    }
+                }
+            }
+        ]]
+    ))
+    ngx.sleep(0.5)
+
+    assert(t.test('/apisix/admin/routes/1',
+        ngx.HTTP_PUT,
+        [[
+            {
+                \"uri\": \"/foo/hello\",
+                \"service_id\": \"1\"
+            }
+        ]]
+    ))
+    ngx.sleep(0.5)
+
+    local http = require "resty.http"
+    local httpc = http.new()
+    local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/foo/hello"
+    local res, err = httpc:request_uri(uri)
+    ngx.status = res.status
+    ngx.print(res.body)
+end
+
 function test_path_prefix()
     local t = require("lib.test_admin")
 
@@ -208,6 +294,37 @@ apisix:
     location /t {
         content_by_lua_block {
             test_strip_path_prefix()
+        }
+    }
+--- response_body
+hello world
+
+
+
+=== TEST 7: test service "/" prefix: radixtree_uri
+--- yaml_config
+apisix:
+  router:
+    http: 'radixtree_uri'
+--- config
+    location /t {
+        content_by_lua_block {
+            test_root_prefix()
+        }
+    }
+--- response_body
+hello world
+
+
+=== TEST 8: test service "/" prefix and route uri also starts with /: radixtree_uri
+--- yaml_config
+apisix:
+  router:
+    http: 'radixtree_uri'
+--- config
+    location /t {
+        content_by_lua_block {
+            test_root_prefix_2()
         }
     }
 --- response_body

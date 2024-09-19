@@ -692,9 +692,9 @@ _M.service = {
         path_prefix = {
             description = "add prefix to uri",
             type        = "string",
-            minLength   = 2,
+            minLength   = 1,
             maxLength   = 4096,
-            pattern     = [[^/.+]],
+            pattern     = [[^/.*]],
         },
         strip_path_prefix = {type = "boolean", default = false},
         status = {
