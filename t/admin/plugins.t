@@ -95,6 +95,7 @@ opa
 authz-keycloak
 data-mask
 body-transformer
+ai-prompt-template
 proxy-mirror
 proxy-cache
 graphql-proxy-cache

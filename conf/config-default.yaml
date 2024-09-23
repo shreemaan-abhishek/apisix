@@ -458,6 +458,7 @@ plugins:                          # plugin list (sorted by priority)
   - data-mask                      # priority: 1500
   #- error-log-logger              # priority: 1091
   - body-transformer               # priority: 1080
+  - ai-prompt-template             # priority: 1071
   - proxy-mirror                   # priority: 1010
   - proxy-cache                    # priority: 1009
   - graphql-proxy-cache            # priority: 1009
