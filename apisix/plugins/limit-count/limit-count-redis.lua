@@ -16,6 +16,7 @@
 --
 local redis_new = require("resty.redis").new
 local core = require("apisix.core")
+local delayed_syncer = require("apisix.plugins.limit-count.delayed-syncer")
 local assert = assert
 local setmetatable = setmetatable
 local tostring = tostring
@@ -30,11 +31,10 @@ local mt = {
 
 
 local script = core.string.compress_script([=[
-    assert(tonumber(ARGV[3]) >= 1, "cost must be at least 1")
-    local ttl = redis.call('ttl', KEYS[1])
+    local ttl = redis.call('pttl', KEYS[1])
     if ttl < 0 then
         redis.call('set', KEYS[1], ARGV[1] - ARGV[3], 'EX', ARGV[2])
-        return {ARGV[1] - ARGV[3], ARGV[2]}
+        return {ARGV[1] - ARGV[3], ARGV[2] * 1000}
     end
     return {redis.call('incrby', KEYS[1], 0 - ARGV[3]), ttl}
 ]=])
@@ -93,7 +93,20 @@ function _M.new(plugin_name, limit, window, conf)
         conf = conf,
         plugin_name = plugin_name,
     }
+    self.delayed_syncer = delayed_syncer.new(limit, window, conf, self)
     return setmetatable(self, mt)
+end
+
+function _M.incoming_delayed(self, key, cost, syncer_id)
+    core.log.info("delayed sync to redis") -- for sanity test
+    local remaining, reset, err = self.delayed_syncer:delayed_sync(key, cost, syncer_id)
+    if not remaining then
+        return nil, err, 0
+    end
+    if remaining < 0 then
+        return nil, "rejected", reset
+    end
+    return 0, remaining, reset
 end
 
 function _M.incoming(self, key, cost)
@@ -116,7 +129,7 @@ function _M.incoming(self, key, cost)
     end
 
     local remaining = res[1]
-    ttl = res[2]
+    ttl = res[2] / 1000.0
 
     local ok, err = red:set_keepalive(10000, 100)
     if not ok then

@@ -20,6 +20,8 @@ local tab_insert = table.insert
 local ipairs = ipairs
 local pairs = pairs
 
+local NO_DELAYED_SYNC = -1
+
 local limit_redis_cluster_new
 local limit_redis_new
 local limit_local_new
@@ -121,7 +123,10 @@ local schema = {
             default = "local",
         },
         allow_degradation = {type = "boolean", default = false},
-        show_limit_quota_header = {type = "boolean", default = true}
+        show_limit_quota_header = {type = "boolean", default = true},
+        sync_interval = {
+            type = "number", default = NO_DELAYED_SYNC,
+        },
     },
     required = {"count", "time_window"},
     ["if"] = {
@@ -191,6 +196,18 @@ function _M.check_schema(conf)
                 core.log.error("current limit-conn group ", conf.group,
                             " conf: ", core.json.encode(conf))
                 return false, "group conf mismatched"
+            end
+        end
+    end
+
+    if conf.policy == "redis" or conf.policy == "redis-cluster" then
+        if conf.sync_interval ~= NO_DELAYED_SYNC then
+            if conf.sync_interval < 0.1 then
+                return false, "sync_interval should not be smaller than 0.1"
+            end
+
+            if conf.sync_interval > conf.time_window then
+                return false, "sync_interval should be smaller than time_window"
             end
         end
     end
@@ -301,7 +318,19 @@ function _M.rate_limit(conf, ctx, name, cost)
     if not conf.policy or conf.policy == "local" then
         delay, remaining, reset = lim:incoming(key, true, conf, cost)
     else
-        delay, remaining, reset = lim:incoming(key, cost)
+        local enable_delayed_sync = (conf.sync_interval ~= NO_DELAYED_SYNC)
+        if enable_delayed_sync then
+            local extra_key
+            if conf._vid then
+                extra_key = conf.policy .. '#' .. conf._vid
+            else
+                extra_key = conf.policy
+            end
+            local plugin_instance_id = core.lrucache.plugin_ctx_id(ctx, extra_key)
+            delay, remaining, reset = lim:incoming_delayed(key, cost, plugin_instance_id)
+        else
+            delay, remaining, reset = lim:incoming(key, cost)
+        end
     end
 
     if not delay then
