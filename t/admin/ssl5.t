@@ -68,3 +68,30 @@ GET /t
 GET /t
 --- response_body
 passed
+
+
+
+=== TEST 3: support ed25519 key and cert
+--- config
+    location /t {
+        content_by_lua_block {
+            local core = require("apisix.core")
+            local t = require("lib.test_admin")
+
+            local ssl_cert = t.read_file("t/certs/ed25519.crt")
+            local ssl_key =  t.read_file("t/certs/ed25519.key")
+            local data = {type = "client", cert = ssl_cert, key = ssl_key}
+
+            local code, body = t.test('/apisix/admin/ssls/1',
+                ngx.HTTP_PUT,
+                core.json.encode(data)
+                )
+
+            ngx.status = code
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed

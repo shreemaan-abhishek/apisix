@@ -766,7 +766,6 @@ passed
 
 
 === TEST 23: set ssl with invalid prefix
---- ONLY
 --- config
     location /t {
         content_by_lua_block {
@@ -777,7 +776,7 @@ passed
                 sni = "test.com",
                 cert = "$ENV://APISIX_TEST_SSL_CERT",
                 key = "$env://APISIX_TEST_SSL_KEY",
-                certs = {"https://APISIX_TEST_SSL_CERTS"},
+                certs = {"$https://APISIX_TEST_SSL_CERTS"},
                 keys = {"$ENV://APISIX_TEST_SSL_KEYS"},
             }
 

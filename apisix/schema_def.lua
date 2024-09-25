@@ -363,12 +363,12 @@ _M.discovery_nodes = {
 
 
 local certificate_scheme = {
-    type = "string", minLength = 128, maxLength = 64*1024
+    type = "string", minLength = 1, maxLength = 64*1024, pattern = "^[^\\$]"
 }
 
 
 local private_key_schema = {
-    type = "string", minLength = 128, maxLength = 64*1024
+    type = "string", minLength = 1, maxLength = 64*1024, pattern = "^[^\\$]"
 }
 
 
