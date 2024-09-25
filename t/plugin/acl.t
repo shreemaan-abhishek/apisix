@@ -859,7 +859,8 @@ passed
 GET /hello
 --- error_code: 403
 --- error_log
-extra_values_with_parser(): failed to split labels [cloud,infra], err: pcre_compile() failed: missing ) in "(invalid(pattern"
+extra_values_with_parser(): failed to split labels [cloud,infra], err: pcre_compile() failed: missing ) in "\s*(invalid(pattern\s*"
+
 
 
 === TEST 37: set the parser "table" but the type of the value extracted is not a table

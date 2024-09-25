@@ -79,6 +79,7 @@ local parsers = {
 local function extra_values_with_parser(value, parser, sep)
     local values = {}
     if parser == parsers.SEGMENTED_TEXT then
+        sep = "\\s*" .. sep .. "\\s*"
         local res, err = re_split(value, sep, "jo")
         if res then
             return res
