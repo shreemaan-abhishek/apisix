@@ -112,6 +112,12 @@ install_module() {
     sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/toolset/src/table-count/*.lua $(ENV_INST_LUADIR)/apisix/plugins/toolset/src/table-count/' "${VAR_APISIX_HOME}/Makefile"
     sed -i '303i __to_replace__	$(ENV_INSTALL) apisix/plugins/toolset/src/*.lua $(ENV_INST_LUADIR)/apisix/plugins/toolset/src/' "${VAR_APISIX_HOME}/Makefile"
 
+    sed -i '304i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '305i __to_replace__	$(ENV_INSTALL) apisix/plugins/ai-proxy/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy' "${VAR_APISIX_HOME}/Makefile"
+
+	sed -i '306i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy/drivers' "${VAR_APISIX_HOME}/Makefile"
+	sed -i '307i __to_replace__	$(ENV_INSTALL) apisix/plugins/ai-proxy/drivers/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy/drivers' "${VAR_APISIX_HOME}/Makefile"
+
     echo '
 ### ci-env-stop : CI env temporary stop
 .PHONY: ci-env-stop
@@ -137,6 +143,26 @@ ci-env-stop:
     sed -i '30i\        only: false' "${VAR_APISIX_HOME}/t/cli/test_prometheus_stream.sh"
 }
 
+start_sse_server_example() {
+    # build sse_server_example
+    pushd t/sse_server_example
+    go build
+    ./sse_server_example 7737 2>&1 &
+
+    for (( i = 0; i <= 10; i++ )); do
+        sleep 0.5
+        SSE_PROC=`ps -ef | grep sse_server_example | grep -v grep || echo "none"`
+        if [[ $SSE_PROC == "none" || "$i" -eq 10 ]]; then
+            echo "failed to start sse_server_example"
+            ss -antp | grep 7737 || echo "no proc listen port 7737"
+            exit 1
+        else
+            break
+        fi
+    done
+    popd
+}
+
 # =======================================
 # Entry
 # =======================================
@@ -155,6 +181,9 @@ install_module)
     ;;
 install_deps)
     install_deps "$@"
+    ;;
+start_sse_server_example)
+    start_sse_server_example "$@"
     ;;
 *)
     func_echo_error_status "Unknown method: ${case_opt}"

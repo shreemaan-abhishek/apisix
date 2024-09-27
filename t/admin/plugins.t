@@ -106,6 +106,7 @@ graphql-limit-count
 limit-conn
 limit-count
 limit-req
+ai-proxy
 traffic-label
 gzip
 server-info
