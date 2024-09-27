@@ -96,6 +96,7 @@ authz-keycloak
 data-mask
 body-transformer
 ai-prompt-template
+ai-prompt-decorator
 proxy-mirror
 proxy-cache
 graphql-proxy-cache
