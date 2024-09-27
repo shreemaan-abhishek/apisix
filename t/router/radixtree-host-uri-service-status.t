@@ -16,81 +16,36 @@
 #
 use t::APISIX 'no_plan';
 
-repeat_each(1);
-log_level('info');
-worker_connections(256);
-no_root_location();
-no_shuffle();
+our $yaml_config = <<_EOC_;
+apisix:
+    node_listen: 1984
+    router:
+        http: 'radixtree_host_uri'
+_EOC_
+
+add_block_preprocessor(sub {
+    my ($block) = @_;
+
+    $block->set_value("yaml_config", $yaml_config);
+
+    if (!$block->request) {
+        $block->set_value("request", "GET /t");
+    }
+
+    if (!$block->error_log && !$block->no_error_log &&
+        (defined $block->error_code && $block->error_code != 502))
+    {
+        $block->set_value("no_error_log", "[error]");
+    }
+
+    $block;
+});
 
 run_tests();
 
 __DATA__
 
-=== TEST 1: set empty service. (id: 1)（allow empty `service` object）
---- config
-    location /t {
-        content_by_lua_block {
-            local t = require("lib.test_admin").test
-            local code, body = t('/apisix/admin/services/1',
-                ngx.HTTP_PUT,
-                '{}'
-                )
-
-            if code >= 300 then
-                ngx.status = code
-            end
-            ngx.say(body)
-        }
-    }
---- request
-GET /t
---- response_body
-passed
-
-
-
-=== TEST 2: route binding empty service
---- config
-    location /t {
-        content_by_lua_block {
-            local t = require("lib.test_admin").test
-            local code, body = t('/apisix/admin/routes/1',
-                ngx.HTTP_PUT,
-                [[{
-                    "methods": ["GET"],
-                    "upstream": {
-                        "nodes": {
-                            "127.0.0.1:1980": 1
-                        },
-                        "type": "roundrobin"
-                    },
-                    "service_id": "1",
-                    "uri": "/hello"
-                }]]
-                )
-
-            if code >= 300 then
-                ngx.status = code
-            end
-            ngx.say(body)
-        }
-    }
---- request
-GET /t
---- response_body
-passed
-
-
-
-=== TEST 3: /hello
---- request
-GET /hello
---- response_body
-hello world
-
-
-
-=== TEST 4: update service status disable. (id: 1)
+=== TEST 1: create a service
 --- config
     location /t {
         content_by_lua_block {
@@ -98,14 +53,13 @@ hello world
             local code, body = t('/apisix/admin/services/1',
                 ngx.HTTP_PUT,
                 [[{
-                    "desc": "disabled service",
                     "upstream": {
                         "nodes": {
                             "127.0.0.1:1980": 1
                         },
                         "type": "roundrobin"
                     },
-                    "status": 0
+                    "hosts": ["foo.com"]
                 }]]
             )
 
@@ -122,91 +76,7 @@ passed
 
 
 
-=== TEST 5: /hello
---- request
-GET /hello
---- error_code eval
-404
---- response_body
-{"error_msg":"404 Route Not Found"}
-
-
-
-=== TEST 6: failed to update service with invalid status (id: 1)
---- config
-    location /t {
-        content_by_lua_block {
-            local t = require("lib.test_admin").test
-            local code, body = t('/apisix/admin/services/1',
-                ngx.HTTP_PUT,
-                [[{
-                    "desc": "invalid service",
-                    "upstream": {
-                        "nodes": {
-                            "127.0.0.1:1980": 1
-                        },
-                        "type": "roundrobin"
-                    },
-                    "status": 3
-                }]]
-            )
-
-            if code >= 300 then
-                ngx.status = code
-            end
-            ngx.print(body)
-        }
-    }
---- request
-GET /t
---- error_code eval
-400
---- response_body
-{"error_msg":"invalid configuration: property \"status\" validation failed: matches none of the enum values"}
-
-
-
-=== TEST 7: update service status enable. (id: 1)
---- config
-    location /t {
-        content_by_lua_block {
-            local t = require("lib.test_admin").test
-            local code, body = t('/apisix/admin/services/1',
-                ngx.HTTP_PUT,
-                [[{
-                    "desc": "disabled service",
-                    "upstream": {
-                        "nodes": {
-                            "127.0.0.1:1980": 1
-                        },
-                        "type": "roundrobin"
-                    },
-                    "status": 1
-                }]]
-            )
-
-            if code >= 300 then
-                ngx.status = code
-            end
-            ngx.say(body)
-        }
-    }
---- request
-GET /t
---- response_body
-passed
-
-
-
-=== TEST 8: /hello
---- request
-GET /hello
---- response_body
-hello world
-
-
-
-=== TEST 9: create a exact route with service_id (upstream port: 1980)
+=== TEST 2: create a exact route with service_id (upstream port: 1980)
 --- config
     location /t {
         content_by_lua_block {
@@ -233,7 +103,7 @@ passed
 
 
 
-=== TEST 10: create wildcard route without service_id (upstream port: 1981)
+=== TEST 3: create wildcard route without service_id (upstream port: 1981)
 --- config
     location /t {
         content_by_lua_block {
@@ -248,6 +118,7 @@ passed
                         },
                         "type": "roundrobin"
                     },
+                    "hosts": ["foo.com"],
                     "uri": "/*"
                 }]]
                 )
@@ -265,15 +136,17 @@ passed
 
 
 
-=== TEST 11: request /server_port should match the exact route
+=== TEST 4: request /server_port should match the exact route
 --- request
 GET /server_port
+--- more_headers
+Host: foo.com
 --- response_body_like eval
 qr/1980/
 
 
 
-=== TEST 12: update exact route's service status to disable
+=== TEST 5: update exact route's service status to disable
 --- config
     location /t {
         content_by_lua_block {
@@ -304,15 +177,17 @@ passed
 
 
 
-=== TEST 13: request /server_port should match the wildcard route after service disabled
+=== TEST 6: request /server_port should match the wildcard route after service disabled
 --- request
 GET /server_port
+--- more_headers
+Host: foo.com
 --- response_body_like eval
 qr/1981/
 
 
 
-=== TEST 14: delete exact route's service
+=== TEST 7: delete exact route's service
 --- config
     location /t {
         content_by_lua_block {
@@ -333,9 +208,11 @@ passed
 
 
 
-=== TEST 15: request /server_port should match the wildcard route after service deleted
+=== TEST 8: request /server_port should match the wildcard route after service deleted
 --- request
 GET /server_port
+--- more_headers
+Host: foo.com
 --- response_body_like eval
 qr/1981/
 --- error_log

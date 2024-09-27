@@ -6,6 +6,7 @@ no_root_location();
 run_tests();
 
 __DATA__
+
 === TEST 1: set stream route(id: 1) -> service(id: 1)
 --- config
     location /t {
@@ -42,11 +43,17 @@ __DATA__
 GET /t
 --- response_body
 passed
+
+
+
 === TEST 2: hit route
 --- stream_request eval
 mmm
 --- stream_response
 hello world
+
+
+
 === TEST 3: set stream route(id: 1)
 --- config
     location /t {
@@ -69,9 +76,15 @@ hello world
 GET /t
 --- response_body
 passed
+
+
+
 === TEST 4: not hit route
 --- stream_enable
 --- stream_response
+
+
+
 === TEST 5: delete route(id: 1)
 --- config
     location /t {
@@ -90,6 +103,9 @@ passed
 GET /t
 --- response_body
 passed
+
+
+
 === TEST 6: set service upstream (id: 1)
 --- config
     location /t {
@@ -123,6 +139,9 @@ passed
 GET /t
 --- response_body
 passed
+
+
+
 === TEST 7: set stream route (id: 1) with service (id: 1) which uses upstream_id
 --- config
     location /t {
@@ -145,11 +164,17 @@ passed
 GET /t
 --- response_body
 passed
+
+
+
 === TEST 8: hit route
 --- stream_request eval
 mmm
 --- stream_response
 hello world
+
+
+
 === TEST 9: set stream route (id: 1) which uses upstream_id and remote address with IP CIDR
 --- config
     location /t {
@@ -172,11 +197,17 @@ hello world
 GET /t
 --- response_body
 passed
+
+
+
 === TEST 10: hit route
 --- stream_request eval
 mmm
 --- stream_response
 hello world
+
+
+
 === TEST 11: reject bad CIDR
 --- config
     location /t {
@@ -200,6 +231,9 @@ GET /t
 --- error_code: 400
 --- response_body
 {"error_msg":"invalid remote_addr: :/8"}
+
+
+
 === TEST 12: skip upstream http host check in stream subsystem
 --- config
     location /t {
@@ -226,8 +260,49 @@ GET /t
 GET /t
 --- response_body
 passed
+
+
+
 === TEST 13: hit route
 --- stream_request eval
 mmm
 --- stream_response
 hello world
+
+
+
+=== TEST 14: update service status to disable
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/services/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "upstream_id": 1,
+                    "status": 0
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 15: hit route
+--- stream_request eval
+mmm
+--- stream_response
+receive stream response error: connection reset by peer
+--- error_log
+receive stream response error: connection reset by peer
+--- error_log
+match(): not hit any route

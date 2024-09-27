@@ -3,6 +3,7 @@ local core_ip  = require("apisix.core.ip")
 local config_util = require("apisix.core.config_util")
 local stream_plugin_checker = require("apisix.plugin").stream_plugin_checker
 local router_new = require("apisix.utils.router").new
+local service_fetch = require("apisix.http.service").get
 local apisix_ssl = require("apisix.ssl")
 local xrpc = require("apisix.stream.xrpc")
 local error     = error
@@ -58,6 +59,16 @@ do
         for _, item in config_util.iterate_values(items) do
             if item.value == nil then
                 goto CONTINUE
+            end
+            if item.value.service_id then
+                local service = service_fetch(item.value.service_id)
+                if not service then
+                    core.log.error("failed to fetch service configuration by ",
+                                   "id: ", item.value.service_id)
+                    goto CONTINUE
+                elseif service.value.status == 0 then
+                    goto CONTINUE
+                end
             end
 
             local route = item.value

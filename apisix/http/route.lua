@@ -70,6 +70,17 @@ function _M.create_radixtree_uri_router(routes, uri_routes, with_parameter)
                 goto CONTINUE
             end
 
+            if route.value.service_id then
+                local service = service_fetch(route.value.service_id)
+                if not service then
+                    core.log.error("failed to fetch service configuration by ",
+                                   "id: ", route.value.service_id)
+                    goto CONTINUE
+                elseif service.value.status == 0 then
+                    goto CONTINUE
+                end
+            end
+
             local filter_fun, err
             if route.value.filter_func then
                 filter_fun, err = loadstring(

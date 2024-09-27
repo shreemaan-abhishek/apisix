@@ -109,9 +109,20 @@ local function create_radixtree_router(routes)
     host_router = nil
 
     for _, route in ipairs(routes or {}) do
-        local status = core.table.try_read_attr(route, "value", "status")
+        local route_status = core.table.try_read_attr(route, "value", "status")
+        local service_status
+        if route.value.service_id then
+            local service = service_fetch(route.value.service_id)
+            if not service then
+                core.log.error("failed to fetch service configuration by ",
+                               "id: ", route.value.service_id)
+                service_status = 0
+            else
+                service_status = service.value.status
+            end
+        end
         -- check the status
-        if not status or status == 1 then
+        if (not route_status or route_status == 1) and (not service_status or service_status == 1) then
             push_host_router(route, host_routes, only_uri_routes)
         end
     end

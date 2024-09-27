@@ -662,12 +662,6 @@ function _M.http_access_phase()
             return core.response.exit(404)
         end
 
-        if service.value.status ~= nil and service.value.status == 0 then
-            core.log.info("service ", service.value.id, " is disable")
-            return core.response.exit(404,
-                        {error_msg = "404 Service Not Found"})
-        end
-
         route = plugin.merge_service_route(service, route)
         api_ctx.matched_route = route
         api_ctx.conf_type = "route&service"
