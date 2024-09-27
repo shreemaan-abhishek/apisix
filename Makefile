@@ -114,11 +114,21 @@ deps:
 	./ci/utils/install-lua-resty-openapi-validate.sh
 	./ci/utils/install-lua-resty-aws-s3.sh
 
-
-build-image: ## Build docker image
+.PHONY: build-image-pre
+build-image-pre:
 	@sed -i '/- server-info/d' conf/config-default.yaml
 	@sed -i 's/#- opentelemetry/- opentelemetry/' conf/config-default.yaml
 	@sed -i 's/#- batch-request/- batch-request/' conf/config-default.yaml
-	@docker buildx build --push -t ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} --platform linux/amd64,linux/arm64 .
-	@if docker run --entrypoint cat --rm -i api7-ee-3-gateway:dev /usr/local/apisix/apisix/core.lua | file - | grep -q 'ASCII text'; then echo "code obfuscation did not work"; exit 1; fi
+
+
+### Build docker image
 .PHONY: build-image
+build-image: build-image-pre
+	docker build -t ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} .
+
+
+### Push docker image
+.PHONY: push-image
+push-image: build-image-pre
+	@docker buildx build --push -t ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} --platform linux/amd64,linux/arm64 .
+	@if docker run --entrypoint cat --rm -i ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} /usr/local/apisix/apisix/core.lua | file - | grep -q 'ASCII text'; then echo "code obfuscation did not work"; exit 1; fi

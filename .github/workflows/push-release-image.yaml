@@ -49,7 +49,7 @@ jobs:
           REGISTRY_NAMESPACE: api7
           IMAGE_TAG: ${{ steps.version.outputs.GATEWAY_VERSION }}
         run: |
-          make build-image
+          make push-image
 
       - name: Push images to private registry
         env:
@@ -57,4 +57,4 @@ jobs:
           REGISTRY_NAMESPACE: api7
           IMAGE_TAG: ${{ steps.version.outputs.GATEWAY_VERSION }}
         run: |
-          make build-image
+          make push-image

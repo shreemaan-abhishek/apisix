@@ -1,5 +1,10 @@
 name: Build docker images on commit and push them to registry
 on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - Dockerfile
   push:
     branches:
       - main
@@ -42,17 +47,36 @@ jobs:
           password: ${{ secrets.PRIVATE_DOCKER_PASSWORD }}
 
       - name: Build Images With Dev Tag
+        if: github.event_name == 'pull_request'
         env:
           REGISTRY: ${{ secrets.PRIVATE_DOCKER_REGISTRY }}
           REGISTRY_NAMESPACE: api7-dev
           IMAGE_TAG: dev
         run: |
           make build-image
+          docker save ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} | gzip > api7-ee-3-gateway-dev.tar.gz
+        
+      - name: Upload Dev Dcoker Image
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: api7-ee-3-gateway-dev
+          path: api7-ee-3-gateway-dev.tar.gz
 
-      - name: Build Images With Commit Tag
+      - name: Push Images With Dev Tag
+        if: github.event_name == 'push'
+        env:
+          REGISTRY: ${{ secrets.PRIVATE_DOCKER_REGISTRY }}
+          REGISTRY_NAMESPACE: api7-dev
+          IMAGE_TAG: dev
+        run: |
+          make push-image
+
+      - name: Push Images With Commit Tag
+        if: github.event_name == 'push'
         env:
           REGISTRY: ${{ secrets.PRIVATE_DOCKER_REGISTRY }}
           REGISTRY_NAMESPACE: api7-dev
           IMAGE_TAG: ${{ env.IMAGE_TAG }}
         run: |
-          make build-image
+          make push-image

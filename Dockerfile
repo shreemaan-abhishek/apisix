@@ -15,7 +15,7 @@ RUN set -ex; \
         ;; \
     esac; \
     apt update \
-    && apt install -y openresty-pcre openresty-zlib \
+    && apt install -y openresty-pcre-dev openresty-zlib-dev \
     && set -ex; \
     arch=$(dpkg --print-architecture); \
     wget https://github.com/api7/apisix-build-tools/releases/download/apisix-runtime/1.1.3/apisix-runtime_1.1.3-0.debianbullseye-slim_${arch}.deb; \
@@ -47,11 +47,11 @@ RUN set -ex; \
     apt update \
     && apt install -y apisix=${APISIX_VERSION}-0 \
     && apt-get purge -y --auto-remove \
+    && apisix version \
     && rm -rf /usr/local/apisix/apisix/inspect \
+    && rm -rf /usr/local/apisix/deps \
     && rm -f /usr/local/apisix/apisix/plugins/inspect.lua \
-    && rm -f /etc/apt/sources.list.d/openresty.list /etc/apt/sources.list.d/apisix.list \
-    && apisix version
-
+    && rm -f /etc/apt/sources.list.d/openresty.list /etc/apt/sources.list.d/apisix.list
 
 FROM debian:bullseye-slim
 COPY --from=runtime-builder /usr/local/openresty /usr/local/openresty
@@ -108,6 +108,7 @@ RUN apt update \
     && bash /usr/local/apisix/linux-install-luarocks.sh && rm /usr/local/apisix/linux-install-luarocks.sh \
     && export PATH=$PATH:/usr/local/go/bin CGO_ENABLED=1 \
     && luarocks config variables.OPENSSL_DIR /usr/local/openresty/openssl3 \
+    && luarocks config variables.PCRE_DIR /usr/local/openresty/pcre \
     && ENV_OPENSSL_PREFIX=/usr/local/openresty/openssl3 make deps \
     && go clean -cache -modcache && rm -rf /usr/local/go \
     && SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove --allow-remove-essential luarocks sudo gcc unzip make git wget golang-go \
