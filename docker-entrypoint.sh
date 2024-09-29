@@ -40,6 +40,8 @@ _EOC_
         /usr/bin/apisix init_etcd
     fi
 
+    # when old apisix process be force killed, the unix domain socket file will not be released
+    rm -f /usr/local/apisix/conf/config_listen.sock
     exec /usr/local/openresty/bin/openresty -p /usr/local/apisix -g 'daemon off;'
 fi
 
