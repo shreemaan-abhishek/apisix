@@ -9,9 +9,19 @@ project_version   ?= 0.0.1
 project_ci_runner ?= $(CURDIR)/ci/utils/linux-common-runnner.sh
 ENV_LUAROCKS           ?= luarocks
 
+LINUX_ARCH:=amd64 arm64
 REGISTRY ?= hkccr.ccs.tencentyun.com
 REGISTRY_NAMESPACE ?= api7-dev
 IMAGE_TAG ?= dev
+
+ARCH ?= amd64
+
+ifeq ($(shell uname -m),arm64)
+	ARCH = arm64
+endif
+ifeq ($(shell uname -m), aarch64)
+	ARCH = arm64
+endif
 
 # Hyper-converged Infrastructure
 ENV_OS_NAME          ?= $(shell uname -s | tr '[:upper:]' '[:lower:]')
@@ -124,11 +134,20 @@ build-image-pre:
 ### Build docker image
 .PHONY: build-image
 build-image: build-image-pre
-	docker build -t ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} .
+	@docker build -t ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}-${ARCH} .
+	@if docker run --entrypoint cat --rm -i ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}-${ARCH} /usr/local/apisix/apisix/core.lua | file - | grep -q 'ASCII text'; then echo "code obfuscation did not work"; exit 1; fi
 
 
 ### Push docker image
 .PHONY: push-image
-push-image: build-image-pre
-	@docker buildx build --push -t ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} --platform linux/amd64,linux/arm64 .
-	@if docker run --entrypoint cat --rm -i ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} /usr/local/apisix/apisix/core.lua | file - | grep -q 'ASCII text'; then echo "code obfuscation did not work"; exit 1; fi
+push-image: build-image
+	@docker push ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}-${ARCH}
+
+### Create and push docker manifest (multi-arch image)
+.PHONY: docker-manifest
+docker-manifest:
+	for arch in $(LINUX_ARCH); do \
+		docker manifest create --amend ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}-$${arch}; \
+    docker manifest annotate ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}-$${arch} --arch $${arch}; \
+	done
+	docker manifest push ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}
