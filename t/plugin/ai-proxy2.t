@@ -198,3 +198,25 @@ POST /anything
 --- error_code: 200
 --- response_body
 passed
+
+
+
+=== TEST 5: control api schema GET
+--- config
+location /t {
+    content_by_lua_block {
+        local t = require("lib.test_admin")
+        local json = require("apisix.core.json")
+
+        local code, body, res = t.test('/v1/schema',
+            ngx.HTTP_GET)
+        local res_tab = json.decode(res)
+        ngx.say(res_tab.plugins["ai-proxy"].schema ~= nil)
+        ngx.say(res_tab.plugins["ai-proxy"].plugin_schema == nil)
+    }
+}
+--- request
+GET /t
+--- response_body
+true
+true
