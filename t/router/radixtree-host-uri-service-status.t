@@ -217,3 +217,63 @@ Host: foo.com
 qr/1981/
 --- error_log
 failed to fetch service configuration by id: 1
+
+
+
+=== TEST 9: create service again
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/services/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 10: delete route when gateway is running
+--- config
+    location /t {
+        content_by_lua_block {
+            local core = require("apisix.core")
+            local t = require("lib.test_admin").test
+
+            -- build radixtree
+            local code = t("/server_port", ngx.HTTP_GET)
+            assert(code == 200)
+
+            local res, err = core.etcd.delete("/routes/2")
+            assert(res.status == 200)
+
+            ngx.sleep(0.5)
+
+            -- rebuild radixtree
+            local code = t("/server_port", ngx.HTTP_GET)
+            assert(code == 200)
+
+            ngx.say("passed")
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed

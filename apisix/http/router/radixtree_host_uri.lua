@@ -17,6 +17,7 @@
 local require = require
 local router = require("apisix.utils.router")
 local core = require("apisix.core")
+local config_util = require("apisix.core.config_util")
 local base_router = require("apisix.http.route")
 local get_services = require("apisix.http.service").services
 local service_fetch = require("apisix.http.service").get
@@ -35,10 +36,6 @@ local _M = {version = 0.1}
 
 
 local function push_host_router(route, host_routes, only_uri_routes)
-    if type(route) ~= "table" then
-        return
-    end
-
     local filter_fun, err
     if route.value.filter_func then
         filter_fun, err = loadstring(
@@ -108,7 +105,7 @@ local function create_radixtree_router(routes)
     local only_uri_routes = {}
     host_router = nil
 
-    for _, route in ipairs(routes or {}) do
+    for _, route in config_util.iterate_values(routes or {}) do
         local route_status = core.table.try_read_attr(route, "value", "status")
         local service_status
         if route.value.service_id then
