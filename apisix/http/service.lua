@@ -1,6 +1,6 @@
 local core   = require("apisix.core")
 local apisix_upstream = require("apisix.upstream")
-local plugin_checker = require("apisix.plugin").plugin_checker
+local plugin = require("apisix.plugin")
 local services
 local error = error
 
@@ -36,12 +36,27 @@ local function filter(service)
 end
 
 
+local function service_checker(...)
+    local args = {...}
+    local item = args[1]
+    if ngx.config.subsystem == "stream" and item.type == "stream" then
+        return plugin.stream_plugin_checker(...)
+    end
+
+    if ngx.config.subsystem ~= "stream" and item.type ~= "stream" then
+        return plugin.plugin_checker(...)
+    end
+
+    return true
+end
+
+
 function _M.init_worker()
     local err
     services, err = core.config.new("/services", {
         automatic = true,
         item_schema = core.schema.service,
-        checker = plugin_checker,
+        checker = service_checker,
         filter = filter,
     })
     if not services then

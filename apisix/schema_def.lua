@@ -702,6 +702,11 @@ _M.service = {
             type = "integer",
             enum = {1, 0},
         },
+        type = {
+            type = "string",
+            default = "http",
+            enum = {"http", "stream"}
+        }
     },
 }
 
