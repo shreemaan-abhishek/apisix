@@ -415,6 +415,10 @@ http {
     lua_shared_dict discovery 10m; # cache for discovery metadata documents
     {% end %}
     
+    {% if http.lua_shared_dict["status_report"] then %}
+    lua_shared_dict status_report {* http.lua_shared_dict["status_report"] *};
+    {% end %}
+
     # for openid-connect plugin
     {% if http.lua_shared_dict["jwks"] then %}
     lua_shared_dict jwks {* http.lua_shared_dict["jwks"] *}; # cache for JWKs
@@ -616,6 +620,23 @@ http {
         location / {
             content_by_lua_block {
                 apisix.http_control()
+            }
+        }
+    }
+    {% end %}
+
+    {% if status then %}
+    server {
+        listen {* status_server_addr *} enable_process=privileged_agent;
+        access_log off;
+        location /status {
+            content_by_lua_block {
+                apisix.status()
+            }
+        }
+        location /status/ready {
+            content_by_lua_block {
+                apisix.status_ready()
             }
         }
     }

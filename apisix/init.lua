@@ -45,6 +45,8 @@ local xrpc            = require("apisix.stream.xrpc")
 local ctxdump         = require("resty.ctxdump")
 local debug           = require("apisix.debug")
 local pubsub_kafka    = require("apisix.pubsub.kafka")
+local etcd_util       = require("apisix.utils.etcd")
+
 local ngx             = ngx
 local get_method      = ngx.req.get_method
 local ngx_req_set_uri = ngx.req.set_uri
@@ -168,6 +170,41 @@ function _M.http_exit_worker()
     -- in stream plugins
     plugin.exit_worker()
     require("apisix.plugins.ext-plugin.init").exit_worker()
+end
+
+
+function _M.status()
+    core.response.exit(200)
+end
+
+
+function _M.status_ready()
+    local status_shdict = ngx.shared.status_report
+    local pids = status_shdict:get_keys()
+    local resp = ""
+    for _, pid in pairs(pids) do
+        local need_reload = status_shdict:get(pid)
+        if need_reload then
+            resp = resp .. "Worker pid: " .. pid .. " is out of sync with etcd\n"
+        end
+    end
+
+    if resp and resp ~= "" then
+        core.response.exit(503, resp)
+        return
+    end
+
+    local yaml_conf = local_conf
+    local res, err
+    for _, host in ipairs(yaml_conf.etcd.host) do
+        res, err = etcd_util.request(host .. "/version", yaml_conf)
+        if res then
+            core.response.exit(200)
+            return
+        end
+    end
+
+    core.response.exit(503, "none of the configured dp_manager available: " .. err)
 end
 
 

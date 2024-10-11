@@ -342,6 +342,12 @@ Please modify "admin_key" in conf/config.yaml .
         return ip .. ":" .. port
     end
 
+    local status_server_addr
+    if yaml_conf.apisix.status then
+        status_server_addr = validate_and_get_listen_addr("status port", "127.0.0.1",
+                             yaml_conf.apisix.status.ip, 7085, yaml_conf.apisix.status.port)
+    end
+
     -- listen in admin use a separate port, support specific IP, compatible with the original style
     local admin_server_addr
     if yaml_conf.apisix.enable_admin then
@@ -562,6 +568,7 @@ Please modify "admin_key" in conf/config.yaml .
         enabled_stream_plugins = enabled_stream_plugins,
         dubbo_upstream_multiplex_count = dubbo_upstream_multiplex_count,
         tcp_enable_ssl = tcp_enable_ssl,
+        status_server_addr = status_server_addr,
         admin_server_addr = admin_server_addr,
         control_server_addr = control_server_addr,
         prometheus_server_addr = prometheus_server_addr,
