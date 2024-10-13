@@ -94,11 +94,11 @@ forward-auth
 opa
 authz-keycloak
 data-mask
+proxy-cache
 body-transformer
 ai-prompt-template
 ai-prompt-decorator
 proxy-mirror
-proxy-cache
 graphql-proxy-cache
 proxy-rewrite
 workflow
