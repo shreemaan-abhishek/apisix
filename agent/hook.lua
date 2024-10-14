@@ -138,6 +138,8 @@ config_local.local_conf = function(force)
 
     config_version = latest_config_version
 
+    config_data.config_version = config_version
+
     log.info("succeed to merge the config from control plane, version: ", config_version)
     return config_data
 end
@@ -190,10 +192,14 @@ local function hook()
         ssl_verify = ssl_ca_cert and "peer" or "none"
     end
 
+    local consumer_proxy = core.table.try_read_attr(local_conf, "api7ee", "consumer_proxy")
+    local heartbeat_interval = core.table.try_read_attr(local_conf, "api7ee", "heartbeat_interval")
+
     local healthcheck_report_interval = core.table.try_read_attr(local_conf, "api7ee", "healthcheck_report_interval")
     if not healthcheck_report_interval then
         healthcheck_report_interval = 60 * 2
     end
+
 
     local http_timeout = core.table.try_read_attr(local_conf, "api7ee", "http_timeout")
     if not http_timeout then
@@ -215,6 +221,7 @@ local function hook()
     end
 
     api7_agent = agent.new({
+        name = "api7",
         endpoint = endpoint,
         ssl_cert_path = ssl_cert_path,
         ssl_key_path = ssl_key_path,
@@ -224,6 +231,8 @@ local function hook()
         ssl_server_name = ssl_server_name,
         healthcheck_report_interval = healthcheck_report_interval,
         http_timeout = http_timeout,
+        consumer_proxy = consumer_proxy,
+        heartbeat_interval = heartbeat_interval,
     })
 
     local skip_first_heartbeat = getenv("API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG")

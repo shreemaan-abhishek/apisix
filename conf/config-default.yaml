@@ -676,3 +676,9 @@ api7ee:
     max_metrics_size: 33554432 # max size in bytes(32M) of the metrics data sent to the control plane, if the size exceeds, the data will be truncated
   healthcheck_report_interval: 120 # healthcheck data report interval in seconds
   http_timeout: 30s # http timeout used while sending healthcheck and telemetry data to the control plane
+  consumer_proxy:
+    enable: false             # if enable is true, the consumer resources will be proxied by the control plane.
+    cache_success_count: 512  # cache the count of successful results queried from the control plane.
+    cache_success_ttl: 60     # (unit:sec), cache the ttl of successful results queried from the control plane.
+    cache_failure_count: 512  # cache the count of failed results queried from the control plane.
+    cache_failure_ttl: 60     # (unit:sec), cache the ttl of failed results queried from the control plane.

@@ -1001,16 +1001,14 @@ local function check_single_plugin_schema(name, plugin_conf, schema_type, skip_d
 end
 
 
-local enable_data_encryption
 local function enable_gde()
-    if enable_data_encryption == nil then
-        enable_data_encryption =
-            core.table.try_read_attr(local_conf, "apisix", "data_encryption", "enable")
-        _M.enable_data_encryption = enable_data_encryption
-    end
+    local enable_data_encryption =
+        core.table.try_read_attr(core.config.local_conf(), "apisix", "data_encryption", "enable")
+    _M.enable_data_encryption = enable_data_encryption
 
     return enable_data_encryption
 end
+_M.enable_gde = enable_gde
 
 
 local function get_plugin_schema_for_gde(name, schema_type)

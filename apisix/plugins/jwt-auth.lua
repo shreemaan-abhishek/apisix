@@ -352,15 +352,9 @@ function _M.rewrite(conf, ctx)
         return 401, {message = "missing user key in JWT token"}
     end
 
-    local consumer_conf = consumer_mod.plugin(plugin_name)
-    if not consumer_conf then
-        return 401, {message = "Missing related consumer"}
-    end
-
-    local consumers = consumer_mod.consumers_kv(plugin_name, consumer_conf, "key")
-
-    local consumer = consumers[user_key]
+    local consumer, consumer_conf, err = consumer_mod.find_consumer(plugin_name, "key", user_key)
     if not consumer then
+        core.log.warn("failed to find consumer: ", err or "invalid user key")
         return 401, {message = "Invalid user key in JWT token"}
     end
     core.log.info("consumer: ", core.json.delay_encode(consumer))
@@ -398,15 +392,11 @@ local function gen_token()
         payload = ngx.unescape_uri(payload)
     end
 
-    local consumer_conf = consumer_mod.plugin(plugin_name)
-    if not consumer_conf then
-        return core.response.exit(404)
+    if not key then
+        return 401, {message = "Missing user key in request"}
     end
 
-    local consumers = consumer_mod.consumers_kv(plugin_name, consumer_conf, "key")
-
-    core.log.info("consumers: ", core.json.delay_encode(consumers))
-    local consumer = consumers[key]
+    local consumer, _, _ = consumer_mod.find_consumer(plugin_name, "key", key)
     if not consumer then
         return core.response.exit(404)
     end

@@ -4,13 +4,18 @@ local utils   = require("agent.utils")
 local ltn12   = require("ltn12")
 local https   = require("ssl.https")
 local http    = require("socket.http")
-local ssl     = require("ssl")
+local plugin  = require("apisix.plugin")
+local plugin_checker = require("apisix.plugin").plugin_checker
+local check_schema   = require("apisix.core.schema").check
+
 
 local resty_http    = require("resty.http")
 local discovery     = require("agent.discovery")
 local lrucache      = require("resty.lrucache")
 
 local get_health_checkers = require("apisix.control.v1").get_health_checkers
+local plugin_decrypt_conf = plugin.decrypt_conf
+local enable_gde = plugin.enable_gde
 
 local setmetatable  = setmetatable
 local ngx_time      = ngx.time
@@ -24,6 +29,8 @@ if ngx.config.subsystem == "stream" then
 end
 local config_dict   = ngx.shared[shdict_name]
 
+local agents = {}
+
 local _M = {}
 
 local mt = {
@@ -33,6 +40,7 @@ local mt = {
 -- max_items same as https://github.com/apache/apisix/blob/77704832ec91117f5ca7171811ae5f0d3f1494fe/apisix/balancer.lua#L38-L40
 local healthcheck_cache     = lrucache.new(1024 * 4)
 local HEALTHCHECK_CACHE_TTL = 20 * 60 -- 20 min
+local MAX_CONF_VERSION      = 100000000
 
 local payload = {
     instance_id = core.id.get(),
@@ -102,6 +110,7 @@ local function send_request(url, opts)
         method = opts.method,
         body = opts.body,
         headers = opts.headers,
+        query = opts.query,
         keepalive = true,
         ssl_verify = opts.ssl_verify == "peer" and true or false,
         ssl_cert_path = opts.ssl_cert_path,
@@ -176,6 +185,7 @@ function _M.heartbeat(self, first)
     end
 
     local resp_body = utils.parse_resp(res.body)
+    core.log.debug("heartbeat response: ", core.json.delay_encode(resp_body))
     local config = resp_body.config or {}
     if config.config_version and config.config_version > self.config_version then
         core.log.info("config version changed, old version: ", self.config_version, ", new version: ", config.config_version)
@@ -423,7 +433,96 @@ function _M.report_healthcheck(self)
 end
 
 
+local function check_consumer(consumer)
+    local data_valid, err = check_schema(core.schema.consumer, consumer)
+    if not data_valid then
+        return data_valid, err
+    end
+
+    return plugin_checker(consumer, core.schema.TYPE_CONSUMER)
+end
+
+
+local function fetch_consumer(self, plugin_name, key_value)
+    local query = {
+        plugin_name = plugin_name,
+        key_value = key_value
+    }
+    local resp, err = send_request(self.consumer_query_url, {
+        method =  "GET",
+        query = query,
+        http_timeout = self.http_timeout,
+        ssl_verify = self.ssl_verify,
+        ssl_ca_cert = self.ssl_ca_cert,
+        ssl_cert_path = self.ssl_cert_path,
+        ssl_key_path = self.ssl_key_path,
+        ssl_server_name = self.ssl_server_name,
+    })
+    if not resp then
+        return nil
+    end
+
+    if resp.status ~= 200 then
+        if resp.status ~= 404 then
+            core.log.error("failed to fetch consumer from control plane, status: ", resp.status, ", body: ", core.json.delay_encode(resp.body, true))
+        else
+            core.log.info("not found consumer, status: ", resp.status)
+        end
+        return nil
+    end
+
+    local consumer, err = core.json.decode(resp.body)
+    if not consumer then
+        core.log.error("failed to decode consumer body: ", err)
+        return nil
+    end
+    core.log.info("fetch consumer from agent: ", core.json.delay_encode(consumer))
+
+    if consumer.labels then
+        consumer.custom_id = consumer.labels["custom_id"]
+    end
+    consumer.id = consumer.consumer_name
+    consumer.modifiedIndex = consumer.modifiedIndex or self.consumer_version
+    self.consumer_version = self.consumer_version > MAX_CONF_VERSION and 0 or self.consumer_version + 1
+
+
+    local ok, err = check_consumer(consumer)
+    if not ok then
+        core.log.error("failed to check the fetched consumer: ", err)
+        return nil
+    end
+
+    if enable_gde() then
+        plugin_decrypt_conf(plugin_name, consumer.auth_conf, core.schema.TYPE_CONSUMER)
+    end
+
+    return consumer
+end
+
+
+function _M.consumer_query(self, plugin_name, key_value)
+    local cache_key = plugin_name .. "/" .. key_value
+
+    local miss = self.miss_consumer_cache(cache_key, nil, function () return nil end)
+    if miss then
+        return nil, "not found consumer"
+    end
+
+    local consumer = self.consumer_cache(cache_key, nil, fetch_consumer, self, plugin_name, key_value)
+    if not consumer then
+        self.miss_consumer_cache(cache_key, nil, function () return "not found consumer" end)
+        return nil, "not found consumer"
+    end
+    return consumer
+end
+
+
 function _M.new(agent_conf)
+    local agent_name = agent_conf.name or "default"
+    if agents[agent_name] then
+        return agents[agent_name]
+    end
+
     local init_api_calls, err = config_dict:get("api_calls_counter")
     if init_api_calls == nil then
         init_api_calls = 0
@@ -436,7 +535,10 @@ function _M.new(agent_conf)
     if agent_conf.http_timeout then
         http_timeout = tonumber(agent_conf.http_timeout:match("%d+")) * 1000
     end
+
     local self = {
+        name = agent_name,
+        consumer_query_url = agent_conf.endpoint .. "/api/dataplane/consumer_query",
         heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
         metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
         healthcheck_url = agent_conf.endpoint .. "/api/dataplane/healthcheck",
@@ -446,7 +548,7 @@ function _M.new(agent_conf)
         ssl_ca_cert = agent_conf.ssl_ca_cert,
         ssl_verify = agent_conf.ssl_verify,
         ssl_server_name = agent_conf.ssl_server_name,
-        heartbeat_interval = 10,
+        heartbeat_interval = agent_conf.heartbeat_interval or 10,
         telemetry = agent_conf.telemetry,
         healthcheck_report_interval = agent_conf.healthcheck_report_interval,
         http_timeout = http_timeout,
@@ -456,9 +558,37 @@ function _M.new(agent_conf)
         ongoing_metrics_uploading = false,
         config_version = 0,
         api_calls_counter_last_value = init_api_calls,
+        consumer_version = 0,
+        consumer_proxy = agent_conf.consumer_proxy,
     }
+    core.log.info("new agent created: ", core.json.delay_encode(self, true))
 
-    return setmetatable(self, mt)
+    local agent = setmetatable(self, mt)
+    agent:set_consumer_cache(agent_conf.consumer_proxy)
+
+    agents[agent_name] = agent
+    return agent
+end
+
+
+function _M.set_consumer_cache(self, conf)
+    conf = conf or {}
+
+    self.miss_consumer_cache = core.lrucache.new({
+        ttl = conf.cache_failure_ttl or 60, -- unit: second
+        count = conf.cache_failure_count or 512,
+        invalid_stale = true
+    })
+    self.consumer_cache = core.lrucache.new({
+        ttl = conf.cache_success_ttl or 60, -- unit: second
+        count = conf.cache_success_count or 512,
+        invalid_stale = true
+    })
+end
+
+
+function _M.get_agent(name)
+    return agents[name]
 end
 
 return _M

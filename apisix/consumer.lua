@@ -20,6 +20,7 @@ local secret         = require("apisix.secret")
 local plugin         = require("apisix.plugin")
 local plugin_checker = require("apisix.plugin").plugin_checker
 local check_schema   = require("apisix.core.schema").check
+local agent_api7     = require("agent.agent_api7")
 local error          = error
 local ipairs         = ipairs
 local pairs          = pairs
@@ -160,13 +161,19 @@ function _M.plugin(plugin_name)
     return plugin_conf[plugin_name]
 end
 
+function _M.consumers_conf(plugin_name)
+    if agent_api7 and agent_api7.enabled_consumer_proxy() then
+        return nil
+    end
+    return _M.plugin(plugin_name)
+end
 
 -- attach chosen consumer to the ctx, used in auth plugin
 function _M.attach_consumer(ctx, consumer, conf)
     ctx.consumer = consumer
     ctx.consumer_name = consumer.consumer_name
     ctx.consumer_group_id = consumer.group_id
-    ctx.consumer_ver = conf.conf_version
+    ctx.consumer_ver = conf and conf.conf_version or consumer.modifiedIndex
 
     core.request.set_header(ctx, "X-Consumer-Username", consumer.username)
     core.request.set_header(ctx, "X-Credential-Identifier", consumer.credential_id)
@@ -202,6 +209,29 @@ function _M.consumers_kv(plugin_name, consumer_conf, key_attr)
         create_consume_cache, consumer_conf, key_attr)
 
     return consumers
+end
+
+function _M.find_consumer(plugin_name, key, key_value)
+    local consumer
+    local consumer_conf
+    local err
+    if agent_api7 and agent_api7.enabled_consumer_proxy() then
+        consumer, err = agent_api7.consumer_query(plugin_name, key_value)
+        if not consumer then
+            return nil, nil, err
+        end
+        consumer_conf = {
+            conf_version = consumer.modifiedIndex
+        }
+    else
+        consumer_conf = _M.plugin(plugin_name)
+        if not consumer_conf then
+            return nil, nil, "Missing related consumer"
+        end
+        local consumers = _M.consumers_kv(plugin_name, consumer_conf, key)
+        consumer = consumers[key_value]
+    end
+    return consumer, consumer_conf
 end
 
 local function check_consumer(consumer, key)
