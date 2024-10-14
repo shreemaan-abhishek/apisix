@@ -132,7 +132,7 @@ function _M.heartbeat(self, first)
         core.log.error("failed get api_calls_counter from dict, error: ", err)
     end
 
-    payload.conf_server_revision = utils.get_conf_server_revision()
+    payload.control_plane_revision = utils.get_control_plane_revision()
     payload.cores = ngx.worker.count()
 
     local internal_services = discovery.list_all_services()

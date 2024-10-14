@@ -78,7 +78,7 @@ function _M.get_listen_ports()
 end
 
 
-function _M.get_conf_server_revision()
+function _M.get_control_plane_revision()
     local config = core.config.new()
 
     if config.type == "etcd" then

@@ -70,7 +70,6 @@ install_module() {
     # copy test case to origin apisix
     cp -av "${VAR_CUR_HOME}/t" "${VAR_APISIX_HOME}"
     # remove grpc related test cases and lua files
-    rm -rf "${VAR_APISIX_HOME}/t/deployment/grpc"
     rm -f "${VAR_APISIX_HOME}/t/core/etcd-grpc-auth.t"
     rm -f "${VAR_APISIX_HOME}/t/core/etcd-grpc-mtls.t"
     rm -f "${VAR_APISIX_HOME}/t/core/grpc.t"
@@ -141,6 +140,14 @@ ci-env-stop:
     # stream_proxy.only should be specified explicitly
     sed -i '28i\        only: true' "${VAR_APISIX_HOME}/t/cli/test_stream_config.sh"
     sed -i '30i\        only: false' "${VAR_APISIX_HOME}/t/cli/test_prometheus_stream.sh"
+
+    # remove conf_server based files:
+    rm -f "${VAR_APISIX_HOME}/apisix/cli/snippet.lua"
+    rm -f "${VAR_APISIX_HOME}/t/bin/gen_snippet.lua"
+    rm -f "${VAR_APISIX_HOME}/t/cli/test_deployment_mtls.sh"
+    rm -f "${VAR_APISIX_HOME}/t/deployment/conf_server.t"
+    rm -f "${VAR_APISIX_HOME}/t/deployment/conf_server2.t"
+    rm -f "${VAR_APISIX_HOME}/t/deployment/mtls.t"
 }
 
 start_sse_server_example() {

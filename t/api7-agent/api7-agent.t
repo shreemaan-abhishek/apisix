@@ -44,8 +44,8 @@ _EOC_
             ngx.log(ngx.ERR, "missing version")
             return ngx.exit(400)
         end
-        if not payload.conf_server_revision then
-            ngx.log(ngx.ERR, "missing conf_server_revision")
+        if not payload.control_plane_revision then
+            ngx.log(ngx.ERR, "missing control_plane_revision")
             return ngx.exit(400)
         end
         if not payload.ports then
