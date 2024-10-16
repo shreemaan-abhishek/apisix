@@ -258,7 +258,7 @@ local function merge_conf(base, new_tab, ppath)
 end
 
 
-function _M.read_yaml_conf(apisix_home, override_by_env)
+function _M.read_yaml_conf(apisix_home, override_by_env, plugins_warning)
     if apisix_home then
         profile.apisix_home = apisix_home .. "/"
     end
@@ -297,6 +297,15 @@ function _M.read_yaml_conf(apisix_home, override_by_env)
         local ok, err = resolve_conf_var(user_conf)
         if not ok then
             return nil, err
+        end
+
+        if plugins_warning then
+            if user_conf.plugins then
+                print("WARNING: the plugins in config.yaml is no longer supported and will be ignored.")
+            end
+            if user_conf.stream_plugins then
+                print("WARNING: the stream_plugins in config.yaml is no longer supported and will be ignored.")
+            end
         end
 
         ok, err = merge_conf(default_conf, user_conf)

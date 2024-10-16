@@ -155,7 +155,7 @@ local function init(env)
     end
 
     -- read_yaml_conf
-    local yaml_conf, err = file.read_yaml_conf(env.apisix_home, true)
+    local yaml_conf, err = file.read_yaml_conf(env.apisix_home, true, true)
     if not yaml_conf then
         util.die("failed to read local yaml config of apisix: ", err, "\n")
     end
