@@ -20,7 +20,11 @@ local secret         = require("apisix.secret")
 local plugin         = require("apisix.plugin")
 local plugin_checker = require("apisix.plugin").plugin_checker
 local check_schema   = require("apisix.core.schema").check
-local agent_api7     = require("agent.agent_api7")
+local ok, agent_api7     = pcall(require, "agent.agent_api7")
+if not ok then
+    core.log.warn("failed to load agent_api7, please check if the agent hook is enabled")
+end
+
 local error          = error
 local ipairs         = ipairs
 local pairs          = pairs
