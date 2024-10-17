@@ -443,11 +443,7 @@ local function check_consumer(consumer)
 end
 
 
-local function fetch_consumer(self, plugin_name, key_value)
-    local query = {
-        plugin_name = plugin_name,
-        key_value = key_value
-    }
+local function fetch_consumer(self, query)
     local resp, err = send_request(self.consumer_query_url, {
         method =  "GET",
         query = query,
@@ -492,23 +488,27 @@ local function fetch_consumer(self, plugin_name, key_value)
         return nil
     end
 
-    if enable_gde() then
-        plugin_decrypt_conf(plugin_name, consumer.auth_conf, core.schema.TYPE_CONSUMER)
+    if enable_gde() and consumer.auth_conf then
+        plugin_decrypt_conf(query.plugin_name, consumer.auth_conf, core.schema.TYPE_CONSUMER)
     end
 
     return consumer
 end
 
 
-function _M.consumer_query(self, plugin_name, key_value)
-    local cache_key = plugin_name .. "/" .. key_value
+function _M.consumer_query(self, query)
+    if type(query) ~= "table" then
+        return nil, "consumer-query: \"query\" is not a table"
+    end
+
+    local cache_key = query.username or ( query.plugin_name .. "/" .. query.key_value)
 
     local miss = self.miss_consumer_cache(cache_key, nil, function () return nil end)
     if miss then
         return nil, "not found consumer"
     end
 
-    local consumer = self.consumer_cache(cache_key, nil, fetch_consumer, self, plugin_name, key_value)
+    local consumer = self.consumer_cache(cache_key, nil, fetch_consumer, self, query)
     if not consumer then
         self.miss_consumer_cache(cache_key, nil, function () return "not found consumer" end)
         return nil, "not found consumer"

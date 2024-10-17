@@ -32,7 +32,7 @@ local function release_consumer_cache(agent_api7)
 end
 
 
-function _M.consumer_query(plugin_name, key_value)
+function _M.consumer_query(query)
     local agent_api7, err = get_agent_api7()
     if not agent_api7 then
         core.log.error("failed to get agent api7: ", err)
@@ -41,7 +41,7 @@ function _M.consumer_query(plugin_name, key_value)
 
     release_consumer_cache(agent_api7)
 
-    return agent_api7:consumer_query(plugin_name, key_value)
+    return agent_api7:consumer_query(query)
 end
 
 

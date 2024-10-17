@@ -220,7 +220,11 @@ function _M.find_consumer(plugin_name, key, key_value)
     local consumer_conf
     local err
     if agent_api7 and agent_api7.enabled_consumer_proxy() then
-        consumer, err = agent_api7.consumer_query(plugin_name, key_value)
+        local query = {
+            plugin_name = plugin_name,
+            key_value = key_value
+        }
+        consumer, err = agent_api7.consumer_query(query)
         if not consumer then
             return nil, nil, err
         end
@@ -279,6 +283,57 @@ function _M.init_worker()
         error("failed to create etcd instance for fetching consumers: " .. err)
         return
     end
+end
+
+
+local function get_anonymous_consumer_from_local_cache(name)
+    local anon_consumer_raw = consumers:get(name)
+
+    if not anon_consumer_raw or not anon_consumer_raw.value or
+    not anon_consumer_raw.value.id or not anon_consumer_raw.modifiedIndex then
+        return nil, nil, "failed to get anonymous consumer " .. name
+    end
+
+    -- make structure of anon_consumer similar to that of consumer_mod.consumers_kv's response
+    local anon_consumer = anon_consumer_raw.value
+    anon_consumer.consumer_name = anon_consumer_raw.value.id
+    anon_consumer.modifiedIndex = anon_consumer_raw.modifiedIndex
+
+    local anon_consumer_conf = {
+        conf_version = anon_consumer_raw.modifiedIndex
+    }
+
+    return anon_consumer, anon_consumer_conf
+end
+
+
+local function get_anonymous_consumer_from_api7_dpm(name)
+    local anon_consumer, err = agent_api7.consumer_query({username = name})
+    if not anon_consumer or not anon_consumer.username or not anon_consumer.modifiedIndex then
+        return nil, nil, "failed to get anonymous consumer " .. name .. ": " .. err
+    end
+
+    -- make structure of anon_consumer similar to that of consumer_mod.consumers_kv's response
+    anon_consumer.consumer_name = anon_consumer.username
+    anon_consumer.id = anon_consumer.username
+
+    local anon_consumer_conf = {
+        conf_version = anon_consumer.modifiedIndex
+    }
+
+    return anon_consumer, anon_consumer_conf
+end
+
+
+function _M.get_anonymous_consumer(name)
+    local anon_consumer, anon_consumer_conf, err
+    if agent_api7 and agent_api7.enabled_consumer_proxy() then
+        anon_consumer, anon_consumer_conf, err = get_anonymous_consumer_from_api7_dpm(name)
+    else
+        anon_consumer, anon_consumer_conf, err = get_anonymous_consumer_from_local_cache(name)
+    end
+
+    return anon_consumer, anon_consumer_conf, err
 end
 
 

@@ -94,6 +94,40 @@ _EOC_
     end
 
     server.api_dataplane_consumer_query = function()
+        local username = ngx.var.arg_username
+        if username then
+            local consumers = {
+                anonymous = {
+                    created_at = 1728958679,
+                    gateway_group_id = "default",
+                    plugins = {
+                        ["limit-count"] = {
+                            _meta = {
+                                disable = false
+                            },
+                            allow_degradation = false,
+                            count = 1,
+                            key = "remote_addr",
+                            key_type = "var",
+                            policy = "local",
+                            rejected_code = 503,
+                            show_limit_quota_header = true,
+                            time_window = 60
+                        }
+                    },
+                    updated_at = 1728958717,
+                    username = "anonymous"
+                }
+            }
+            local payload = consumers[username]
+            if not payload then
+                return ngx.exit(404)
+            end
+            local core = require("apisix.core")
+            ngx.say(core.json.encode(payload))
+            return
+        end
+
         local plugin_name = ngx.var.arg_plugin_name
         local key_value = ngx.var.arg_key_value
 
@@ -264,3 +298,130 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 hello world
 --- error_log
 receive data plane consumer_query: jwt-auth, jwt-one
+
+
+
+=== TEST 4: enable jwt-auth plugin with anonymous consumer
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "methods": ["GET"],
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1981": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "plugins":{
+                        "jwt-auth": {
+                            "anonymous_consumer": "anonymous"
+                        }
+                    },
+                    "uri": "/hello"
+                }]]
+                )
+
+            if code <= 201 then
+                ngx.status = 200
+            end
+
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 5: invalid authorization header will lead to fallback to anonymous consumer logic
+# in the mock DPM server, an anonymous consumer is configured with limit-count plugin
+# in this test we verify the execution of limit-count plugin
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- pipelined_requests eval
+["GET /hello", "GET /hello"]
+--- more_headers eval
+["Authorization: invalid", "Authorization: invalid"]
+--- error_code eval
+[200, 503]
+
+
+
+=== TEST 6: same test as above but pass no authorization header
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- pipelined_requests eval
+["GET /hello", "GET /hello"]
+--- error_code eval
+[200, 503]
+
+
+
+=== TEST 7: enable jwt-auth plugin with non-existent anonymous consumer
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "methods": ["GET"],
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1981": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "plugins":{
+                        "jwt-auth": {
+                            "anonymous_consumer": "not-found-anonymous"
+                        }
+                    },
+                    "uri": "/hello"
+                }]]
+                )
+
+            if code <= 201 then
+                ngx.status = 200
+            end
+
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 8: anonymous-consumer configured in the route should not be found
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- request
+GET /hello
+--- error_code: 401
+--- error_log
+failed to get anonymous consumer not-found-anonymous
+--- response_body
+{"message":"Invalid user authorization"}
