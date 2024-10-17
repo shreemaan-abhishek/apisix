@@ -76,6 +76,7 @@ echo "
 apisix:
     ssl:
         ssl_trusted_certificate: t/certs/mtls_ca.crt
+        ssl_trusted_combined_path: t/certs/mtls_ca_combined.crt
     stream_proxy:
         tcp:
             - addr: 9100
@@ -83,7 +84,7 @@ apisix:
 
 make init
 
-if ! grep "t/certs/mtls_ca.crt;" conf/nginx.conf > /dev/null; then
+if ! grep "t/certs/mtls_ca_combined.crt;" conf/nginx.conf > /dev/null; then
     echo "failed: failed to set trust certificate"
     exit 1
 fi
