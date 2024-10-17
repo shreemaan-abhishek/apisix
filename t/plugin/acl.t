@@ -1162,6 +1162,7 @@ passed
 GET /hello
 --- response_body
 hello world
+--- log_level: info
 --- error_log
 extra_values_without_parser(): the string value can not parsed by json or segmented_text
 

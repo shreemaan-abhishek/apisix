@@ -136,7 +136,7 @@ local function extra_values_without_parser(value)
         if core.string.find(value, ",") then
             return extra_values_with_parser(value, parsers.SEGMENTED_TEXT, ",")
         end
-        core.log.warn("the string value can not parsed by " .. parsers.JSON .. " or " .. parsers.SEGMENTED_TEXT)
+        core.log.info("the string value can not parsed by ", parsers.JSON, " or ", parsers.SEGMENTED_TEXT)
         return { value }
     end
 
