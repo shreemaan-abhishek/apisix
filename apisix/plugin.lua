@@ -862,29 +862,13 @@ end
 
 
 function _M.init_worker()
-    local _, http_plugins, stream_plugins = get_plugins()
-    local http_plugin_names, stream_plugin_names
-    if http_plugins then
-        http_plugin_names = core.table.new(#http_plugins, 0)
-        for _, plugin in ipairs(http_plugins) do
-            core.table.insert(http_plugin_names, plugin.name)
-        end
-    end
-
-    if stream_plugins then
-        stream_plugin_names = core.table.new(#stream_plugins, 0)
-        for _, plugin in ipairs(stream_plugins) do
-            core.table.insert(stream_plugin_names, plugin.name)
-        end
-    end
-
     -- some plugins need to be initialized in init* phases
-    if is_http and core.table.array_find(http_plugin_names, "prometheus") then
-        local prometheus_enabled_in_stream =
-            core.table.array_find(stream_plugin_names, "prometheus")
-        require("apisix.plugins.prometheus.exporter").http_init(prometheus_enabled_in_stream)
-    elseif not is_http and core.table.array_find(stream_plugin_names, "prometheus") then
+    if is_http then
+        require("apisix.plugins.prometheus.exporter").http_init(true)
+        core.log.info("apisix.plugins.prometheus.exporter http_init")
+    else
         require("apisix.plugins.prometheus.exporter").stream_init()
+        core.log.info("apisix.plugins.prometheus.exporter stream_init")
     end
 
     -- someone's plugin needs to be initialized after prometheus
