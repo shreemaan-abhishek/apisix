@@ -774,6 +774,12 @@ http {
         proxy_ssl_trusted_certificate {* ssl.ssl_trusted_certificate *};
         {% end %}
 
+        # opentelemetry_set_ngx_var starts
+        set $opentelemetry_context_traceparent          '';
+        set $opentelemetry_trace_id                     '';
+        set $opentelemetry_span_id                      '';
+        # opentelemetry_set_ngx_var ends
+
         # http server configuration snippet starts
         {% if http_server_configuration_snippet then %}
         {* http_server_configuration_snippet *}

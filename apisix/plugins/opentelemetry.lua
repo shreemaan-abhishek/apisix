@@ -47,6 +47,7 @@ local type    = type
 local pairs   = pairs
 local ipairs  = ipairs
 local unpack  = unpack
+local string_format = string.format
 
 local lrucache = core.lrucache.new({
     type = 'plugin', count = 128, ttl = 24 * 60 * 60,
@@ -113,6 +114,11 @@ local metadata_schema = {
                 }
             },
             default = {},
+        },
+        set_ngx_var = {
+            type = "boolean",
+            description = "set nginx variables",
+            default = false,
         },
     },
 }
@@ -336,6 +342,17 @@ function _M.rewrite(conf, api_ctx)
         kind = span_kind.server,
         attributes = attributes,
     })
+
+    if metadata.value.set_ngx_var then
+        local span_context = ctx:span():context()
+        ngx_var.opentelemetry_context_traceparent = string_format("00-%s-%s-%02x",
+                                                                   span_context.trace_id,
+                                                                   span_context.span_id,
+                                                                   span_context.trace_flags)
+        ngx_var.opentelemetry_trace_id = span_context.trace_id
+        ngx_var.opentelemetry_span_id = span_context.span_id
+    end
+
     api_ctx.otel_context_token = ctx:attach()
 
     -- inject trace context into the headers of upstream HTTP request
