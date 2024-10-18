@@ -94,6 +94,10 @@ _EOC_
     end
 
     server.api_dataplane_consumer_query = function()
+        local headers = ngx.req.get_headers()
+        for k, v in pairs(headers) do
+            ngx.log(ngx.INFO, "consumer_query api receive header [", k, ": ", v,"]")
+        end
         local username = ngx.var.arg_username
         if username then
             local consumers = {
@@ -298,6 +302,7 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 hello world
 --- error_log
 receive data plane consumer_query: jwt-auth, jwt-one
+consumer_query api receive header [control-plane-token: a7ee-token]
 
 
 

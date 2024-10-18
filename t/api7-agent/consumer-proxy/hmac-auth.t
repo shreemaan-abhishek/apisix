@@ -94,6 +94,10 @@ _EOC_
     end
 
     server.api_dataplane_consumer_query = function()
+        local headers = ngx.req.get_headers()
+        for k, v in pairs(headers) do
+            ngx.log(ngx.INFO, "consumer_query api receive header [", k, ": ", v,"]")
+        end
         local username = ngx.var.arg_username
         if username then
             local consumers = {
@@ -351,6 +355,7 @@ GET /t
 passed
 --- error_log
 consumer_query: hmac-auth, csK-kcVylsu6MgFAg0kEW
+consumer_query api receive header [control-plane-token: a7ee-token]
 
 
 

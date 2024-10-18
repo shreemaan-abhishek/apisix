@@ -447,6 +447,7 @@ local function fetch_consumer(self, query)
     local resp, err = send_request(self.consumer_query_url, {
         method =  "GET",
         query = query,
+        headers = headers,
         http_timeout = self.http_timeout,
         ssl_verify = self.ssl_verify,
         ssl_ca_cert = self.ssl_ca_cert,
