@@ -62,8 +62,8 @@ deployment:
   ' > conf/config.yaml
 
   out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) API7_CONTROL_PLANE_CA=$(cat t/certs/mtls_ca.crt) make init 2>&1 || echo "ouch")
-if echo "$out" | grep "bad certificate"; then
-    echo "failed: apisix should not echo \"bad certificate\" or \"should set ssl_trusted_certificat\""
+if echo "$out" | grep -E 'bad certificate|certificate verify failed'; then
+    echo "failed: apisix should not echo \"bad certificate\" or \"certificate verify failed\""
     exit 1
 fi
 
@@ -84,8 +84,8 @@ deployment:
   ' > conf/config.yaml
 
   out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) make init 2>&1 || echo "ouch")
-if ! echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat'; then
-    echo "failed: apisix should echo \"bad certificate\" or \"should set ssl_trusted_certificat\""
+if ! echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat|certificate verify failed'; then
+    echo "failed: apisix should echo \"bad certificate\" or \"should set ssl_trusted_certificat\" or \"certificate verify failed\""
     exit 1
 fi
 
@@ -108,8 +108,8 @@ deployment:
 echo "" > logs/error.log
 
   out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) API7_CONTROL_PLANE_CA=$(cat t/certs/mtls_ca.crt) make run 2>&1 || echo "ouch")
-if echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat'; then
-    echo "failed: apisix should not echo \"bad certificate\" or \"should set ssl_trusted_certificat\""
+if echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat|certificate verify failed'; then
+    echo "failed: apisix should not echo \"bad certificate\" or \"should set ssl_trusted_certificat\" or \"certificate verify failed\""
     exit 1
 fi
 
@@ -161,6 +161,9 @@ echo "passed: certificate verify success expectedly"
 
 # success: certificate verify success expectedly
 echo '
+apisix:
+  ssl:
+    ssl_trusted_certificate: t/certs/mtls_ca.crt
 deployment:
   role: traditional
   role_traditional:

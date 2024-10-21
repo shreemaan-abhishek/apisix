@@ -28,6 +28,7 @@ local str_gmatch = string.gmatch
 local str_find = string.find
 local str_sub = string.sub
 local print = print
+local pl_path = require("pl.path")
 
 local _M = {}
 local exported_vars
@@ -115,8 +116,7 @@ end
 
 _M.resolve_conf_var = resolve_conf_var
 
--- If override_by_env is true, then the environment variables will override the data stored in /tmp files
-local function replace_by_reserved_env_vars(conf, override_by_env)
+local function replace_by_reserved_env_vars(conf, overwrite_temporary_file)
     -- TODO: support more reserved environment variables
     -- support APISIX_DEPLOYMENT_ETCD_HOST and API7_CONTROL_PLANE_ENDPOINTS
     if not conf["deployment"] or not conf["deployment"]["etcd"] then
@@ -151,7 +151,7 @@ local function replace_by_reserved_env_vars(conf, override_by_env)
 
     local cert_path = path .. "api7ee.crt"
     local key_path = path .. "api7ee.key"
-    if override_by_env then
+    if overwrite_temporary_file then
         local ok, err = util.write_file(cert_path, cp_cert)
         if not ok then
             util.die("failed to update cert: ", err, "\n")
@@ -171,7 +171,7 @@ local function replace_by_reserved_env_vars(conf, override_by_env)
     end
 
     local ca_path = path .. "api7ee_ca.crt"
-    if override_by_env then
+    if overwrite_temporary_file then
         local ok, err = util.write_file(ca_path, ca)
         if not ok then
             util.die("failed to update ca cert: ", err, "\n")
@@ -179,7 +179,11 @@ local function replace_by_reserved_env_vars(conf, override_by_env)
     end
 
     conf["apisix"]["ssl"] = conf["apisix"]["ssl"] or {}
-    conf["apisix"]["ssl"]["ssl_trusted_certificate"] = ca_path
+    if conf["apisix"]["ssl"]["ssl_trusted_certificate"] then
+        conf["apisix"]["ssl"]["ssl_trusted_certificate"] = conf["apisix"]["ssl"]["ssl_trusted_certificate"] .. ", " .. ca_path
+    else
+        conf["apisix"]["ssl"]["ssl_trusted_certificate"] = ca_path
+    end
 end
 
 
@@ -258,7 +262,7 @@ local function merge_conf(base, new_tab, ppath)
 end
 
 
-function _M.read_yaml_conf(apisix_home, override_by_env, plugins_warning)
+function _M.read_yaml_conf(apisix_home, overwrite_temporary_file, plugins_warning)
     if apisix_home then
         profile.apisix_home = apisix_home .. "/"
     end
@@ -348,7 +352,39 @@ function _M.read_yaml_conf(apisix_home, override_by_env, plugins_warning)
         end
     end
 
-    replace_by_reserved_env_vars(default_conf, override_by_env)
+    replace_by_reserved_env_vars(default_conf, overwrite_temporary_file)
+
+    -- set ssl cert
+    if default_conf.apisix.ssl.ssl_trusted_certificate ~= nil then
+        local combined_cert_filepath =  default_conf.apisix.ssl.ssl_trusted_combined_path or profile.apisix_home .. "conf/cert/" .. ".ssl_trusted_combined.pem"
+        if overwrite_temporary_file then
+            local cert_paths = {}
+            local ssl_certificates = default_conf.apisix.ssl.ssl_trusted_certificate
+            for cert_path in string.gmatch(ssl_certificates, '([^,]+)') do
+                cert_path = util.trim(cert_path)
+                if cert_path == "system" then
+                    local trusted_certs_path, err = util.get_system_trusted_certs_filepath()
+                    if not trusted_certs_path then
+                        util.die(err)
+                    end
+                    table.insert(cert_paths, trusted_certs_path)
+                else
+                    -- During validation, the path is relative to PWD
+                    -- When Nginx starts, the path is relative to conf
+                    -- Therefore we need to check the absolute version instead
+                    cert_path = pl_path.abspath(cert_path)
+                    if not pl_path.exists(cert_path) then
+                        util.die("certificate path", cert_path, "doesn't exist\n")
+                    end
+    
+                    table.insert(cert_paths, cert_path)
+                end
+            end
+            
+            util.gen_trusted_certs_combined_file(combined_cert_filepath, cert_paths)
+        end
+        default_conf.apisix.ssl.ssl_trusted_certificate = combined_cert_filepath
+    end
 
     return default_conf
 end

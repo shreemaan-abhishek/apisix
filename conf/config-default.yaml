@@ -104,8 +104,8 @@ apisix:
     #   - ip: 127.0.0.3           # Specific IP, If not set, the default value is `0.0.0.0`.
     #     port: 9445
     #     enable_http2: true
-    ssl_trusted_combined_path: /usr/local/apisix/conf/ssl_trusted_combined.pem # All the trusted certificates will be combined into a single file
-    #ssl_trusted_certificate: system              # Specifies comma separated list of trusted CA. Value can be either "system"(for using system available ca certs) or 
+    # ssl_trusted_combined_path: /usr/local/apisix/conf/cert/.ssl_trusted_combined.pem # All the trusted certificates will be combined into a single file
+    ssl_trusted_certificate: system              # Specifies comma separated list of trusted CA. Value can be either "system"(for using system available ca certs) or 
                                                 # a file path with trusted CA certificates in the PEM format
                                                 # used to verify the certificate when APISIX needs to do SSL/TLS handshaking
                                                 # with external services (e.g. etcd)

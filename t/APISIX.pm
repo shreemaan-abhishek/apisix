@@ -88,6 +88,7 @@ my $ssl_crt = read_file("t/certs/apisix.crt");
 my $ssl_key = read_file("t/certs/apisix.key");
 my $ssl_ecc_crt = read_file("t/certs/apisix_ecc.crt");
 my $ssl_ecc_key = read_file("t/certs/apisix_ecc.key");
+my $ssl_trusted_combined = read_file("t/certs/.ssl_trusted_combined.pem");
 my $test2_crt = read_file("t/certs/test2.crt");
 my $test2_key = read_file("t/certs/test2.key");
 my $etcd_pem = read_file("t/certs/etcd.pem");
@@ -878,6 +879,8 @@ $ssl_key
 $ssl_ecc_crt
 >>> ../conf/cert/apisix_ecc.key
 $ssl_ecc_key
+>>> ../conf/cert/.ssl_trusted_combined.pem
+$ssl_trusted_combined
 >>> ../conf/cert/test2.crt
 $test2_crt
 >>> ../conf/cert/test2.key
@@ -918,3 +921,4 @@ add_cleanup_handler(sub {
 });
 
 1;
+
