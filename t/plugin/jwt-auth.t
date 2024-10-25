@@ -1078,28 +1078,7 @@ hello world
 
 
 
-=== TEST 46: test for unsupported algorithm
---- config
-    location /t {
-        content_by_lua_block {
-            local plugin = require("apisix.plugins.jwt-auth")
-            local core = require("apisix.core")
-            local conf = {key = "123", algorithm = "ES512"}
-
-            local ok, err = plugin.check_schema(conf, core.schema.TYPE_CONSUMER)
-            if not ok then
-                ngx.say(err)
-            end
-
-            ngx.say(require("toolkit.json").encode(conf))
-        }
-    }
---- response_body_like eval
-qr/property "algorithm" validation failed/
-
-
-
-=== TEST 47: wrong format of secret
+=== TEST 46: wrong format of secret
 --- config
     location /t {
         content_by_lua_block {
@@ -1122,7 +1101,7 @@ base64_secret required but the secret is not in base64 format
 
 
 
-=== TEST 48: when the exp value is not set, make sure the default value(86400) works
+=== TEST 47: when the exp value is not set, make sure the default value(86400) works
 --- config
     location /t {
         content_by_lua_block {
@@ -1152,7 +1131,7 @@ passed
 
 
 
-=== TEST 49: when the exp value is not set, sign jwt use the default value(86400)
+=== TEST 48: when the exp value is not set, sign jwt use the default value(86400)
 --- config
     location /t {
         content_by_lua_block {
@@ -1173,7 +1152,7 @@ true
 
 
 
-=== TEST 50: RS256 without public key
+=== TEST 49: RS256 without public key
 --- config
     location /t {
         content_by_lua_block {
@@ -1200,7 +1179,7 @@ qr/failed to validate dependent schema for \\"algorithm\\"/
 
 
 
-=== TEST 51: RS256 without private key
+=== TEST 50: RS256 without private key
 --- config
     location /t {
         content_by_lua_block {
@@ -1228,7 +1207,7 @@ qr/failed to validate dependent schema for \\"algorithm\\"/
 
 
 
-=== TEST 52: add consumer with username and plugins with public_key, private_key(ES256)
+=== TEST 51: add consumer with username and plugins with public_key, private_key(ES256)
 --- config
     location /t {
         content_by_lua_block {
@@ -1259,7 +1238,7 @@ passed
 
 
 
-=== TEST 53: JWT sign and verify use ES256 algorithm(private_key numbits = 512)
+=== TEST 52: JWT sign and verify use ES256 algorithm(private_key numbits = 512)
 --- config
     location /t {
         content_by_lua_block {
@@ -1293,7 +1272,7 @@ passed
 
 
 
-=== TEST 54: sign/verify use ES256 algorithm(private_key numbits = 512)
+=== TEST 53: sign/verify use ES256 algorithm(private_key numbits = 512)
 --- config
     location /t {
         content_by_lua_block {

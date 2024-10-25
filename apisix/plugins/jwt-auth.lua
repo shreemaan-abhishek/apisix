@@ -15,7 +15,6 @@
 -- limitations under the License.
 --
 local core     = require("apisix.core")
-local jwt      = require("resty.jwt")
 local consumer_mod = require("apisix.consumer")
 local resty_random = require("resty.random")
 local new_tab = require ("table.new")
@@ -31,7 +30,7 @@ local ngx_re_gmatch = ngx.re.gmatch
 local plugin_name = "jwt-auth"
 local pcall = pcall
 local schema_def = require("apisix.schema_def")
-
+local jwt_parser = require("apisix.plugins.jwt-auth.parser")
 
 local schema = {
     type = "object",
@@ -53,6 +52,15 @@ local schema = {
             default = false
         },
         anonymous_consumer = schema_def.anonymous_consumer_schema,
+        claims_to_verify = {
+            type = "array",
+            items = {
+                type = "string",
+                enum = {"exp","nbf"},
+            },
+            uniqueItems = true,
+            default = {"exp", "nbf"},
+        },
     },
 }
 
@@ -64,7 +72,21 @@ local consumer_schema = {
         secret = {type = "string"},
         algorithm = {
             type = "string",
-            enum = {"HS256", "HS512", "RS256", "ES256"},
+            enum = {
+                "HS256",
+                "HS384",
+                "HS512",
+                "RS256",
+                "RS384",
+                "RS512",
+                "ES256",
+                "ES384",
+                "ES512",
+                "PS256",
+                "PS384",
+                "PS512",
+                "EdDSA",
+            },
             default = "HS256"
         },
         exp = {type = "integer", minimum = 1, default = 86400},
@@ -84,7 +106,7 @@ local consumer_schema = {
                 {
                     properties = {
                         algorithm = {
-                            enum = {"HS256", "HS512"},
+                            enum = {"HS256", "HS384", "HS512"},
                             default = "HS256"
                         },
                     },
@@ -94,7 +116,18 @@ local consumer_schema = {
                         public_key = {type = "string"},
                         private_key= {type = "string"},
                         algorithm = {
-                            enum = {"RS256", "ES256"},
+                            enum = {
+                                "RS256",
+                                "RS384",
+                                "RS512",
+                                "ES256",
+                                "ES384",
+                                "ES512",
+                                "PS256",
+                                "PS384",
+                                "PS512",
+                                "EdDSA",
+                            },
                         },
                     },
                     required = {"public_key", "private_key"},
@@ -131,7 +164,9 @@ function _M.check_schema(conf, schema_type)
         return false, err
     end
 
-    if conf.algorithm ~= "RS256" and conf.algorithm ~= "ES256" and not conf.secret then
+    local is_hs_alg = conf.algorithm:sub(1, 2) == "HS"
+
+    if is_hs_alg and not conf.secret then
         conf.secret = ngx_encode_base64(resty_random.bytes(32, true))
     elseif conf.base64_secret then
         if ngx_decode_base64(conf.secret) == nil then
@@ -139,7 +174,7 @@ function _M.check_schema(conf, schema_type)
         end
     end
 
-    if conf.algorithm == "RS256" or conf.algorithm == "ES256" then
+    if not is_hs_alg then
         -- Possible options are a) public key is missing
         -- b) private key is missing
         if not conf.public_key then
@@ -262,76 +297,37 @@ local function get_real_payload(key, auth_conf, payload)
 end
 
 
-local function sign_jwt_with_HS(key, consumer, payload)
-    local auth_secret, err = get_secret(consumer.auth_conf, consumer.username)
-    if not auth_secret then
-        core.log.error("failed to sign jwt, err: ", err)
-        core.response.exit(503, "failed to sign jwt")
-    end
-    local ok, jwt_token = pcall(jwt.sign, _M,
-        auth_secret,
-        {
-            header = {
-                typ = "JWT",
-                alg = consumer.auth_conf.algorithm
-            },
-            payload = get_real_payload(key, consumer.auth_conf, payload)
-        }
-    )
-    if not ok then
-        core.log.warn("failed to sign jwt, err: ", jwt_token.reason)
-        core.response.exit(500, "failed to sign jwt")
-    end
-    return jwt_token
-end
-
-
-local function sign_jwt_with_RS256_ES256(key, consumer, payload)
-    local public_key, private_key, err = get_rsa_or_ecdsa_keypair(
-        consumer.auth_conf, consumer.username
-    )
-    if not public_key then
-        core.log.error("failed to sign jwt, err: ", err)
-        core.response.exit(503, "failed to sign jwt")
-    end
-
-    local ok, jwt_token = pcall(jwt.sign, _M,
-        private_key,
-        {
-            header = {
-                typ = "JWT",
-                alg = consumer.auth_conf.algorithm,
-                x5c = {
-                    public_key,
-                }
-            },
-            payload = get_real_payload(key, consumer.auth_conf, payload)
-        }
-    )
-    if not ok then
-        core.log.warn("failed to sign jwt, err: ", jwt_token.reason)
-        core.response.exit(500, "failed to sign jwt")
-    end
-    return jwt_token
-end
-
--- introducing method_only flag (returns respective signing method) to save http API calls.
-local function algorithm_handler(consumer, method_only)
-    if not consumer.auth_conf.algorithm or consumer.auth_conf.algorithm == "HS256"
-            or consumer.auth_conf.algorithm == "HS512" then
-        if method_only then
-            return sign_jwt_with_HS
+local function get_auth_secret(consumer, is_private)
+    if not consumer.auth_conf.algorithm or consumer.auth_conf.algorithm:sub(1, 2) == "HS" then
+        return get_secret(consumer.auth_conf)
+    else
+        local public_key, private_key, err = get_rsa_or_ecdsa_keypair(consumer.auth_conf)
+        if is_private then
+            return private_key, err
         end
-
-        return get_secret(consumer.auth_conf, consumer.username)
-    elseif consumer.auth_conf.algorithm == "RS256" or consumer.auth_conf.algorithm == "ES256"  then
-        if method_only then
-            return sign_jwt_with_RS256_ES256
-        end
-
-        local public_key, _, err = get_rsa_or_ecdsa_keypair(consumer.auth_conf, consumer.username)
         return public_key, err
     end
+end
+
+
+local function gen_jwt_header(consumer)
+    local x5c
+    if consumer.auth_conf.algorithm and consumer.auth_conf.algorithm:sub(1, 2) ~= "HS" then
+        local public_key, private_key, err = get_rsa_or_ecdsa_keypair(
+            consumer.auth_conf, consumer.username
+        )
+        if not public_key then
+            core.log.error("failed to sign jwt, err: ", err)
+            core.response.exit(503, "failed to sign jwt")
+        end
+        x5c = {public_key}
+    end
+
+    return {
+        typ = "JWT",
+        alg = consumer.auth_conf.algorithm,
+        x5c = x5c
+    }
 end
 
 
@@ -343,14 +339,14 @@ local function find_consumer(conf, ctx)
         return nil, nil, "Missing JWT token in request"
     end
 
-    local jwt_obj = jwt:load_jwt(jwt_token)
-    core.log.info("jwt object: ", core.json.delay_encode(jwt_obj))
-    if not jwt_obj.valid then
-        core.log.warn("JWT token invalid: ", jwt_obj.reason)
+    local jwt, err = jwt_parser.new(jwt_token)
+    if not jwt then
+        core.log.warn("JWT token invalid: ", err)
         return nil, nil, "JWT token invalid"
     end
+    core.log.debug("parsed jwt object: ", core.json.delay_encode(jwt, true))
 
-    local user_key = jwt_obj.payload and jwt_obj.payload.key
+    local user_key = jwt.payload and jwt.payload.key
     if not user_key then
         return nil, nil, "missing user key in JWT token"
     end
@@ -361,20 +357,24 @@ local function find_consumer(conf, ctx)
         return nil, nil, "Invalid user key in JWT token"
     end
 
-    local auth_secret, err = algorithm_handler(consumer)
+    local auth_secret, err = get_auth_secret(consumer)
     if not auth_secret then
         core.log.error("failed to retrieve secrets, err: ", err)
         return nil, nil, "failed to verify jwt"
     end
 
-    local claim_specs = jwt:get_default_validation_options(jwt_obj)
-    claim_specs.lifetime_grace_period = consumer.auth_conf.lifetime_grace_period
+    -- Now verify the JWT signature
+    if not jwt:verify_signature(auth_secret) then
+        core.log.warn("failed to verify jwt: signature mismatch: ", jwt.signature)
+        return nil, nil, "failed to verify jwt"
+    end
 
-    jwt_obj = jwt:verify_jwt_obj(auth_secret, jwt_obj, claim_specs)
-    core.log.info("jwt object: ", core.json.delay_encode(jwt_obj))
-
-    if not jwt_obj.verified then
-        core.log.warn("failed to verify jwt: ", jwt_obj.reason)
+    -- Verify the JWT registered claims
+    local ok, err = jwt:verify_claims(conf.claims_to_verify, {
+        lifetime_grace_period = consumer.auth_conf.lifetime_grace_period
+    })
+    if not ok then
+        core.log.error("failed to verify jwt: ", err)
         return nil, nil, "failed to verify jwt"
     end
 
@@ -422,15 +422,26 @@ local function gen_token()
         return core.response.exit(404)
     end
 
-    core.log.info("consumer: ", core.json.delay_encode(consumer))
-
-    local sign_handler = algorithm_handler(consumer, true)
-    local jwt_token = sign_handler(key, consumer, payload)
-    if jwt_token then
-        return core.response.exit(200, jwt_token)
+    local auth_secret, err = get_auth_secret(consumer, true)
+    if not auth_secret then
+        core.log.error("failed to retrieve secrets, err: ", err)
+        return core.response.exit(401)
     end
 
-    return core.response.exit(404)
+    local jwt_header, err = gen_jwt_header(consumer)
+    if not jwt_header then
+        core.log.error("failed to generate jwt header: ", err)
+        return core.response.exit(503)
+    end
+
+    local real_payload = get_real_payload(key, consumer.auth_conf, payload)
+    local jwt_token, err = jwt_parser.encode(consumer.auth_conf.algorithm, auth_secret, jwt_header, real_payload)
+    if not jwt_token then
+        core.log.warn("failed to sign jwt: ", err)
+        return core.response.exit(500, {message = "failed to sign jwt"})
+    end
+
+    return core.response.exit(200, jwt_token)
 end
 
 
