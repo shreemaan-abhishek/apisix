@@ -117,6 +117,8 @@ install_module() {
 	sed -i '306i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy/drivers' "${VAR_APISIX_HOME}/Makefile"
 	sed -i '307i __to_replace__	$(ENV_INSTALL) apisix/plugins/ai-proxy/drivers/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy/drivers' "${VAR_APISIX_HOME}/Makefile"
 
+	sed -i '308i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
+	sed -i '309i __to_replace__	$(ENV_INSTALL) apisix/plugins/jwt-auth/*.lua $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
     echo '
 ### ci-env-stop : CI env temporary stop
 .PHONY: ci-env-stop
