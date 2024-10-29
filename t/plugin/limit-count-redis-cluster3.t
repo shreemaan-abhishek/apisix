@@ -133,3 +133,173 @@ passed
 ["GET /hello", "GET /hello", "GET /hello"]
 --- error_code eval
 [200, 200, 503]
+
+
+
+=== TEST 4: set route with same group and cluster name and limit count but different nodes
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/hello",
+                    "plugins": {
+                        "limit-count": {
+                            "count": 2,
+                            "time_window": 60,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-cluster",
+                            "group": "redis-cluster-group",
+                            "redis_timeout": 1001,
+                            "redis_cluster_nodes": [
+                                "127.0.0.1:5000",
+                                "127.0.0.1:5002"
+                            ],
+                            "redis_cluster_name": "redis-cluster-1"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+            if code >= 300 then
+                ngx.status = code
+                return
+            end
+
+            local code, body = t('/apisix/admin/routes/2',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/hello1",
+                    "plugins": {
+                        "limit-count": {
+                            "count": 2,
+                            "time_window": 60,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-cluster",
+                            "group": "redis-cluster-group",
+                            "redis_timeout": 1001,
+                            "redis_cluster_nodes": [
+                                "127.0.0.1:5003",
+                                "127.0.0.1:5004"
+                            ],
+                            "redis_cluster_name": "redis-cluster-1"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 5: different nodes in the same cluster still share limit count
+--- pipelined_requests eval
+["GET /hello", "GET /hello1", "GET /hello", "GET /hello1"]
+--- error_code eval
+[200, 200, 503, 503]
+
+
+
+=== TEST 6: set route with same group and different limit count
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/hello",
+                    "plugins": {
+                        "limit-count": {
+                            "count": 2,
+                            "time_window": 60,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-cluster",
+                            "group": "redis-cluster-group2",
+                            "redis_timeout": 1001,
+                            "redis_cluster_nodes": [
+                                "127.0.0.1:5000",
+                                "127.0.0.1:5002"
+                            ],
+                            "redis_cluster_name": "redis-cluster-1"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+            if code >= 300 then
+                ngx.status = code
+                return
+            end
+
+            local code, body = t('/apisix/admin/routes/2',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/hello1",
+                    "plugins": {
+                        "limit-count": {
+                            "count": 1,
+                            "time_window": 60,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-cluster",
+                            "group": "redis-cluster-group2",
+                            "redis_timeout": 1001,
+                            "redis_cluster_nodes": [
+                                "127.0.0.1:5000",
+                                "127.0.0.1:5002"
+                            ],
+                            "redis_cluster_name": "redis-cluster-1"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 7: different nodes in the same cluster still share limit count
+--- pipelined_requests eval
+["GET /hello", "GET /hello", "GET /hello", "GET /hello1", "GET /hello1"]
+--- error_code eval
+[200, 200, 503, 200, 503]

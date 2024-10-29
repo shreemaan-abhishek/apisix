@@ -41,6 +41,9 @@ local lrucache = core.lrucache.new({
 local group_conf_lru = core.lrucache.new({
     type = 'plugin',
 })
+local group_key_lru = core.lrucache.new({
+    type = 'plugin',
+})
 
 local policy_to_additional_properties = {
     redis = {
@@ -156,8 +159,38 @@ local _M = {
 }
 
 
-local function group_conf(conf)
-    return conf
+local function table_insert_tail(t, ...)
+    for i = 1, select("#", ...) do
+        local x = select(i, ...)
+        if x then
+            core.table.insert(t, x)
+        end
+    end
+end
+
+
+local function gen_group_key(conf)
+    local keys = {
+        conf.group,
+        conf.count,
+        conf.time_window,
+    }
+    if conf.policy == "redis" then
+        table_insert_tail(keys,
+            conf.redis_host,
+            conf.redis_port,
+            conf.redis_username,
+            conf.redis_password,
+            conf.redis_database
+        )
+    elseif conf.policy == "redis-cluster" then
+        table_insert_tail(keys,
+            conf.redis_cluster_name,
+            conf.redis_username,
+            conf.redis_password
+        )
+    end
+    return table.concat(keys, "_")
 end
 
 
@@ -184,18 +217,6 @@ function _M.check_schema(conf)
         if extra then
             for k in pairs(extra.properties) do
                 tab_insert(fields, k)
-            end
-        end
-
-        local prev_conf = group_conf_lru(conf.group, "", group_conf, conf)
-
-        for _, field in ipairs(fields) do
-            if not core.table.deep_eq(prev_conf[field], conf[field]) then
-                core.log.error("previous limit-conn group ", prev_conf.group,
-                            " conf: ", core.json.encode(prev_conf))
-                core.log.error("current limit-conn group ", conf.group,
-                            " conf: ", core.json.encode(conf))
-                return false, "group conf mismatched"
             end
         end
     end
@@ -240,7 +261,8 @@ end
 
 local function gen_limit_key(conf, ctx, key)
     if conf.group then
-        return conf.group .. ':' .. key
+        local group_key = group_key_lru(ctx.route_id, ctx.conf_version, gen_group_key, conf)
+        return group_key .. ':' .. key
     end
 
     -- here we add a separator ':' to mark the boundary of the prefix and the key itself
@@ -260,18 +282,18 @@ end
 
 
 local function gen_limit_obj(conf, ctx, plugin_name)
+    local key
     if conf.group then
-        return lrucache(conf.group, "", create_limit_obj, conf, plugin_name)
+        key = group_key_lru(ctx.route_id, ctx.conf_version, gen_group_key, conf)
+        return group_conf_lru(key, "", create_limit_obj, conf, plugin_name)
     end
-
-    local extra_key
     if conf._vid then
-        extra_key = conf.policy .. '#' .. conf._vid
+        key = conf.policy .. '#' .. conf._vid
     else
-        extra_key = conf.policy
+        key = conf.policy
     end
 
-    return core.lrucache.plugin_ctx(lrucache, ctx, extra_key, create_limit_obj, conf, plugin_name)
+    return core.lrucache.plugin_ctx(lrucache, ctx, key, create_limit_obj, conf, plugin_name)
 end
 
 function _M.rate_limit(conf, ctx, name, cost)
@@ -286,6 +308,7 @@ function _M.rate_limit(conf, ctx, name, cost)
         end
         return 500
     end
+    core.log.debug("limit object: ", core.json.delay_encode(lim, true))
 
     local conf_key = conf.key
     local key
