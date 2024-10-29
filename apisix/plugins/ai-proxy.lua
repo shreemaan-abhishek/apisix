@@ -27,7 +27,7 @@ local ngx_flush = ngx.flush
 local plugin_name = "ai-proxy"
 local _M = {
     version = 0.5,
-    priority = 999,
+    priority = 997,
     name = plugin_name,
     schema = schema.plugin_schema,
 }

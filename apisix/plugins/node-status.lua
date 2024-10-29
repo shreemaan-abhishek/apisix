@@ -30,7 +30,7 @@ local schema = {
 
 local _M = {
     version = 0.1,
-    priority = 1000,
+    priority = 998,
     name = plugin_name,
     schema = schema,
     scope = "global",
