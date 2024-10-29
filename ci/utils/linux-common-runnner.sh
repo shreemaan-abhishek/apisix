@@ -114,11 +114,15 @@ install_module() {
     sed -i '304i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy' "${VAR_APISIX_HOME}/Makefile"
     sed -i '305i __to_replace__	$(ENV_INSTALL) apisix/plugins/ai-proxy/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy' "${VAR_APISIX_HOME}/Makefile"
 
-	sed -i '306i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy/drivers' "${VAR_APISIX_HOME}/Makefile"
-	sed -i '307i __to_replace__	$(ENV_INSTALL) apisix/plugins/ai-proxy/drivers/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy/drivers' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '306i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy/drivers' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '307i __to_replace__	$(ENV_INSTALL) apisix/plugins/ai-proxy/drivers/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ai-proxy/drivers' "${VAR_APISIX_HOME}/Makefile"
 
-	sed -i '308i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
-	sed -i '309i __to_replace__	$(ENV_INSTALL) apisix/plugins/jwt-auth/*.lua $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '308i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '309i __to_replace__	$(ENV_INSTALL) apisix/plugins/jwt-auth/*.lua $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
+
+    sed -i '310i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/limit-count-advanced' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '311i __to_replace__	$(ENV_INSTALL) apisix/plugins/limit-count-advanced/*.lua $(ENV_INST_LUADIR)/apisix/plugins/limit-count-advanced/' "${VAR_APISIX_HOME}/Makefile"
+
     echo '
 ### ci-env-stop : CI env temporary stop
 .PHONY: ci-env-stop
