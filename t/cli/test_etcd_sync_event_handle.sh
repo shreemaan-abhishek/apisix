@@ -52,8 +52,7 @@ etcdctl --endpoints=127.0.0.1:2379 auth enable
 sleep 3
 
 # Restart etcd services to make sure that APISIX cannot be synchronized
-project_compose_ci=ci/pod/docker-compose.common.yml make ci-env-stop
-project_compose_ci=ci/pod/docker-compose.common.yml make ci-env-up
+docker restart apache-apisix_etcd_1
 
 # Make some changes when APISIX cannot be synchronized
 # Authentication ensures that only etcdctl can access etcd at this time
@@ -112,3 +111,6 @@ cat logs/error.log | grep "watchdir err: " || (echo "Log case 1 unexpected"; exi
 ## After check, it only appears when watch recovers and returns events in bulk.
 cat logs/error.log | grep "}, {" || (echo "failed: Log case 2 unexpected"; exit 1)
 cat logs/error.log | grep "failed to check item data" || (echo "failed: Log case 3 unexpected"; exit 1)
+
+# cleanup
+etcdctl --endpoints=127.0.0.1:2379 del /apisix --prefix
