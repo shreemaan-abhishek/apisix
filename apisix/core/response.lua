@@ -18,8 +18,50 @@ local str_sub = string.sub
 local tonumber = tonumber
 local clear_tab = require("table.clear")
 local pairs = pairs
-
+local table = require("apisix.core.table")
 local _M = {version = 0.1}
+
+function _M.exit_insert_callback(func, conf)
+    local ngx_ctx = ngx.ctx
+    local exit_callback_funcs = ngx_ctx.apisix_exit_callback_funcs or {}
+    table.insert_tail(exit_callback_funcs, func, conf)
+    ngx_ctx.apisix_exit_callback_funcs = exit_callback_funcs
+end
+
+
+local function set_header(append, ...)
+    if ngx.headers_sent then
+      error("headers have already been sent", 2)
+    end
+
+    local count = select('#', ...)
+    if count == 1 then
+        local headers = select(1, ...)
+        if type(headers) ~= "table" then
+            -- response.set_header(name, nil)
+            ngx_header[headers] = nil
+            return
+        end
+
+        for k, v in pairs(headers) do
+            if append then
+                ngx_add_header(k, v)
+            else
+                ngx_header[k] = v
+            end
+        end
+
+        return
+    end
+
+    for i = 1, count, 2 do
+        if append then
+            ngx_add_header(select(i, ...), select(i + 1, ...))
+        else
+            ngx_header[select(i, ...)] = select(i + 1, ...)
+        end
+    end
+end
 
 
 local resp_exit
@@ -57,9 +99,36 @@ function resp_exit(code, ...)
             t[idx] = v
         end
     end
+    local body = concat_tab(t, "", 1, idx)
+    local exit_callback_funcs = ngx.ctx.apisix_exit_callback_funcs
+    if exit_callback_funcs then
+        local cur_code = code
+        local cur_body = body
+        local cur_headers = {}
+        for i = 1, #exit_callback_funcs, 2 do
+            local callback_func = exit_callback_funcs[i]
+            local callback_conf = exit_callback_funcs[i+1]
+            cur_code, cur_body, cur_headers = callback_func(
+                cur_code, cur_body, cur_headers,
+                callback_conf)
+        end
+        ngx.status = cur_code
+
+        if cur_headers and table.nkeys(cur_headers) > 0 then
+            set_header(false, cur_headers)
+        end
+
+        if cur_body then
+            ngx_print(cur_body)
+        end
+        if cur_code then
+            ngx_exit(cur_code)
+        end
+        return
+    end
 
     if idx > 0 then
-        ngx_print(concat_tab(t, "", 1, idx))
+        ngx_print(body)
     end
 
     if code then
@@ -75,40 +144,6 @@ function _M.say(...)
     resp_exit(nil, ...)
 end
 
-
-local function set_header(append, ...)
-    if ngx.headers_sent then
-      error("headers have already been sent", 2)
-    end
-
-    local count = select('#', ...)
-    if count == 1 then
-        local headers = select(1, ...)
-        if type(headers) ~= "table" then
-            -- response.set_header(name, nil)
-            ngx_header[headers] = nil
-            return
-        end
-
-        for k, v in pairs(headers) do
-            if append then
-                ngx_add_header(k, v)
-            else
-                ngx_header[k] = v
-            end
-        end
-
-        return
-    end
-
-    for i = 1, count, 2 do
-        if append then
-            ngx_add_header(select(i, ...), select(i + 1, ...))
-        else
-            ngx_header[select(i, ...)] = select(i + 1, ...)
-        end
-    end
-end
 
 
 function _M.set_header(...)

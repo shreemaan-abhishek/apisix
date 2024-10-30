@@ -422,6 +422,7 @@ graphql:
   #cmd: ["ls", "-l"]
 
 plugins:                          # plugin list (sorted by priority)
+#  - exit-transformer               # priority: 9999999
   - real-ip                        # priority: 23000
   # - toolset                          # priority: 22901
   - ai                             # priority: 22900
