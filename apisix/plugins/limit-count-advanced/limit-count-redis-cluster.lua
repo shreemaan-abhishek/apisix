@@ -17,7 +17,10 @@
 
 local rediscluster = require("resty.rediscluster")
 local core = require("apisix.core")
-local delayed_syncer = require("apisix.plugins.limit-count.delayed-syncer")
+local delayed_syncer = require("apisix.plugins.limit-count-advanced.delayed-syncer")
+local sliding_window = require("apisix.plugins.limit-count-advanced.sliding-window.sliding-window")
+local sliding_window_store = require("apisix.plugins.limit-count-advanced.sliding-window.store.redis")
+
 local setmetatable = setmetatable
 local tostring = tostring
 local ipairs = ipairs
@@ -79,6 +82,21 @@ function _M.new(plugin_name, limit, window, conf)
         return nil, err
     end
 
+    if conf.window_type == "sliding" then
+
+        local sw_limit_count, err = sliding_window.new(sliding_window_store, limit, window, conf, red_cli)
+        if not sw_limit_count then
+            return nil, err
+        end
+
+        local self = {
+            window_type = conf.window_type,
+            limit_count = sw_limit_count,
+        }
+        self.delayed_syncer = delayed_syncer.new(limit, window, conf, self.limit_count)
+        return setmetatable(self, mt)
+    end
+
     local self = {
         limit = limit,
         window = window,
@@ -103,6 +121,10 @@ function _M.incoming_delayed(self, key, cost, syncer_id)
 end
 
 function _M.incoming(self, key, cost)
+    if self.window_type == "sliding" then
+        return self.limit_count:incoming(key, cost)
+    end
+
     local red = self.red_cli
     local limit = self.limit
     local window = self.window

@@ -15,6 +15,8 @@
 -- limitations under the License.
 --
 local limit_count = require("resty.limit.count")
+local sliding_window = require("apisix.plugins.limit-count-advanced.sliding-window.sliding-window")
+local shared_dict_store = require("apisix.plugins.limit-count-advanced.sliding-window.store.shared-dict")
 
 local ngx = ngx
 local ngx_time = ngx.time
@@ -52,10 +54,32 @@ local function read_reset(self, key)
     return reset
 end
 
-function _M.new(plugin_name, limit, window)
+function _M.new(plugin_name, limit, window, window_type)
     assert(limit > 0 and window > 0)
 
+    if window_type == "sliding" then
+        local shd_store, err = shared_dict_store.new({name = plugin_name})
+        if not shd_store then
+            return nil, err
+        end
+
+        local sw_limit_count, err = sliding_window.new(
+                          shared_dict_store.new({name = plugin_name}), limit, window)
+
+        if not sw_limit_count then
+            return nil, err
+        end
+
+        local self = {
+            window_type = window_type,
+            limit_count = sw_limit_count,
+        }
+
+        return setmetatable(self, mt)
+    end
+
     local self = {
+        window_type = window_type,
         limit_count = limit_count.new(plugin_name, limit, window),
         dict = ngx.shared[plugin_name .. "-reset-header"]
     }
@@ -64,6 +88,10 @@ function _M.new(plugin_name, limit, window)
 end
 
 function _M.incoming(self, key, commit, conf, cost)
+    if self.window_type == "sliding" then
+        return self.limit_count:incoming(key, cost)
+    end
+
     local delay, remaining = self.limit_count:incoming(key, commit, cost)
     local reset = 0
     if not delay then

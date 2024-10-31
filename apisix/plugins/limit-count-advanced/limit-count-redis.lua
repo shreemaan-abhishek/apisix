@@ -14,9 +14,12 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
-local redis_new = require("resty.redis").new
 local core = require("apisix.core")
-local delayed_syncer = require("apisix.plugins.limit-count.delayed-syncer")
+local delayed_syncer = require("apisix.plugins.limit-count-advanced.delayed-syncer")
+local sliding_window = require("apisix.plugins.limit-count-advanced.sliding-window.sliding-window")
+local sliding_window_store = require("apisix.plugins.limit-count-advanced.sliding-window.store.redis")
+local redis_cli = require("apisix.plugins.limit-count-advanced.util").redis_cli
+
 local assert = assert
 local setmetatable = setmetatable
 local tostring = tostring
@@ -39,53 +42,24 @@ local script = core.string.compress_script([=[
     return {redis.call('incrby', KEYS[1], 0 - ARGV[3]), ttl}
 ]=])
 
-local function redis_cli(conf)
-    local red = redis_new()
-    local timeout = conf.redis_timeout or 1000    -- 1sec
-
-    red:set_timeouts(timeout, timeout, timeout)
-
-    local sock_opts = {
-        ssl = conf.redis_ssl,
-        ssl_verify = conf.redis_ssl_verify
-    }
-
-    local ok, err = red:connect(conf.redis_host, conf.redis_port or 6379, sock_opts)
-    if not ok then
-        return false, err
-    end
-
-    local count
-    count, err = red:get_reused_times()
-    if 0 == count then
-        if conf.redis_password and conf.redis_password ~= '' then
-            local ok, err
-            if conf.redis_username then
-                ok, err = red:auth(conf.redis_username, conf.redis_password)
-            else
-                ok, err = red:auth(conf.redis_password)
-            end
-            if not ok then
-                return nil, err
-            end
-        end
-
-        -- select db
-        if conf.redis_database ~= 0 then
-            local ok, err = red:select(conf.redis_database)
-            if not ok then
-                return false, "failed to change redis db, err: " .. err
-            end
-        end
-    elseif err then
-        -- core.log.info(" err: ", err)
-        return nil, err
-    end
-    return red, nil
-end
 
 function _M.new(plugin_name, limit, window, conf)
     assert(limit > 0 and window > 0)
+
+    if conf.window_type == "sliding" then
+        local sw_limit_count, err = sliding_window.new(sliding_window_store, limit, window, conf)
+        if not sw_limit_count then
+            return nil, err
+        end
+
+        local self = {
+            window_type = conf.window_type,
+            limit_count = sw_limit_count,
+        }
+
+        self.delayed_syncer = delayed_syncer.new(limit, window, conf, self.limit_count)
+        return setmetatable(self, mt)
+    end
 
     local self = {
         limit = limit,
@@ -110,6 +84,10 @@ function _M.incoming_delayed(self, key, cost, syncer_id)
 end
 
 function _M.incoming(self, key, cost)
+    if self.window_type == "sliding" then
+        return self.limit_count:incoming(key, cost)
+    end
+
     local conf = self.conf
     local red, err = redis_cli(conf)
     if not red then

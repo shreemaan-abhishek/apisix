@@ -1,0 +1,16 @@
+version: "3.8"
+
+services:
+  ## Redis
+  apisix_redis:
+    # The latest image is the latest stable version
+    image: redis:latest
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  httpbin:
+    image: kennethreitz/httpbin
+    restart: unless-stopped
+    ports:
+      - "4901:80"

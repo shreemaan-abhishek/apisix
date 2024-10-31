@@ -106,6 +106,7 @@ api-breaker
 graphql-limit-count
 limit-conn
 limit-count
+limit-count-advanced
 limit-req
 ai-proxy
 traffic-label

@@ -379,6 +379,23 @@ http {
     lua_shared_dict plugin-limit-count-reset-header 10m;
     {% end %}
     
+    {% if http.lua_shared_dict["plugin-limit-count-advanced"] then %}
+    lua_shared_dict plugin-limit-count-advanced {* http.lua_shared_dict["plugin-limit-count-advanced"] *};
+    {% else %}
+    lua_shared_dict plugin-limit-count-advanced 10m;
+    {% end %}
+
+    {% if http.lua_shared_dict["plugin-limit-count-advanced-redis-cluster-slot-lock"] then %}
+    lua_shared_dict plugin-limit-count-advanced-redis-cluster-slot-lock {* http.lua_shared_dict["plugin-limit-count-advanced-redis-cluster-slot-lock"] *};
+    {% else %}
+    lua_shared_dict plugin-limit-count-advanced-redis-cluster-slot-lock 10m;
+    {% end %}
+
+    {% if http.lua_shared_dict["plugin-limit-count-advanced"] then %}
+    lua_shared_dict plugin-limit-count-advanced-reset-header {* http.lua_shared_dict["plugin-limit-count-advanced"] *};
+    {% else %}
+    lua_shared_dict plugin-limit-count-advanced-reset-header 10m;
+    {% end %}
 
     {% if http.lua_shared_dict["plugin-graphql-limit-count"] then %}
     lua_shared_dict plugin-graphql-limit-count {* http.lua_shared_dict["plugin-graphql-limit-count"] *};

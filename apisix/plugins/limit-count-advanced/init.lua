@@ -26,13 +26,13 @@ local limit_redis_cluster_new
 local limit_redis_new
 local limit_local_new
 do
-    local local_src = "apisix.plugins.limit-count.limit-count-local"
+    local local_src = "apisix.plugins.limit-count-advanced.limit-count-local"
     limit_local_new = require(local_src).new
 
-    local redis_src = "apisix.plugins.limit-count.limit-count-redis"
+    local redis_src = "apisix.plugins.limit-count-advanced.limit-count-redis"
     limit_redis_new = require(redis_src).new
 
-    local cluster_src = "apisix.plugins.limit-count.limit-count-redis-cluster"
+    local cluster_src = "apisix.plugins.limit-count-advanced.limit-count-redis-cluster"
     limit_redis_cluster_new = require(cluster_src).new
 end
 local lrucache = core.lrucache.new({
@@ -108,6 +108,11 @@ local schema = {
     properties = {
         count = {type = "integer", exclusiveMinimum = 0},
         time_window = {type = "integer",  exclusiveMinimum = 0},
+        window_type = {
+            type = "string",
+            enum = { "fixed", "sliding" },
+            default = "fixed",
+        },
         group = {type = "string"},
         key = {type = "string", default = "remote_addr"},
         key_type = {type = "string",
@@ -174,6 +179,7 @@ local function gen_group_key(conf)
         conf.group,
         conf.count,
         conf.time_window,
+        conf.window_type,
     }
     if conf.policy == "redis" then
         table_insert_tail(keys,
@@ -242,7 +248,7 @@ local function create_limit_obj(conf, plugin_name)
 
     if not conf.policy or conf.policy == "local" then
         return limit_local_new("plugin-" .. plugin_name, conf.count,
-                               conf.time_window)
+                               conf.time_window, conf.window_type)
     end
 
     if conf.policy == "redis" then

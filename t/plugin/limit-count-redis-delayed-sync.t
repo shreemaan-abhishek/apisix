@@ -226,3 +226,102 @@ qr/(2 keys to be sync\n){1,}/
     }
 --- response_body
 passed
+
+
+
+=== TEST 9: setup routes
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local apis = {
+                  {
+                      uri = "/apisix/admin/upstreams/localhost_1980",
+                      body = [[{
+                          "nodes": {
+                              "127.0.0.1:1980": 1
+                          },
+                          "type": "roundrobin"
+                      }]],
+                  },
+                  {
+                      uri = "/apisix/admin/routes/hello",
+                      body = [[{
+                          "uri": "/hello",
+                          "plugins": {
+                              "limit-count-advanced": {
+                                  "count": 2,
+                                  "time_window": 1,
+                                  "key_type": "var",
+                                  "key": "arg_key",
+                                  "policy": "redis",
+                                  "redis_host": "127.0.0.1",
+                                  "window_type": "sliding",
+                                  "sync_interval": 0.2
+                              }
+                          },
+                          "upstream_id": "localhost_1980"
+                      }]],
+                  },
+                  {
+                      uri = "/apisix/admin/routes/hello1",
+                      body = [[{
+                          "uri": "/hello1",
+                          "plugins": {
+                              "limit-count-advanced": {
+                                  "count": 2,
+                                  "time_window": 1,
+                                  "policy": "redis-cluster",
+                                  "redis_cluster_nodes": [
+                                      "$ENV://REDIS_NODE_0",
+                                      "$ENV://REDIS_NODE_1"
+                                  ],
+                                  "redis_cluster_name": "redis-cluster-1",
+                                  "window_type": "sliding",
+                                  "sync_interval": 0.2
+                              }
+                          },
+                          "upstream_id": "localhost_1980"
+                      }]],
+                  },
+            }
+            local code, body
+            for _, api in ipairs(apis) do
+                code, body = t(api.uri, ngx.HTTP_PUT, api.body)
+                if code >= 300 then
+                    ngx.status = code
+                    ngx.say(body)
+                    return
+                end
+            end
+            ngx.say("passed")
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 10: sanity - delayed sync to redis
+--- pipelined_requests eval
+["GET /hello", "GET /hello", "GET /hello"]
+--- error_code eval
+[200, 200, 503]
+--- wait: 1
+--- grep_error_log eval
+qr{delayed sync to redis}
+--- grep_error_log_out eval
+qr/(delayed sync to redis\n){3}/
+
+
+
+=== TEST 11: sanity - delayed sync to redis-cluster
+--- pipelined_requests eval
+["GET /hello1", "GET /hello1", "GET /hello1"]
+--- error_code eval
+[200, 200, 503]
+--- wait: 1
+--- grep_error_log eval
+qr{delayed sync to redis-cluster}
+--- grep_error_log_out eval
+qr/(delayed sync to redis-cluster\n){3}/

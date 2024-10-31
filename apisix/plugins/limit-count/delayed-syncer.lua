@@ -179,7 +179,7 @@ function _M._delayed_sync(self, key, cost, syncer_id)
             remote_reset = reset
         elseif remaining_or_err ~= "rejected" then
             core.log.error("sync to redis failed: ", remaining_or_err, ", key: ", key)
-            return nil, nil, err
+            return nil, nil, remaining_or_err
         end
 
         err = self:sync_to_shm(key, remote_remaining, remote_reset, local_delta)
