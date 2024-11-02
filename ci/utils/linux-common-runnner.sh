@@ -149,6 +149,11 @@ ci-env-stop:
 
     sed -i 's|"error"|"\\[error\\]"|' "${VAR_APISIX_HOME}/t/fuzzing/public.py"
 
+
+    sed -i '/\.PHONY: stop/,/@\$(call func_echo_success_status, "\$@ -> \[ Done \]")/c \
+.PHONY: stop\nstop: runtime\n\t@$(call func_echo_status, "$@ -> [ Start ]")\n\t$(ENV_APISIX) stop\n\t@sleep 0.5\n\t@while [ -f logs/nginx.pid ]; do \\\n\t\techo "nginx.pid still exists, waiting for the server to stop..."; \\\n\t\tsleep 1; \\\n\tdone;\n\t@$(call func_echo_success_status, "$@ -> [ Done ]")' ${VAR_APISIX_HOME}/Makefile
+
+
     cat "${VAR_APISIX_HOME}/Makefile"
     printf "\n\n"
     cat "${VAR_APISIX_HOME}/.luacheckrc"
