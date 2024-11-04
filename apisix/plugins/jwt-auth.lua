@@ -61,6 +61,10 @@ local schema = {
             uniqueItems = true,
             default = {"exp", "nbf"},
         },
+        key_claim_name = {
+            type = "string",
+            default = "key"
+        },
     },
 }
 
@@ -284,9 +288,9 @@ local function get_rsa_or_ecdsa_keypair(conf, consumer_name)
 end
 
 
-local function get_real_payload(key, auth_conf, payload)
+local function get_real_payload(key, auth_conf, payload, key_claim_name)
     local real_payload = {
-        key = key,
+        [key_claim_name] = key,
         exp = ngx_time() + auth_conf.exp
     }
     if payload then
@@ -346,9 +350,10 @@ local function find_consumer(conf, ctx)
     end
     core.log.debug("parsed jwt object: ", core.json.delay_encode(jwt, true))
 
-    local user_key = jwt.payload and jwt.payload.key
+    local key_claim_name = conf.key_claim_name
+    local user_key = jwt.payload and jwt.payload[key_claim_name]
     if not user_key then
-        return nil, nil, "missing user key in JWT token"
+        return nil, nil, "missing " .. key_claim_name .. " claim in JWT token"
     end
 
     local consumer, consumer_conf, err = consumer_mod.find_consumer(plugin_name, "key", user_key)
@@ -409,6 +414,8 @@ local function gen_token()
 
     local key = args.key
     local payload = args.payload
+    local key_claim_name = args.key_claim_name or "key"
+
     if payload then
         payload = ngx.unescape_uri(payload)
     end
@@ -434,7 +441,7 @@ local function gen_token()
         return core.response.exit(503)
     end
 
-    local real_payload = get_real_payload(key, consumer.auth_conf, payload)
+    local real_payload = get_real_payload(key, consumer.auth_conf, payload, key_claim_name)
     local jwt_token, err = jwt_parser.encode(consumer.auth_conf.algorithm, auth_secret, jwt_header, real_payload)
     if not jwt_token then
         core.log.warn("failed to sign jwt: ", err)
