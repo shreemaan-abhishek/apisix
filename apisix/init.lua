@@ -202,7 +202,7 @@ function _M.status_ready()
         end
     end
 
-    core.response.exit(503, "none of the configured dp_manager available: " .. err)
+    core.response.exit(503, {error_msg = "none of the configured dp_manager available: " .. err})
 end
 
 

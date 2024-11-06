@@ -2,6 +2,7 @@ local encode_json = require("cjson.safe").encode
 local ngx = ngx
 local arg = ngx.arg
 local ngx_print = ngx.print
+local ngx_say   = ngx.say
 local ngx_header = ngx.header
 local ngx_add_header
 if ngx.config.subsystem == "http" then
@@ -64,84 +65,48 @@ local function set_header(append, ...)
 end
 
 
-local resp_exit
-do
-    local t = {}
-    local idx = 1
-
-function resp_exit(code, ...)
-    clear_tab(t)
-    idx = 0
-
-    if code and type(code) ~= "number" then
-        idx = idx + 1
-        t[idx] = code
-        code = nil
+local function resp_exit(code, body, headers)
+    local exit_callback_funcs = ngx.ctx.apisix_exit_callback_funcs
+    if exit_callback_funcs then
+        for i = 1, #exit_callback_funcs, 2 do
+            local callback_func = exit_callback_funcs[i]
+            local callback_conf = exit_callback_funcs[i+1]
+            code, body, headers = callback_func(
+                code, body, headers,
+                callback_conf)
+        end
     end
 
     if code then
         ngx.status = code
     end
 
-    for i = 1, select('#', ...) do
-        local v = select(i, ...)
-        if type(v) == "table" then
-            local body, err = encode_json(v)
+    if headers and table.nkeys(headers) > 0 then
+        set_header(false, headers)
+    end
+
+    if body then
+        if type(body) == "table" then
+            local body_str, err = encode_json(body)
             if err then
                 error("failed to encode data: " .. err, -2)
             else
-                idx = idx + 1
-                t[idx] = body .. "\n"
+                ngx_say(body_str)
             end
-
-        elseif v ~= nil then
-            idx = idx + 1
-            t[idx] = v
+        else
+            ngx_print(body)
         end
-    end
-    local body = concat_tab(t, "", 1, idx)
-    local exit_callback_funcs = ngx.ctx.apisix_exit_callback_funcs
-    if exit_callback_funcs then
-        local cur_code = code
-        local cur_body = body
-        local cur_headers = {}
-        for i = 1, #exit_callback_funcs, 2 do
-            local callback_func = exit_callback_funcs[i]
-            local callback_conf = exit_callback_funcs[i+1]
-            cur_code, cur_body, cur_headers = callback_func(
-                cur_code, cur_body, cur_headers,
-                callback_conf)
-        end
-        ngx.status = cur_code
-
-        if cur_headers and table.nkeys(cur_headers) > 0 then
-            set_header(false, cur_headers)
-        end
-
-        if cur_body then
-            ngx_print(cur_body)
-        end
-        if cur_code then
-            ngx_exit(cur_code)
-        end
-        return
-    end
-
-    if idx > 0 then
-        ngx_print(body)
     end
 
     if code then
         return ngx_exit(code)
     end
 end
-
-end -- do
 _M.exit = resp_exit
 
 
-function _M.say(...)
-    resp_exit(nil, ...)
+function _M.say(body, headers)
+    resp_exit(nil, body, headers)
 end
 
 

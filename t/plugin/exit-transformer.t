@@ -382,3 +382,85 @@ Content-Type: application/json
 --- error_log
 exit transformer running outside if check
 exit transformer running inside if check
+
+
+
+=== TEST 17: treat body as a table
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                [[{
+                    "plugins": {
+                        "key-auth": {},
+                        "exit-transformer": {
+                            "functions": [
+                                "return
+                                    (function(code, body, header)
+                                        if code == 401 and body.message == \"Missing API key found in request\" then
+                                            return 400, {message = \"authentication Failed\"}, {[\"content-type\"] = \"application/json\"}
+                                        end
+                                        return code, body, header
+                                    end)
+                                (...)"
+                            ]
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "uri": "/hello"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 18: valid consumer
+--- request
+GET /hello
+--- more_headers
+apikey: auth-one
+--- response_headers
+content-type: text/plain
+--- response_body
+hello world
+
+
+
+=== TEST 19: missing api key
+--- request
+GET /hello
+--- error_code: 400
+--- response_headers
+content-type: application/json
+--- response_body
+{"message":"authentication Failed"}
+
+
+
+=== TEST 20: invalid consumer
+--- request
+GET /hello
+--- more_headers
+apikey: 123
+--- error_code: 401
+--- response_headers
+content-type: text/plain
+--- response_body
+{"message":"Invalid API key in request"}
