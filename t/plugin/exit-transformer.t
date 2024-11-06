@@ -79,6 +79,7 @@ GET /t
 passed
 
 
+
 === TEST 3: hit route
 --- error_code: 405
 --- request
@@ -86,45 +87,7 @@ GET /hello
 
 
 
-=== TEST 4: set plugin with restricted function
---- config
-    location /t {
-        content_by_lua_block {
-            local t = require("lib.test_admin").test
-            local code, body = t('/apisix/admin/global_rules/1',
-                 ngx.HTTP_PUT,
-                [[{
-                    "plugins": {
-                        "exit-transformer": {
-                            "functions": ["return (function(code, body, header) string.foo = 1 if code == 404 then return 405 end return code, body, header end)(...)"]
-                        }
-                    }
-                }]]
-                )
-
-            if code >= 300 then
-                ngx.status = code
-            end
-            ngx.say(body)
-        }
-    }
---- request
-GET /t
---- response_body
-passed
-
-
-
-=== TEST 5: hit route
---- error_code: 404
---- request
-GET /hello
---- error_log
-Can not modify string.foo. Protected by the sandbox
-
-
-
-=== TEST 6: set plugin to convert 401 to 402 for auth plugins
+=== TEST 4: set plugin to convert 401 to 402 for auth plugins
 --- config
     location /t {
         content_by_lua_block {
@@ -153,7 +116,7 @@ passed
 
 
 
-=== TEST 7: add consumer with username and plugins
+=== TEST 5: add consumer with username and plugins
 --- config
     location /t {
         content_by_lua_block {
@@ -183,7 +146,7 @@ passed
 
 
 
-=== TEST 8: add key auth plugin using admin api
+=== TEST 6: add key auth plugin using admin api
 --- config
     location /t {
         content_by_lua_block {
@@ -217,7 +180,7 @@ passed
 
 
 
-=== TEST 9: valid consumer
+=== TEST 7: valid consumer
 --- request
 GET /hello
 --- more_headers
@@ -227,7 +190,7 @@ hello world
 
 
 
-=== TEST 10: invalid consumer
+=== TEST 8: invalid consumer
 --- request
 GET /hello
 --- more_headers
@@ -238,7 +201,7 @@ apikey: 123
 
 
 
-=== TEST 11: set plugin to convert 503 to 502 for auth plugins
+=== TEST 9: set plugin to convert 503 to 502 for auth plugins
 --- config
     location /t {
         content_by_lua_block {
@@ -267,7 +230,7 @@ passed
 
 
 
-=== TEST 12: set limit count plugin on route
+=== TEST 10: set limit count plugin on route
 --- config
     location /t {
         content_by_lua_block {
@@ -305,7 +268,7 @@ passed
 
 
 
-=== TEST 13: up the limit
+=== TEST 11: up the limit
 --- pipelined_requests eval
 ["GET /hello", "GET /hello", "GET /hello", "GET /hello"]
 --- error_code eval
@@ -315,7 +278,8 @@ passed
 
 
 
-=== TEST 14: set plugin with function disabled in the sandbox
+=== TEST 12: set plugin with invalid code inside function
+# attempt to call code as a function)
 --- config
     location /t {
         content_by_lua_block {
@@ -325,7 +289,7 @@ passed
                 [[{
                     "plugins": {
                         "exit-transformer": {
-                            "functions": ["return (function(code, body, header) os.execute(\"rm -rf /\") if code == 404 then return 405 end return code, body, header end)(...)"]
+                            "functions": ["return (function(code, body, header) if code == 404 then return code() end return code, body, header end)(...)"]
                         }
                     }
                 }]]
@@ -344,9 +308,77 @@ passed
 
 
 
-=== TEST 15: hit route
+=== TEST 13: hit a non existent route and expect 404 status code
+# exit transformer will catch the invalid code inside func and print an error log gracefully
 --- error_code: 404
 --- request
-GET /asdf
+GET /nohello
 --- error_log
-attempt to call field 'execute' (a nil value)
+attempt to call local 'code' (a number value)
+
+
+
+=== TEST 14: set plugin with judgement based on request content-type
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/global_rules/1',
+                 ngx.HTTP_PUT,
+                [[{
+                    "plugins": {
+                        "exit-transformer": {
+                            "functions": [
+                                "return
+                                    (function(code, body, header)
+                                        local core = require(\"apisix.core\")
+                                        local ct = core.request.headers()[\"Content-Type\"]
+
+                                        core.log.warn(\"exit transformer running outside if check\")
+
+                                        if ct == \"application/json\" and code == 404 then
+                                            core.log.warn(\"exit transformer running inside if check\")
+                                            return 405
+                                        end
+                                        return code, body, header
+                                    end)
+                                (...)"
+                            ]
+                        }
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 15: hit a request with non `application/json` content-type
+--- request
+GET /nohello
+--- more_headers
+Content-Type: text/html
+--- error_code: 404
+--- error_log
+exit transformer running outside if check
+
+
+
+=== TEST 16: hit a request with `application/json` content-type
+--- request
+GET /nohello
+--- more_headers
+Content-Type: application/json
+--- error_code: 405
+--- error_log
+exit transformer running outside if check
+exit transformer running inside if check

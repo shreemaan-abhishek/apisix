@@ -1,4 +1,4 @@
-local sandbox = require("apisix.core.sandbox.init")
+local lua_load = load
 local core = require("apisix.core")
 
 local lrucache = core.lrucache.new({
@@ -31,7 +31,7 @@ function _M.check_schema(conf)
         return false, err
     end
     for _, lua_code_func in ipairs(conf.functions) do
-        local _ , err = sandbox.try_load(lua_code_func)
+        local _ , err = lua_load(lua_code_func)
         if err then
              return false, err
         end
@@ -41,20 +41,19 @@ end
 
 
 local function exit_callback(resp_code, resp_body, resp_header, lua_code_func)
-    local safe_loaded_func, err = lrucache(lua_code_func, nil, sandbox.try_load, lua_code_func)
+    local safe_loaded_func, err = lrucache(lua_code_func, nil, lua_load, lua_code_func)
     if err then
         core.log.error("failed to load lua code: ", err)
         return resp_code, resp_body, resp_header
     end
 
-    local err, new_resp_code, new_resp_body, new_resp_header = sandbox.try_run(safe_loaded_func,
-                                                              resp_code, resp_body, resp_header)
-    if err then
-        core.log.error("failed to run lua code: ", err)
+    local ok, err_or_new_resp_code, new_resp_body, new_resp_header = pcall(safe_loaded_func, resp_code, resp_body, resp_header)
+    if not ok then
+        core.log.error("failed to run lua code: ", err_or_new_resp_code)
         return resp_code, resp_body, resp_header
     end
 
-    return new_resp_code, new_resp_body, new_resp_header
+    return err_or_new_resp_code, new_resp_body, new_resp_header
 end
 
 
