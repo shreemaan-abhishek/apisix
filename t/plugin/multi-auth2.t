@@ -373,7 +373,65 @@ hmac-auth failed to authenticate the request, code: 401. error: failed to get an
 
 
 
-=== TEST 17: enable multi auth with oidc bearer_only = true
+=== TEST 17: enable multi auth plugin using admin api
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "plugins": {
+                        "multi-auth": {
+                            "auth_plugins": [
+                                {
+                                    "basic-auth": {}
+                                },
+                                {
+                                    "openid-connect": {
+                                        "client_id": "kbyuFDidLLm280LIwVFiazOqjO3ty8KH",
+                                        "client_secret": "60Op4HFM0I8ajz0WdiStAbziZ-VFQttXuxixHHs2R7r7-CW8GR79l-mmLqMhc-Sa",
+                                        "discovery": "http://127.0.0.1:1980/.well-known/openid-configuration"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "uri": "/hello"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 18: no authorization header
+--- request
+GET /hello
+--- error_code: 401
+--- response_body
+{"message":"Authorization Failed"}
+--- error_log
+openid-connect failed to authenticate the request, code: 500. error: OIDC authentication failed: request to the redirect_uri path but there's no session state found, 
+
+
+
+=== TEST 19: enable multi auth with oidc bearer_only = true
 --- config
     location /t {
         content_by_lua_block {
@@ -421,7 +479,7 @@ passed
 
 
 
-=== TEST 18: no authorization header
+=== TEST 20: no authorization header
 --- request
 GET /hello
 --- error_code: 401
