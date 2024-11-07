@@ -21,6 +21,7 @@ local openidc = require("resty.openidc")
 local random  = require("resty.random")
 local string  = string
 local ngx     = ngx
+local auth_utils = require("apisix.utils.auth")
 
 local ngx_encode_base64 = ngx.encode_base64
 
@@ -316,8 +317,12 @@ function _M.rewrite(plugin_conf, ctx)
         response, err, access_token, userinfo = introspect(ctx, conf)
 
         if err then
+            err = "OIDC introspection failed: " .. err
             -- Error while validating token or invalid token.
-            core.log.error("OIDC introspection failed: ", err)
+            if auth_utils.is_running_under_multi_auth(ctx) then
+                return response, err
+            end
+            core.log.error(err)
             return response
         end
 
@@ -359,7 +364,11 @@ function _M.rewrite(plugin_conf, ctx)
                 end
                 return 401
             end
-            core.log.error("OIDC authentication failed: ", err)
+            err = "OIDC authentication failed: " .. err
+            if auth_utils.is_running_under_multi_auth(ctx) then
+                return 500, err
+            end
+            core.log.error(err)
             return 500
         end
 

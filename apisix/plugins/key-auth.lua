@@ -18,6 +18,7 @@ local core     = require("apisix.core")
 local consumer_mod = require("apisix.consumer")
 local plugin_name = "key-auth"
 local schema_def = require("apisix.schema_def")
+local auth_utils = require("apisix.utils.auth")
 
 local schema = {
     type = "object",
@@ -83,7 +84,11 @@ local function find_consumer(ctx, conf)
 
     local consumer, consumer_conf, err = consumer_mod.find_consumer(plugin_name, "key", key)
     if not consumer then
-        core.log.warn("failed to find consumer: ", err or "invalid api key")
+        err = "failed to find consumer: " .. (err or "invalid api key")
+        if auth_utils.is_running_under_multi_auth(ctx) then
+            return nil, nil, err
+        end
+        core.log.warn(err)
         return nil, nil, "Invalid API key in request"
     end
 
@@ -109,6 +114,9 @@ function _M.rewrite(conf, ctx)
         end
         consumer, consumer_conf, err = consumer_mod.get_anonymous_consumer(conf.anonymous_consumer)
         if not consumer then
+            if auth_utils.is_running_under_multi_auth(ctx) then
+                return 401, err
+            end
             core.log.error(err)
             return 401, { message = "Invalid user authorization"}
         end

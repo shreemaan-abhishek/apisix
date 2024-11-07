@@ -31,6 +31,7 @@ local plugin_name = "jwt-auth"
 local pcall = pcall
 local schema_def = require("apisix.schema_def")
 local jwt_parser = require("apisix.plugins.jwt-auth.parser")
+local auth_utils = require("apisix.utils.auth")
 
 local schema = {
     type = "object",
@@ -345,6 +346,9 @@ local function find_consumer(conf, ctx)
 
     local jwt, err = jwt_parser.new(jwt_token)
     if not jwt then
+        if auth_utils.is_running_under_multi_auth(ctx) then
+            return nil, nil, "JWT token invalid " .. err
+        end
         core.log.warn("JWT token invalid: ", err)
         return nil, nil, "JWT token invalid"
     end
@@ -358,19 +362,31 @@ local function find_consumer(conf, ctx)
 
     local consumer, consumer_conf, err = consumer_mod.find_consumer(plugin_name, "key", user_key)
     if not consumer then
-        core.log.warn("failed to find consumer: ", err or "invalid user key")
+        local err = "failed to find consumer: " .. (err or "invalid user key")
+        if auth_utils.is_running_under_multi_auth(ctx) then
+            return nil, nil, err
+        end
+        core.log.warn(err)
         return nil, nil, "Invalid user key in JWT token"
     end
 
     local auth_secret, err = get_auth_secret(consumer)
     if not auth_secret then
-        core.log.error("failed to retrieve secrets, err: ", err)
+        err = "failed to retrieve secrets, err: " .. err
+        if auth_utils.is_running_under_multi_auth(ctx) then
+            return nil, nil, err
+        end
+        core.log.error(err)
         return nil, nil, "failed to verify jwt"
     end
 
     -- Now verify the JWT signature
     if not jwt:verify_signature(auth_secret) then
-        core.log.warn("failed to verify jwt: signature mismatch: ", jwt.signature)
+        local err = "failed to verify jwt: signature mismatch: " .. jwt.signature
+        if auth_utils.is_running_under_multi_auth(ctx) then
+            return nil, nil, err
+        end
+        core.log.warn(err)
         return nil, nil, "failed to verify jwt"
     end
 
@@ -379,12 +395,17 @@ local function find_consumer(conf, ctx)
         lifetime_grace_period = consumer.auth_conf.lifetime_grace_period
     })
     if not ok then
-        core.log.error("failed to verify jwt: ", err)
+        err = "failed to verify jwt: " .. err
+        if auth_utils.is_running_under_multi_auth(ctx) then
+            return nil, nil, err
+        end
+        core.log.error(err)
         return nil, nil, "failed to verify jwt"
     end
 
     return consumer, consumer_conf
 end
+
 
 function _M.rewrite(conf, ctx)
     local consumer, consumer_conf, err = find_consumer(conf, ctx)
@@ -394,6 +415,9 @@ function _M.rewrite(conf, ctx)
         end
         consumer, consumer_conf, err = consumer_mod.get_anonymous_consumer(conf.anonymous_consumer)
         if not consumer then
+            if auth_utils.is_running_under_multi_auth(ctx) then
+                return 401, err
+            end
             core.log.error(err)
             return 401, { message = "Invalid user authorization"}
         end
