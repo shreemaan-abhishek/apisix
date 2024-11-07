@@ -67,6 +67,9 @@ __DATA__
                 ngx.HTTP_PUT,
                 [[{
                     "username": "anonymous",
+                     "labels": {
+                         "custom_id": "271fc4a264bb"
+                     },
                     "plugins": {
                         "limit-count": {
                             "count": 1,
@@ -169,7 +172,7 @@ hello world
 
 
 
-=== TEST 4: request without key-auth header will be from anonymous consumer and different rate limit will apply
+=== TEST 5: request without key-auth header will be from anonymous consumer and different rate limit will apply
 --- pipelined_requests eval
 ["GET /hello", "GET /hello", "GET /hello", "GET /hello"]
 --- error_code eval
@@ -177,7 +180,7 @@ hello world
 
 
 
-=== TEST 5: add key auth plugin with non-existent anonymous_consumer
+=== TEST 6: add key auth plugin with non-existent anonymous_consumer
 --- config
     location /t {
         content_by_lua_block {
@@ -213,7 +216,7 @@ passed
 
 
 
-=== TEST 6: anonymous-consumer configured in the route should not be found
+=== TEST 7: anonymous-consumer configured in the route should not be found
 --- request
 GET /hello
 --- error_code: 401
@@ -221,3 +224,48 @@ GET /hello
 failed to get anonymous consumer not-found-anonymous
 --- response_body
 {"message":"Invalid user authorization"}
+
+
+
+=== TEST 8: enable key-auth on the route /echo with anonymous consumer
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "plugins": {
+                        "key-auth": {
+                            "anonymous_consumer": "anonymous"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "uri": "/echo"
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 9: x-consumer-* headers should be attached for anonymous consumer
+--- request
+GET /echo HTTP/1.1
+--- response_headers
+x-consumer-username: anonymous
+x-consumer-custom-id: 271fc4a264bb

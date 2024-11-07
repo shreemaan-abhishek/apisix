@@ -131,12 +131,6 @@ local function plugin_consumer()
                     consumer.modifiedIndex = val.modifiedIndex
                 end
 
-                -- if the consumer has labels, set the field custom_id to it.
-                -- the custom_id is used to set in the request headers to the upstream.
-                if consumer.labels then
-                    consumer.custom_id = consumer.labels["custom_id"]
-                end
-
                 -- Note: the id here is the key of consumer data, which
                 -- is 'username' field in admin
                 consumer.consumer_name = consumer.id
@@ -181,7 +175,12 @@ function _M.attach_consumer(ctx, consumer, conf)
 
     core.request.set_header(ctx, "X-Consumer-Username", consumer.username)
     core.request.set_header(ctx, "X-Credential-Identifier", consumer.credential_id)
-    core.request.set_header(ctx, "X-Consumer-Custom-ID", consumer.custom_id)
+    if consumer.labels and consumer.labels.custom_id then
+        core.request.set_header(ctx, "X-Consumer-Custom-ID", consumer.labels.custom_id)
+    else
+        -- if the consumer has no custom_id label, set it to nil to avoid the malicious request's value being used.
+        core.request.set_header(ctx, "X-Consumer-Custom-ID", nil)
+    end
 end
 
 

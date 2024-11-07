@@ -475,9 +475,6 @@ local function fetch_consumer(self, query)
     end
     core.log.info("fetch consumer from agent: ", core.json.delay_encode(consumer))
 
-    if consumer.labels then
-        consumer.custom_id = consumer.labels["custom_id"]
-    end
     consumer.id = consumer.consumer_name
     consumer.modifiedIndex = consumer.modifiedIndex or self.consumer_version
     self.consumer_version = self.consumer_version > MAX_CONF_VERSION and 0 or self.consumer_version + 1
