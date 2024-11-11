@@ -220,3 +220,112 @@ apikey: rose
 apikey: jack
 --- error_code eval
 [200, 200, 200, 200, 200, 429]
+
+
+
+=== TEST 8: create a route with key-auth & limit-count-advanced plugin (sliding window mode)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "plugins": {
+                            "key-auth": {},
+                            "limit-count-advanced": {
+                                "count": 3,
+                                "time_window": 10,
+                                "window_type": "sliding",
+                                "rejected_code": 503
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/hello"
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 9: create a consumer jack with workflow plugin that has limit-count-advanced plugin
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/consumers',
+                ngx.HTTP_PUT,
+                [[{
+                    "username": "jack",
+                    "plugins": {
+                        "key-auth": {
+                            "key": "jack"
+                        },
+                        "workflow": {
+                            "rules": [
+                                {
+                                    "case": [
+                                        ["route_id", "==", "1"]
+                                    ],
+                                    "actions": [
+                                        [
+                                            "limit-count-advanced",
+                                            {
+                                                "count": 5,
+                                                "time_window": 10,
+                                                "window_type": "sliding",
+                                                "rejected_code": 429
+                                            }
+                                        ]
+                                    ]
+                                }
+                            ]
+                        }
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 10: send request with rose consumer
+--- pipelined_requests eval
+["GET /hello", "GET /hello", "GET /hello", "GET /hello"]
+--- more_headers
+apikey: rose
+--- error_code eval
+[200, 200, 200, 503]
+
+
+
+=== TEST 11: send request with jack consumer
+--- pipelined_requests eval
+["GET /hello", "GET /hello", "GET /hello", "GET /hello", "GET /hello", "GET /hello"]
+--- more_headers
+apikey: jack
+--- error_code eval
+[200, 200, 200, 200, 200, 429]

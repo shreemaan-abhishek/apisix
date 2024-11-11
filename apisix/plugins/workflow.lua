@@ -17,6 +17,7 @@
 local core        = require("apisix.core")
 local plugin      = require("apisix.plugin")
 local limit_count = require("apisix.plugins.limit-count.init")
+local limit_count_advanced = require("apisix.plugins.limit-count-advanced.init")
 local expr        = require("resty.expr.v1")
 local ipairs      = ipairs
 
@@ -98,6 +99,11 @@ local function rate_limit(conf, ctx)
 end
 
 
+local function rate_limit_adavanced(conf, ctx)
+    return limit_count_advanced.rate_limit(conf, ctx, "limit-count-advanced", 1)
+end
+
+
 local support_action = {
     ["return"] = {
         handler        = exit,
@@ -106,6 +112,10 @@ local support_action = {
     ["limit-count"] = {
         handler        = rate_limit,
         check_schema   = limit_count.check_schema,
+    },
+    ["limit-count-advanced"] = {
+        handler        = rate_limit_adavanced,
+        check_schema   = limit_count_advanced.check_schema,
     }
 }
 
