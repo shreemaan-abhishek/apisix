@@ -1205,6 +1205,14 @@ local function run_meta_pre_function(conf, api_ctx, name)
 end
 
 
+function _M.skip_plugin(ctx, plugin_name)
+    if not ctx._skip_plugins then
+        ctx._skip_plugins = {}
+    end
+    ctx._skip_plugins[plugin_name] = true
+end
+
+
 function _M.run_plugin(phase, plugins, api_ctx)
     local plugin_run = false
     api_ctx = api_ctx or ngx.ctx.api_ctx
@@ -1246,6 +1254,9 @@ function _M.run_plugin(phase, plugins, api_ctx)
                 run_meta_pre_function(conf, api_ctx, plugins[i]["name"])
                 plugin_run = true
                 api_ctx._plugin_name = plugins[i]["name"]
+                if api_ctx._skip_plugins and api_ctx._skip_plugins[api_ctx._plugin_name] then
+                    goto CONTINUE
+                end
                 local code, body = phase_func(conf, api_ctx)
                 api_ctx._plugin_name = nil
                 if code or body then
@@ -1284,9 +1295,14 @@ function _M.run_plugin(phase, plugins, api_ctx)
             plugin_run = true
             run_meta_pre_function(conf, api_ctx, plugins[i]["name"])
             api_ctx._plugin_name = plugins[i]["name"]
+            if api_ctx._skip_plugins and api_ctx._skip_plugins[api_ctx._plugin_name] then
+                goto CONTINUE
+            end
             phase_func(conf, api_ctx)
             api_ctx._plugin_name = nil
         end
+
+        ::CONTINUE::
     end
 
     return api_ctx, plugin_run

@@ -15,6 +15,7 @@
 -- limitations under the License.
 --
 local core        = require("apisix.core")
+local plugin      = require("apisix.plugin")
 local limit_count = require("apisix.plugins.limit-count.init")
 local expr        = require("resty.expr.v1")
 local ipairs      = ipairs
@@ -152,6 +153,7 @@ function _M.access(conf, ctx)
         if match_result then
             -- only one action is currently supported
             local action = rule.actions[1]
+            plugin.skip_plugin(ctx, action[1])
             return support_action[action[1]].handler(action[2], ctx)
         end
     end
