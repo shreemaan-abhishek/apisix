@@ -259,4 +259,4 @@ opentracing
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_http_status\{code="200",route="1",matched_uri="\/opentracing",matched_host="",service="",consumer="",node="127.0.0.1\"} 1/
+qr/apisix_http_status\{code="200",route="1",route_id="1",matched_uri="\/opentracing",matched_host="",service="",service_id="",consumer="",node="127.0.0.1\"} 1/

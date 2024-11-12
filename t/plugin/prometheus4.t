@@ -112,7 +112,7 @@ GET /hello
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_bandwidth\{type="egress",route="10",service="",consumer="",node="127.0.0.1",upstream_addr="127.0.0.1:1980",upstream_status="200"\} \d+/
+qr/apisix_bandwidth\{type="egress",route="10",route_id="10",service="",service_id="",consumer="",node="127.0.0.1",upstream_addr="127.0.0.1:1980",upstream_status="200"\} \d+/
 
 
 
@@ -133,4 +133,4 @@ GET /hello
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_http_status\{code="200",route="10",matched_uri="\/hello",matched_host="",service="",consumer="",node="127.0.0.1",dummy=""\} \d+/
+qr/apisix_http_status\{code="200",route="10",route_id="10",matched_uri="\/hello",matched_host="",service="",service_id="",consumer="",node="127.0.0.1",dummy=""\} \d+/
