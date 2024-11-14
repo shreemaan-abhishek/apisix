@@ -447,6 +447,7 @@ plugins:                          # plugin list (sorted by priority)
   - csrf                           # priority: 2980
   - uri-blocker                    # priority: 2900
   - request-validation             # priority: 2800
+  - portal-auth                    # priority: 2700
   - multi-auth                     # priority: 2600
   - openid-connect                 # priority: 2599
   - saml-auth                      # priority: 2598
@@ -688,3 +689,8 @@ api7ee:
     cache_success_ttl: 60     # (unit:sec), cache the ttl of successful results queried from the control plane.
     cache_failure_count: 512  # cache the count of failed results queried from the control plane.
     cache_failure_ttl: 60     # (unit:sec), cache the ttl of failed results queried from the control plane.
+  developer_proxy:            # proxy portal-auth plugin
+    cache_success_count: 256  # cache the count of successful results queried from the control plane.
+    cache_success_ttl: 15     # (unit:sec), cache the ttl of successful results queried from the control plane.
+    cache_failure_count: 256  # cache the count of failed results queried from the control plane.
+    cache_failure_ttl: 15     # (unit:sec), cache the ttl of failed results queried from the control plane.

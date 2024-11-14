@@ -32,6 +32,21 @@ local function release_consumer_cache(agent_api7)
 end
 
 
+local function release_developer_cache(agent_api7)
+    if not agent_api7 then
+        return
+    end
+
+    local local_conf = config_local.local_conf()
+    if local_conf.config_version and agent_api7.config_version < local_conf.config_version then
+        agent_api7.config_version = local_conf.config_version
+        local developer_proxy = core.table.try_read_attr(local_conf, "api7ee", "developer_proxy")
+        agent_api7:set_developer_cache(developer_proxy)
+        core.log.info("release developer cache, new config version: ", agent_api7.config_version)
+    end
+end
+
+
 function _M.consumer_query(query)
     local agent_api7, err = get_agent_api7()
     if not agent_api7 then
@@ -42,6 +57,19 @@ function _M.consumer_query(query)
     release_consumer_cache(agent_api7)
 
     return agent_api7:consumer_query(query)
+end
+
+
+function _M.developer_query(query)
+    local agent_api7, err = get_agent_api7()
+    if not agent_api7 then
+        core.log.error("failed to get agent api7: ", err)
+        return nil, err
+    end
+
+    release_developer_cache(agent_api7)
+
+    return agent_api7:developer_query(query)
 end
 
 

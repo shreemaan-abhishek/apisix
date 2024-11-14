@@ -193,6 +193,7 @@ local function hook()
     end
 
     local consumer_proxy = core.table.try_read_attr(local_conf, "api7ee", "consumer_proxy")
+    local developer_proxy = core.table.try_read_attr(local_conf, "api7ee", "developer_proxy")
     local heartbeat_interval = core.table.try_read_attr(local_conf, "api7ee", "heartbeat_interval")
 
     local healthcheck_report_interval = core.table.try_read_attr(local_conf, "api7ee", "healthcheck_report_interval")
@@ -232,6 +233,7 @@ local function hook()
         healthcheck_report_interval = healthcheck_report_interval,
         http_timeout = http_timeout,
         consumer_proxy = consumer_proxy,
+        developer_proxy = developer_proxy,
         heartbeat_interval = heartbeat_interval,
     })
 

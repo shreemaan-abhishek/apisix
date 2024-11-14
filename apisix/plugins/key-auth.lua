@@ -82,7 +82,7 @@ local function find_consumer(ctx, conf)
         return nil, nil, "Missing API key found in request"
     end
 
-    local consumer, consumer_conf, err = consumer_mod.find_consumer(plugin_name, "key", key)
+    local consumer, consumer_conf, err = consumer_mod.find_consumer(plugin_name, "key", key, ctx)
     if not consumer then
         err = "failed to find consumer: " .. (err or "invalid api key")
         if auth_utils.is_running_under_multi_auth(ctx) then

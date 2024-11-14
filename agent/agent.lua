@@ -443,8 +443,8 @@ local function check_consumer(consumer)
 end
 
 
-local function fetch_consumer(self, query)
-    local resp, err = send_request(self.consumer_query_url, {
+local function fetch_consumer(self, url, query)
+    local resp, err = send_request(url, {
         method =  "GET",
         query = query,
         headers = headers,
@@ -456,6 +456,7 @@ local function fetch_consumer(self, query)
         ssl_server_name = self.ssl_server_name,
     })
     if not resp then
+        core.log.error("failed to fetch consumer from control plane: ", err)
         return nil
     end
 
@@ -475,10 +476,10 @@ local function fetch_consumer(self, query)
     end
     core.log.info("fetch consumer from agent: ", core.json.delay_encode(consumer))
 
-    consumer.id = consumer.consumer_name
+    consumer.id = consumer.id or consumer.username
+    consumer.consumer_name = consumer.consumer_name or consumer.username
     consumer.modifiedIndex = consumer.modifiedIndex or self.consumer_version
     self.consumer_version = self.consumer_version > MAX_CONF_VERSION and 0 or self.consumer_version + 1
-
 
     local ok, err = check_consumer(consumer)
     if not ok then
@@ -506,10 +507,31 @@ function _M.consumer_query(self, query)
         return nil, "not found consumer"
     end
 
-    local consumer = self.consumer_cache(cache_key, nil, fetch_consumer, self, query)
+    local consumer = self.consumer_cache(cache_key, nil, fetch_consumer, self, self.consumer_query_url, query)
     if not consumer then
         self.miss_consumer_cache(cache_key, nil, function () return "not found consumer" end)
         return nil, "not found consumer"
+    end
+    return consumer
+end
+
+
+function _M.developer_query(self, query)
+    if type(query) ~= "table" then
+        return nil, "developer_query: \"query\" is not a table"
+    end
+
+    local cache_key = query.plugin_name .. "/" .. query.key_value
+
+    local miss = self.miss_developer_cache(cache_key, nil, function () return nil end)
+    if miss then
+        return nil, "not found developer"
+    end
+
+    local consumer = self.developer_cache(cache_key, nil, fetch_consumer, self, self.developer_query_url, query)
+    if not consumer then
+        self.miss_developer_cache(cache_key, nil, function () return "not found developer" end)
+        return nil, "not found developer"
     end
     return consumer
 end
@@ -537,6 +559,7 @@ function _M.new(agent_conf)
     local self = {
         name = agent_name,
         consumer_query_url = agent_conf.endpoint .. "/api/dataplane/consumer_query",
+        developer_query_url = agent_conf.endpoint .. "/api/dataplane/developer_query",
         heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
         metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
         healthcheck_url = agent_conf.endpoint .. "/api/dataplane/healthcheck",
@@ -558,11 +581,13 @@ function _M.new(agent_conf)
         api_calls_counter_last_value = init_api_calls,
         consumer_version = 0,
         consumer_proxy = agent_conf.consumer_proxy,
+        developer_proxy = agent_conf.developer_proxy,
     }
     core.log.info("new agent created: ", core.json.delay_encode(self, true))
 
     local agent = setmetatable(self, mt)
     agent:set_consumer_cache(agent_conf.consumer_proxy)
+    agent:set_developer_cache(agent_conf.developer_proxy)
 
     agents[agent_name] = agent
     return agent
@@ -580,6 +605,22 @@ function _M.set_consumer_cache(self, conf)
     self.consumer_cache = core.lrucache.new({
         ttl = conf.cache_success_ttl or 60, -- unit: second
         count = conf.cache_success_count or 512,
+        invalid_stale = true
+    })
+end
+
+
+function _M.set_developer_cache(self, conf)
+    conf = conf or {}
+
+    self.miss_developer_cache = core.lrucache.new({
+        ttl = conf.cache_failure_ttl or 15, -- unit: second
+        count = conf.cache_failure_count or 256,
+        invalid_stale = true
+    })
+    self.developer_cache = core.lrucache.new({
+        ttl = conf.cache_success_ttl or 15, -- unit: second
+        count = conf.cache_success_count or 256,
         invalid_stale = true
     })
 end

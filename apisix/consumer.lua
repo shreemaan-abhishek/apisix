@@ -214,32 +214,73 @@ function _M.consumers_kv(plugin_name, consumer_conf, key_attr)
     return consumers
 end
 
-function _M.find_consumer(plugin_name, key, key_value)
-    local consumer
-    local consumer_conf
-    local err
-    if agent_api7 and agent_api7.enabled_consumer_proxy() then
-        local query = {
+local find_consumer
+do 
+    local find_consumer_handlers = {}
+    local portal_auth = "portal-auth"
+    local consumer_proxy = "consumer_proxy"
+    local default = "default"
+
+    find_consumer_handlers[portal_auth] = function(plugin_name, key, key_value, ctx)
+        if not agent_api7 then
+            return nil, nil, "failed to find consumer: agent_api7 is not loaded"
+        end
+        local consumer, err = agent_api7.developer_query({
             plugin_name = plugin_name,
-            key_value = key_value
-        }
-        consumer, err = agent_api7.consumer_query(query)
+            key_value = key_value,
+        })
         if not consumer then
             return nil, nil, err
         end
-        consumer_conf = {
+        local consumer_conf = {
             conf_version = consumer.modifiedIndex
         }
-    else
-        consumer_conf = _M.plugin(plugin_name)
+        return consumer, consumer_conf
+    end
+
+    find_consumer_handlers[consumer_proxy] =  function(plugin_name, key, key_value, ctx)
+        if not agent_api7 then
+            return nil, nil, "failed to find consumer: agent_api7 is not loaded"
+        end
+        local consumer, err = agent_api7.consumer_query({
+            plugin_name = plugin_name,
+            key_value = key_value
+        })
+        if not consumer then
+            return nil, nil, err
+        end
+        local consumer_conf = {
+            conf_version = consumer.modifiedIndex
+        }
+        return consumer, consumer_conf
+    end
+
+    find_consumer_handlers[default] = function(plugin_name, key, key_value, ctx)
+        local consumer_conf = _M.plugin(plugin_name)
         if not consumer_conf then
             return nil, nil, "Missing related consumer"
         end
         local consumers = _M.consumers_kv(plugin_name, consumer_conf, key)
-        consumer = consumers[key_value]
+        local consumer = consumers[key_value]
+        return consumer, consumer_conf
     end
-    return consumer, consumer_conf
+
+    function find_consumer(plugin_name, key, key_value, ctx)
+        ctx = ctx or core.ctx.get_api_ctx()
+
+        local find_consumer_handler = find_consumer_handlers[default]
+
+        if ctx and ctx._plugin_name == "portal-auth" then
+            find_consumer_handler = find_consumer_handlers[portal_auth]
+        elseif agent_api7 and agent_api7.enabled_consumer_proxy() then
+            find_consumer_handler = find_consumer_handlers[consumer_proxy]
+        end
+
+        return find_consumer_handler(plugin_name, key, key_value, ctx)
+    end
 end
+_M.find_consumer = find_consumer
+
 
 local function check_consumer(consumer, key)
     local data_valid

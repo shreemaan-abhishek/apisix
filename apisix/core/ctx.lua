@@ -377,4 +377,9 @@ end
 end -- do
 
 
+function _M.get_api_ctx()
+    return ngx.ctx.api_ctx
+end
+
+
 return _M
