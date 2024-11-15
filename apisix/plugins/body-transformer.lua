@@ -18,6 +18,8 @@ local core              = require("apisix.core")
 local xml2lua           = require("xml2lua")
 local xmlhandler        = require("xmlhandler.tree")
 local template          = require("resty.template")
+local multipart         = require("multipart")
+
 local ngx               = ngx
 local decode_base64     = ngx.decode_base64
 local req_set_body_data = ngx.req.set_body_data
@@ -35,7 +37,7 @@ local setmetatable      = setmetatable
 local transform_schema = {
     type = "object",
     properties = {
-        input_format = { type = "string", enum = {"xml", "json", "encoded", "args", "plain"} },
+        input_format = { type = "string", enum = {"xml", "json", "encoded", "args", "plain", "multipart",} },
         template = { type = "string" },
         template_is_base64 = { type = "boolean" },
     },
@@ -119,6 +121,10 @@ local decoders = {
     args = function()
         return req_get_uri_args()
     end,
+    multipart = function (data, content_type_header)
+        local res = multipart(data, content_type_header)
+        return res:get_all_with_arrays()
+    end
 }
 
 
@@ -130,10 +136,15 @@ end
 local function transform(conf, body, typ, ctx, request_method)
     local out = {}
     local format = conf[typ].input_format
+    local ct = ctx.var.http_content_type
+    if typ == "response" then
+        ct = ngx.header.content_type
+    end
+
     if (body or request_method == "GET") and format ~= "plain" then
         local err
         if format then
-            out, err = decoders[format](body)
+            out, err = decoders[format](body, ct)
             if not out then
                 err = str_format("%s body decode: %s", typ, err)
                 core.log.error(err, ", body=", body)
@@ -185,6 +196,8 @@ local function set_input_format(conf, typ, ct, method)
             conf[typ].input_format = "json"
         elseif str_find(ct:lower(), "application/x-www-form-urlencoded", nil, true) then
             conf[typ].input_format = "encoded"
+        elseif str_find(ct:lower(), "multipart/", nil) then
+            conf[typ].input_format = "multipart"
         end
     end
 end
