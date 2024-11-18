@@ -123,7 +123,7 @@ local decoders = {
     end,
     multipart = function (data, content_type_header)
         local res = multipart(data, content_type_header)
-        return res:get_all_with_arrays()
+        return res
     end
 }
 
@@ -135,6 +135,8 @@ end
 
 local function transform(conf, body, typ, ctx, request_method)
     local out = {}
+    local _multipart
+
     local format = conf[typ].input_format
     local ct = ctx.var.http_content_type
     if typ == "response" then
@@ -145,6 +147,10 @@ local function transform(conf, body, typ, ctx, request_method)
         local err
         if format then
             out, err = decoders[format](body, ct)
+            if format == "multipart" then
+                _multipart = out
+                out = out:get_all_with_arrays()
+            end
             if not out then
                 err = str_format("%s body decode: %s", typ, err)
                 core.log.error(err, ", body=", body)
@@ -172,7 +178,9 @@ local function transform(conf, body, typ, ctx, request_method)
         _body = body,
         _escape_xml = escape_xml,
         _escape_json = escape_json,
+        _multipart = _multipart,
     }})
+
     local ok, render_out = pcall(render, out)
     if not ok then
         local err = str_format("%s template rendering: %s", typ, render_out)

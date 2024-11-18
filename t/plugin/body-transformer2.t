@@ -264,3 +264,116 @@ Content-Disposition: form-data; name="age"
     }
 --- response_body
 {"foo":"Larry world","bar":20}
+
+
+
+=== TEST 6: multipart parse result accessible to template renderer
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin")
+            local core = require("apisix.core")
+
+            local req_template = ngx.encode_base64[[
+                {%
+                    local core = require 'apisix.core'
+                    local cjson = require 'cjson'
+                    
+                    if tonumber(context.age) > 18 then
+                        context._multipart:set_simple("status", "major")
+                    else
+                        context._multipart:set_simple("status", "minor")
+                    end
+                    
+                    local body = context._multipart:tostring()
+                %}{* body *}
+            ]]
+
+            local code, body = t.test('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                string.format([[{
+                    "uri": "/echo",
+                    "plugins": {
+                        "body-transformer": {
+                            "response": {
+                                "template": "%s"
+                            }
+                        }
+                    },
+                    "upstream": {
+                        "type": "roundrobin",
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        }
+                    }
+                }]], req_template)
+            )
+
+            if code >= 300 then
+                ngx.status = code
+                return
+            end
+            ngx.sleep(0.5)
+
+            ------------------------#######################-------------------
+
+            local http = require("resty.http")
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/echo"
+
+            local body_minor = ([[
+--AaB03x
+Content-Disposition: form-data; name="name"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="age"
+
+10
+--AaB03x--]])
+
+
+            local opt = {method = "POST", body = body_minor, headers = {["Content-Type"] = "multipart/related; boundary=AaB03x"}}
+            local httpc = http.new()
+            local res = httpc:request_uri(uri, opt)
+            assert(res.status == 200)
+
+            ngx.say(res.body)
+
+        }
+    }
+--- response_body eval
+qr/.*Content-Disposition: form-data; name=\"status\"\r\n\r\nminor.*/
+
+
+
+=== TEST 7: multipart parse response accessible to template renderer (test with age == 19)
+--- config
+    location /t {
+        content_by_lua_block {
+
+            local http = require("resty.http")
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/echo"
+
+            local body_major = ([[
+--AaB03x
+Content-Disposition: form-data; name="name"
+
+Larry
+--AaB03x
+Content-Disposition: form-data; name="age"
+
+19
+--AaB03x--]])
+
+
+            local opt = {method = "POST", body = body_major, headers = {["Content-Type"] = "multipart/related; boundary=AaB03x"}}
+            local httpc = http.new()
+            local res = httpc:request_uri(uri, opt)
+            assert(res.status == 200)
+
+            ngx.say(res.body)
+
+        }
+    }
+--- response_body eval
+qr/.*Content-Disposition: form-data; name=\"status\"\r\n\r\nmajor.*/
