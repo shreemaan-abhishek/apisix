@@ -65,10 +65,32 @@ end
 _M.gen_uuid_v4 = uuid.generate_v4
 
 
+local shdict_name = "config"
+if ngx.config.subsystem == "stream" then
+    shdict_name = shdict_name .. "-stream"
+end
+local config_dict = ngx.shared[shdict_name]
+if not config_dict then
+    error('shared dict "' .. shdict_name .. '" not defined')
+end
+
+local function set(uid)
+    if config_dict then
+        config_dict:set("apisix_uid", uid)
+    end
+    apisix_uid = uid
+    local ok, err = write_file(prefix .. "/conf/apisix.uid", uid)
+    if not ok then
+        log.error(err)
+    end
+end
+
+
 function _M.init()
     local uid_file_path = prefix .. "/conf/apisix.uid"
     apisix_uid = read_file(uid_file_path)
     if apisix_uid then
+        set(apisix_uid)
         return
     end
 
@@ -82,6 +104,7 @@ function _M.init()
         apisix_uid = uuid.generate_v4()
         log.notice("not found apisix uid, generate a new one: ", apisix_uid)
     end
+    set(apisix_uid)
 
     local ok, err = write_file(uid_file_path, apisix_uid)
     if not ok then
@@ -97,8 +120,12 @@ end
 -- @usage
 -- local apisix_id = core.id.get()
 function _M.get()
+    if config_dict then
+        return config_dict:get("apisix_uid")
+    end
     return apisix_uid
 end
 
+_M.set = set
 
 return _M

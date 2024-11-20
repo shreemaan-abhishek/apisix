@@ -18,11 +18,6 @@ _EOC_
         $block->set_value("extra_init_by_lua_start", $extra_init_by_lua_start);
     }
 
-    my $http_config = $block->http_config // <<_EOC_;
-lua_shared_dict config 5m;
-_EOC_
-    $block->set_value("http_config", $http_config);
-
     my $extra_init_by_lua = <<_EOC_;
     local server = require("lib.server")
     server.api_dataplane_heartbeat = function()

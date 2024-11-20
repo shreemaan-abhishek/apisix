@@ -8,7 +8,6 @@ local plugin  = require("apisix.plugin")
 local plugin_checker = require("apisix.plugin").plugin_checker
 local check_schema   = require("apisix.core.schema").check
 
-
 local resty_http    = require("resty.http")
 local discovery     = require("agent.discovery")
 local lrucache      = require("resty.lrucache")
@@ -43,7 +42,7 @@ local HEALTHCHECK_CACHE_TTL = 20 * 60 -- 20 min
 local MAX_CONF_VERSION      = 100000000
 
 local payload = {
-    instance_id = core.id.get(),
+    run_id = core.id.gen_uuid_v4(),
     hostname = core.utils.gethostname(),
     ip = socket.dns.toip(core.utils.gethostname()),
     version = core.version.VERSION,
@@ -141,8 +140,10 @@ function _M.heartbeat(self, first)
         core.log.error("failed get api_calls_counter from dict, error: ", err)
     end
 
+    local uid = core.id.get()
     payload.control_plane_revision = utils.get_control_plane_revision()
     payload.cores = ngx.worker.count()
+    payload.instance_id = uid
 
     local internal_services = discovery.list_all_services()
 
@@ -184,9 +185,15 @@ function _M.heartbeat(self, first)
         self.api_calls_counter_last_value = api_calls
     end
 
-    local resp_body = utils.parse_resp(res.body)
+    local resp_body, err = utils.parse_resp(res.body)
+    if not resp_body then
+        core.log.error("failed to parse response body: ", err)
+        return
+    end
     core.log.debug("heartbeat response: ", core.json.delay_encode(resp_body))
+
     local config = resp_body.config or {}
+    local instance_id = resp_body.instance_id or uid
     if config.config_version and config.config_version > self.config_version then
         core.log.info("config version changed, old version: ", self.config_version, ", new version: ", config.config_version)
 
@@ -204,7 +211,12 @@ function _M.heartbeat(self, first)
         end
     end
 
-    local msg = str_format("dp instance \'%s\' heartbeat successfully", payload.instance_id)
+    if instance_id ~= uid then
+        core.log.warn("instance_id changed, old uid: ", uid, ", new uid: ", instance_id)
+        core.id.set(instance_id)
+    end
+
+    local msg = str_format("dp instance \'%s\' heartbeat successfully", instance_id)
 
     core.log.info(msg)
 end
@@ -287,7 +299,7 @@ local function push_healthcheck_data(self, url, data, kind)
     end
 
     local payload_data = core.json.encode({
-        instance_id = payload.instance_id,
+        instance_id = core.id.get(),
         data = data
     })
 
