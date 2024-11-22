@@ -116,6 +116,14 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
             local f = io.open(log_file, "r")
             local uid = f:read("*a")
             ngx.say("apisix.uid: ", uid)
+
+            -- etcd request with new instance_id
+            local etcd = require("apisix.core.etcd")
+            assert(etcd.set("/plugin_configs/1",
+                {id = 1, plugins = { ["uri-blocker"] = { block_rules =  {"root.exe","root.m+"} }}}
+            ))
+            -- wait for sync
+            ngx.sleep(0.6)
         }
     }
 --- request
@@ -125,3 +133,4 @@ uid: a7ee-instance-id-1
 apisix.uid: a7ee-instance-id-1
 --- error_log
 new uid: a7ee-instance-id-1
+"Gateway-Instance-ID":"a7ee-instance-id-1"

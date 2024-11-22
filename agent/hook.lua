@@ -35,12 +35,23 @@ local function update_conf_for_etcd(etcd_conf)
     if not etcd_conf.extra_headers then
         etcd_conf.extra_headers = {}
     end
+    -- dependent: https://github.com/api7/lua-resty-etcd/blob/ea0f4abe9cb3c00b6c6e6845f7a36ec2db27cf63/lib/resty/etcd/v3.lua#L213-L220
+    -- Every time etcd sends a request, it dynamically retrieves the header of function v, regardless of whether local_conf is called.
+    setmetatable(etcd_conf.extra_headers, {
+        __pairs = function(t)
+            local function iter(t, k)
+                local k, v = next(t, k)
+                if type(v) == "function" then
+                    return k, v()
+                end
+                return k, v
+            end
+            return iter, t, nil
+        end
+    })
 
+    etcd_conf.extra_headers[GATEWAY_INSTANCE_ID_HEADER] = id.get
     etcd_conf.extra_headers[AUTH_HEADER] = getenv("API7_CONTROL_PLANE_TOKEN")
-    local instance_id = id.get()
-    if instance_id then
-        etcd_conf.extra_headers[GATEWAY_INSTANCE_ID_HEADER] = instance_id
-    end
 
     return etcd_conf
 end
@@ -133,7 +144,7 @@ config_local.local_conf = function(force)
     config_data.etcd = update_conf_for_etcd(config_data.etcd)
     if config_data.etcd then
         log.info("conf for etcd updated, the extra header ", GATEWAY_INSTANCE_ID_HEADER, ": ",
-                config_data.etcd.extra_headers[GATEWAY_INSTANCE_ID_HEADER])
+                config_data.etcd.extra_headers[GATEWAY_INSTANCE_ID_HEADER]())
     end
 
     config_version = latest_config_version
