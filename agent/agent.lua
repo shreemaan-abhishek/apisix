@@ -42,7 +42,7 @@ local HEALTHCHECK_CACHE_TTL = 20 * 60 -- 20 min
 local MAX_CONF_VERSION      = 100000000
 
 local payload = {
-    run_id = core.id.gen_uuid_v4(),
+    subsystem = ngx.config.subsystem,
     hostname = core.utils.gethostname(),
     ip = socket.dns.toip(core.utils.gethostname()),
     version = core.version.VERSION,
@@ -130,6 +130,7 @@ function _M.heartbeat(self, first)
         core.log.info("previous heartbeat request not finished yet")
         return
     end
+    payload.run_id = self.run_id
     payload.api_calls = 0
     local api_calls, err = config_dict:get("api_calls_counter")
     if api_calls ~= nil then
@@ -590,10 +591,13 @@ function _M.new(agent_conf)
         last_metrics_uploading_time = nil,
         ongoing_metrics_uploading = false,
         config_version = 0,
+        consumer_config_version = 0,
+        developer_config_version = 0,
         api_calls_counter_last_value = init_api_calls,
         consumer_version = 0,
         consumer_proxy = agent_conf.consumer_proxy,
         developer_proxy = agent_conf.developer_proxy,
+        run_id = agent_conf.run_id,
     }
     core.log.info("new agent created: ", core.json.delay_encode(self, true))
 

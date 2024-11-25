@@ -23,11 +23,11 @@ local function release_consumer_cache(agent_api7)
     end
 
     local local_conf = config_local.local_conf()
-    if local_conf.config_version and agent_api7.config_version < local_conf.config_version then
-        agent_api7.config_version = local_conf.config_version
+    if local_conf.config_version and agent_api7.consumer_config_version < local_conf.config_version then
+        agent_api7.consumer_config_version = local_conf.config_version
         local consumer_proxy = core.table.try_read_attr(local_conf, "api7ee", "consumer_proxy")
         agent_api7:set_consumer_cache(consumer_proxy)
-        core.log.info("release consuemr cache, new config version: ", agent_api7.config_version)
+        core.log.info("release consuemr cache, new config version: ", agent_api7.consumer_config_version)
     end
 end
 
@@ -38,11 +38,11 @@ local function release_developer_cache(agent_api7)
     end
 
     local local_conf = config_local.local_conf()
-    if local_conf.config_version and agent_api7.config_version < local_conf.config_version then
-        agent_api7.config_version = local_conf.config_version
+    if local_conf.config_version and agent_api7.developer_config_version < local_conf.config_version then
+        agent_api7.developer_config_version = local_conf.config_version
         local developer_proxy = core.table.try_read_attr(local_conf, "api7ee", "developer_proxy")
         agent_api7:set_developer_cache(developer_proxy)
-        core.log.info("release developer cache, new config version: ", agent_api7.config_version)
+        core.log.info("release developer cache, new config version: ", agent_api7.developer_config_version)
     end
 end
 

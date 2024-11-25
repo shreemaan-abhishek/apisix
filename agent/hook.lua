@@ -24,8 +24,10 @@ end
 
 local AUTH_HEADER = "Control-Plane-Token"
 local GATEWAY_INSTANCE_ID_HEADER = "Gateway-Instance-ID"
+local RUN_ID_HEADER = "Gateway-Run-ID"
 
 local id = require("apisix.core.id")
+local run_id
 
 local function update_conf_for_etcd(etcd_conf)
     if not etcd_conf then
@@ -52,6 +54,9 @@ local function update_conf_for_etcd(etcd_conf)
 
     etcd_conf.extra_headers[GATEWAY_INSTANCE_ID_HEADER] = id.get
     etcd_conf.extra_headers[AUTH_HEADER] = getenv("API7_CONTROL_PLANE_TOKEN")
+    if run_id then
+        etcd_conf.extra_headers[RUN_ID_HEADER] = run_id
+    end
 
     return etcd_conf
 end
@@ -159,6 +164,7 @@ require("apisix.patch").patch()
 
 local core = require("apisix.core")
 core.id.init()
+run_id = core.id.gen_uuid_v4()
 
 -- replace the apisix.discovery.init to agent.discovery.init
 local wrapper = require("agent.discovery.wrapper")
@@ -246,6 +252,7 @@ local function hook()
         consumer_proxy = consumer_proxy,
         developer_proxy = developer_proxy,
         heartbeat_interval = heartbeat_interval,
+        run_id = run_id,
     })
 
     local skip_first_heartbeat = getenv("API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG")
