@@ -21,6 +21,7 @@ add_block_preprocessor(sub {
 run_tests();
 
 __DATA__
+
 === TEST 1: Set up new route access the auth server via http proxy
 --- config
     location /t {
@@ -62,6 +63,9 @@ __DATA__
     }
 --- response_body
 passed
+
+
+
 === TEST 2: Access route w/o bearer token. Should redirect to authentication endpoint of ID provider.
 --- config
     location /t {
@@ -77,6 +81,78 @@ passed
                 string.find(location, 'client_id=kbyuFDidLLm280LIwVFiazOqjO3ty8KH') ~= -1 and
                 string.find(location, 'response_type=code') ~= -1 and
                 string.find(location, 'redirect_uri=https://iresty.com') ~= -1 then
+                ngx.say(true)
+            end
+        }
+    }
+--- timeout: 10s
+--- response_body
+true
+--- error_code: 302
+--- error_log
+use http proxy
+
+
+
+=== TEST 3: Set up new route access the auth server with header test
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "plugins": {
+                            "openid-connect": {
+                                "client_id": "kbyuFDidLLm280LIwVFiazOqjO3ty8KH",
+                                "client_secret": "60Op4HFM0I8ajz0WdiStAbziZ-VFQttXuxixHHs2R7r7-CW8GR79l-mmLqMhc-Sa",
+                                "discovery": "https://samples.auth0.com/.well-known/openid-configuration",
+                                "redirect_uri": "https://iresty.com",
+                                "authorization_params":{
+                                    "test":"abc"
+                                },
+                                "ssl_verify": false,
+                                "timeout": 10,
+                                "scope": "apisix",
+                                "proxy_opts": {
+                                    "http_proxy": "http://127.0.0.1:8080",
+                                    "http_proxy_authorization": "Basic dXNlcm5hbWU6cGFzc3dvcmQK"
+                                },
+                                "use_pkce": false
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/hello"
+                }]]
+                )
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 4: Check the uri of the authorization endpoint for passed headers
+--- config
+    location /t {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local res, err = httpc:request_uri(uri, {method = "GET"})
+            ngx.status = res.status
+            local location = res.headers['Location']
+            if location and string.find(location, 'https://samples.auth0.com/authorize') ~= -1 and
+                string.find(location, 'test=abc') ~= -1 then
                 ngx.say(true)
             end
         }
