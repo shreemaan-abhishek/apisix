@@ -161,8 +161,9 @@ config_local.local_conf = function(force)
 end
 
 require("apisix.patch").patch()
-local id = require("apisix.core.id")
-run_id = id.gen_uuid_v4()
+local uuid = require('resty.jit-uuid')
+uuid.seed()
+run_id = uuid.generate_v4()
 
 local core = require("apisix.core")
 core.id.init()
