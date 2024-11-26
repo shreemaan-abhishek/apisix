@@ -161,10 +161,11 @@ config_local.local_conf = function(force)
 end
 
 require("apisix.patch").patch()
+local id = require("apisix.core.id")
+run_id = id.gen_uuid_v4()
 
 local core = require("apisix.core")
 core.id.init()
-run_id = core.id.gen_uuid_v4()
 
 -- replace the apisix.discovery.init to agent.discovery.init
 local wrapper = require("agent.discovery.wrapper")
