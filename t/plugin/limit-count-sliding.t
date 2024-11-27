@@ -30,7 +30,7 @@ __DATA__
                  [[{
                         "methods": ["GET"],
                         "plugins": {
-                            "limit-count": {
+                            "limit-count-advanced": {
                                 "count": 2,
                                 "time_window": 5,
                                 "rejected_code": 503,
@@ -64,3 +64,67 @@ passed
 ["GET /hello", "GET /hello", "GET /hello"]
 --- error_code eval
 [200, 200, 503]
+
+
+
+=== TEST 3: headers rounded off
+# in this test we extract the rate limit header values then extract the decimal part
+# to check if the decimal part is longer than 2
+--- config
+    location /t {
+        content_by_lua_block {
+            local http = require("resty.http")
+            local core = require("apisix.core")
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local opt = {method = "GET"}
+            local httpc = http.new()
+
+            local headers_to_check = {"X-RateLimit-Remaining", "X-RateLimit-Reset"}
+            for i = 1, 5, 1 do
+                local res = httpc:request_uri(uri, opt)
+                local headers = res.headers
+
+                local m, err = ngx.re.match(headers["X-RateLimit-Remaining"], "\\d(.*)")
+                if not m then
+                    ngx.status = 500
+                    ngx.say("error: ", err)
+                    return
+                end
+
+                local value = m[1]
+                if #value > 0 then
+                    ngx.status = 500
+                    ngx.say("remaining should be an integer but found float")
+                    return
+                end
+
+                local m, err = ngx.re.match(headers["X-RateLimit-Reset"], "\\d\\.?(.*)")
+                if not m then
+                    ngx.status = 500
+                    ngx.say("error: ", err)
+                    return
+                end
+
+                local value = m[1]
+                if #value > 2 then
+                    ngx.status = 500
+                    ngx.say("x-ratelimit-recet decimal value has more than 2 digits")
+                    return
+                end
+
+                if res.status == 200 then
+                    ngx.sleep(1)
+                else
+                    ngx.sleep(1.5)
+                end
+            end
+            ngx.say("passed")
+        }
+    }
+--- request
+GET /t
+--- timeout: 10
+--- error_code: 200
+--- response_body
+passed

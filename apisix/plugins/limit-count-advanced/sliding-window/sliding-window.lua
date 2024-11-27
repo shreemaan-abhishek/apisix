@@ -1,6 +1,8 @@
 local tostring = tostring
 local string_format = string.format
 local math_floor = math.floor
+local math_ceil = math.ceil
+
 local ngx_now = ngx.now
 local setmetatable = setmetatable
 local log = require("apisix.core.log")
@@ -9,8 +11,9 @@ local redis_cli = require("apisix.plugins.limit-count-advanced.util").redis_cli
 local _M = {}
 local mt = { __index = _M }
 
-local function round_off(input)
-    return math_floor(input + 0.5)
+local function round_off_decimal_places(input, places)
+    local multiplier = 10 ^ places
+    return math_ceil(input * multiplier) / multiplier
 end
 
 
@@ -108,7 +111,7 @@ function _M.incoming(self, key, cost)
     end
     log.debug("count: ", count, ", limit: ", self.limit)
     if count >= self.limit then
-        return nil, "rejected", round_off(remaining_time)
+        return nil, "rejected", round_off_decimal_places(remaining_time, 2)
     end
 
     local last_rate
@@ -123,7 +126,7 @@ function _M.incoming(self, key, cost)
     if estimated_final_count >= self.limit then
         local desired_delay =
             get_desired_delay(self, remaining_time, last_rate, count)
-            return nil, "rejected", round_off(desired_delay)
+            return nil, "rejected", round_off_decimal_places(desired_delay, 2)
     end
 
     local expiry = self.window_size * 2
@@ -149,10 +152,13 @@ function _M.incoming(self, key, cost)
         -- incr above might take long enough to make difference, so
         -- we recalculate time-dependant variables.
         remaining_time = self.window_size - ngx_now() % self.window_size
-        return nil, "rejected", round_off(remaining_time)
+        return nil, "rejected", round_off_decimal_places(remaining_time, 2)
     end
 
-    return 0, self.limit - new_count - estimated_last_window_count, remaining_time
+    local remaining = self.limit - new_count - estimated_last_window_count
+    local rounded_remaining = math_floor(remaining)
+
+    return 0, rounded_remaining, round_off_decimal_places(remaining_time, 2)
 end
 
 return _M
