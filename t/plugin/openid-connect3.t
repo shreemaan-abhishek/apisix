@@ -363,3 +363,123 @@ passed
     }
 --- response_body
 true
+
+
+
+=== TEST 9: Check configuration of cookie
+--- config
+    location /t {
+        content_by_lua_block {
+            local test_cases = {
+                {
+                    client_id = "course_management",
+                    client_secret = "tbsmDOpsHwdgIqYl2NltGRTKzjIzvEmT",
+                    discovery = "http://127.0.0.1:8080/realms/University/.well-known/openid-configuration",
+                    session = {
+                        secret = "6S8IO+Pydgb33LIor8T9ClER0T/sglFAjClFeAF3RsY=",
+                        cookie = {
+                            lifetime = 86400
+                        }
+                    }
+                },
+            }
+            local plugin = require("apisix.plugins.openid-connect")
+            for _, case in ipairs(test_cases) do
+                local ok, err = plugin.check_schema(case)
+                ngx.say(ok and "done" or err)
+            end
+        }
+    }
+--- response_body
+done
+
+
+
+=== TEST 10: Set up new route access the auth server
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "plugins": {
+                            "openid-connect": {
+                                "discovery": "http://127.0.0.1:8080/realms/University/.well-known/openid-configuration",
+                                "realm": "University",
+                                "client_id": "course_management",
+                                "client_secret": "d1ec69e9-55d2-4109-a3ea-befa071579d5",
+                                "redirect_uri": "http://127.0.0.1:]] .. ngx.var.server_port .. [[/authenticated",
+                                "ssl_verify": false,
+                                "bearer_only" : false,
+                                "timeout": 10,
+                                "introspection_endpoint_auth_method": "client_secret_post",
+                                "required_scopes": ["profile"],
+                                "introspection_endpoint_auth_method": "client_secret_post",
+                                "introspection_endpoint": "http://127.0.0.1:8080/realms/University/protocol/openid-connect/token/introspect",
+                                "set_access_token_header": true,
+                                "access_token_in_authorization_header": false,
+                                "set_id_token_header": true,
+                                "set_userinfo_header": true,
+                                "set_refresh_token_header": true,
+                                "session": {
+                                    "secret": "jwcE5v3pM9VhqLxmxFOH9uZaLo8u7KQK",
+                                    "cookie": {
+                                        "lifetime": 86400
+                                    }
+                                }
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/*"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 11: Call to route to get session
+--- config
+    location /t {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local login_keycloak = require("lib.keycloak").login_keycloak
+            local concatenate_cookies = require("lib.keycloak").concatenate_cookies
+
+            local current_time = os.time()
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+
+            local res, err = login_keycloak(uri, "teacher@gmail.com", "123456")
+            if err then
+                ngx.status = 500
+                ngx.say(err)
+                return
+            end
+
+            local cookie_str = concatenate_cookies(res.headers['Set-Cookie'])
+            local parts = {}
+            for part in string.gmatch(cookie_str, "[^|]+") do
+                table.insert(parts, part)
+            end
+            local target_number = tonumber(parts[2], 10) - 86400
+            -- ngx.say(target_number, current_time)
+            if target_number >= current_time then
+                ngx.say("passed")
+            end
+        }
+    }
+--- response_body
+passed
