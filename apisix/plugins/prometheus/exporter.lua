@@ -130,7 +130,11 @@ function _M.http_init(prometheus_enabled_in_stream)
     if attr and attr.metric_prefix then
         metric_prefix = attr.metric_prefix
     end
-
+    
+    local exptime
+    if attr and attr.expire then
+        exptime = attr.expire
+    end
     prometheus = base_prometheus.init("prometheus-metrics", metric_prefix)
 
     metrics.connections = prometheus:gauge("nginx_http_current_connections",
@@ -168,7 +172,7 @@ function _M.http_init(prometheus_enabled_in_stream)
     metrics.status = prometheus:counter("http_status",
             "HTTP status codes per service in APISIX",
             {"code", "route", "route_id", "matched_uri", "matched_host", "service", "service_id", "consumer", "node",
-            unpack(extra_labels("http_status"))})
+            unpack(extra_labels("http_status"))}, exptime)
 
     local buckets = DEFAULT_BUCKETS
     if attr and attr.default_buckets then
@@ -177,11 +181,11 @@ function _M.http_init(prometheus_enabled_in_stream)
     metrics.latency = prometheus:histogram("http_latency",
         "HTTP request latency in milliseconds per service in APISIX",
         {"type", "route", "route_id", "service", "service_id", "consumer", "node", unpack(extra_labels("http_latency"))},
-        buckets)
+        buckets, exptime)
 
     metrics.bandwidth = prometheus:counter("bandwidth",
             "Total bandwidth in bytes consumed per service in APISIX",
-            {"type", "route", "route_id", "service", "service_id", "consumer", "node", unpack(extra_labels("bandwidth"))})
+            {"type", "route", "route_id", "service", "service_id", "consumer", "node", unpack(extra_labels("bandwidth"))}, exptime)
 
     if prometheus_enabled_in_stream then
         init_stream_metrics()

@@ -578,6 +578,8 @@ plugin_attr:
     #  bandwidth:
     #    extra_labels:
     #      - upstream_addr: $upstream_addr
+  # expire: 86400  # The expiration time after metrics become inactive, unit: second.
+                # 0 means the metrics will not expire
     # default_buckets:
     #   - 10
     #   - 50
