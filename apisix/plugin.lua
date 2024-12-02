@@ -216,6 +216,10 @@ local function load_plugin(name, plugins_list, plugin_type, plugin_object, is_cu
         plugin.init()
     end
 
+    if plugin.workflow_handler then
+        plugin.workflow_handler()
+    end
+
     return
 end
 
