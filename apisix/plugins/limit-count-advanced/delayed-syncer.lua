@@ -28,7 +28,7 @@ local ipairs = ipairs
 local ngx_now = ngx.now
 local worker_id = ngx.worker.id
 
-local shdict_name = "plugin-limit-count"
+local shdict_name = "plugin-limit-count-advanced"
 local shd = ngx.shared[shdict_name]
 assert(shd, "get shared dict(" .. shdict_name .. ") failed")
 
