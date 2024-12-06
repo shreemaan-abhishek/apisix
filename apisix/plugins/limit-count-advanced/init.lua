@@ -182,7 +182,8 @@ local metadata_schema = {
 local schema_copy = core.table.deepcopy(schema)
 
 local _M = {
-    schema = schema
+    schema = schema,
+    metadata_schema = metadata_schema,
 }
 
 
