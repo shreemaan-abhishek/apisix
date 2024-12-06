@@ -325,3 +325,94 @@ qr/(delayed sync to redis\n){3}/
 qr{delayed sync to redis-cluster}
 --- grep_error_log_out eval
 qr/(delayed sync to redis-cluster\n){3}/
+
+
+
+=== TEST 12: create a route with limit-count plugin that enable delay sync
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin")
+            local core = require("apisix.core")
+            local code, body = t.test('/apisix/admin/routes/1ab5c95d',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/status",
+                    "plugins": {
+                      "limit-count": {
+                          "count": 200,
+                          "time_window": 60,
+                          "key_type": "var",
+                          "key": "remote_addr",
+                          "show_limit_quota_header": true,
+                          "policy": "redis",
+                          "redis_host": "127.0.0.1",
+                          "redis_port": 6379,
+                          "sync_interval": 0.1
+                      }
+                    },
+                    "upstream": {
+                        "type": "roundrobin",
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        }
+                    }
+                }]]
+            )
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 13: request at slow pace and check counter in redis after period of time
+--- config
+    location /t {
+        content_by_lua_block {
+            local json = require "t.toolkit.json"
+            local http = require "resty.http"
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/status"
+            for i = 1, 5 do
+                local httpc = http.new()
+                local res, err = httpc:request_uri(uri)
+                if not res then
+                    ngx.say(err)
+                    return
+                end
+                assert(tonumber(res.headers["X-RateLimit-Remaining"]) == 200 - i)
+                ngx.sleep(0.5)
+            end
+
+            local redis = require "resty.redis"
+            local red = redis:new()
+            local ok, err = red:connect("127.0.0.1", 6379)
+            if not ok then
+                ngx.say("failed to connect redis: ", err)
+                return
+            end
+
+            local res, err = red:keys("plugin-limit-countroute1ab5c95d*")
+            if not res then
+                ngx.say("failed to execute keys command to redis: ", err)
+                return
+            end
+
+            if table.getn(res) == 0 then
+                ngx.say("redis don't have the key")
+                return
+            end
+            local count, err = red:get(res[1])
+            if err then
+                ngx.say("failed to get key from redis: ", err)
+                return
+            end
+            ngx.say(count)
+        }
+    }
+--- response_body
+195

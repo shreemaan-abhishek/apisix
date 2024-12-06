@@ -38,7 +38,7 @@ local KEY_PREFIX_LOCAL_DELTA_KEYS = "local_delta_keys#" -- keys to be sync with 
 local KEY_PREFIX_SYNC_TIMER = "sync_timer#" -- per plugin instance timer, in server instance dimension
 local KEY_PREFIX_REMOTE_QUOTA = "remote_quota#" -- save remaining/reset/sync_at in JSON format
 
-local sync_timer_created_at = {}
+local time_to_sync_records = {}
 
 local _M = {}
 
@@ -164,7 +164,7 @@ function _M._delayed_sync(self, key, cost, syncer_id)
         reset = remote_reset - (ngx_now() - sync_at)
         if reset < 0 then
             reset = 0 -- flag that indicates needing to sync with redis
-            sync_timer_created_at[syncer_id] = nil
+            time_to_sync_records[syncer_id] = nil
         end
     end
 
@@ -179,7 +179,7 @@ function _M._delayed_sync(self, key, cost, syncer_id)
             remote_reset = reset
         elseif remaining_or_err ~= "rejected" then
             core.log.error("sync to redis failed: ", remaining_or_err, ", key: ", key)
-            return nil, nil, err
+            return nil, nil, remaining_or_err
         end
 
         err = self:sync_to_shm(key, remote_remaining, remote_reset, local_delta)
@@ -199,20 +199,13 @@ function _M._delayed_sync(self, key, cost, syncer_id)
 
     -- timer has not started or has already triggered, try starting a new one
     local now = ngx_now()
-    if not sync_timer_created_at[syncer_id] or
-        sync_timer_created_at[syncer_id] + self.sync_interval <= now then
-        local timer_created_at = now
+    if not time_to_sync_records[syncer_id] or time_to_sync_records[syncer_id] <= now then
+        local time_to_sync = now + self.sync_interval
         -- nginx server instance dimension, each plug-in instance corresponds to a timer
         -- shd:add - ensure only one worker can start timer
         local success
-        success, err = shd:add(key_sync_timer, timer_created_at)
+        success, err = shd:add(key_sync_timer, time_to_sync)
         if success then
-            local time_to_sync
-            if sync_timer_created_at[syncer_id] then
-                time_to_sync = sync_timer_created_at[syncer_id] + self.sync_interval * 2
-            else
-                time_to_sync = timer_created_at + self.sync_interval
-            end
             -- start timer ASAP
             ngx.timer.at(
                 0,
@@ -223,10 +216,10 @@ function _M._delayed_sync(self, key, cost, syncer_id)
                     self:release(syncer_id)
                 end
             )
-            sync_timer_created_at[syncer_id] = timer_created_at
+            time_to_sync_records[syncer_id] = time_to_sync
         elseif err == "exists" then
             -- other workers
-            sync_timer_created_at[syncer_id], err = shd:get(key_sync_timer)
+            time_to_sync_records[syncer_id], err = shd:get(key_sync_timer)
             if err then
                 core.log.error("get sync timer created time failed: ", err)
             end
@@ -258,7 +251,6 @@ function _M.sync(self, syncer_id, time_to_sync)
             core.log.error("shdict.rpop failed: ", err, ", syncer_id: ", syncer_id)
             return
         end
-
         if key then
             if not local_delta_keys_dedup[key] then
                 local_delta_keys_dedup[key] = true
@@ -273,10 +265,27 @@ function _M.sync(self, syncer_id, time_to_sync)
         return
     end
 
+    -- drain all remaining keys from the queue
+    local key = {}
+    while key ~= nil do
+        local err
+        key, err = shd:rpop(key_local_delta_keys)
+        if err then
+            core.log.error("shdict.rpop failed: ", err, ", syncer_id: ", syncer_id)
+            return
+        end
+
+        if key then
+            if not local_delta_keys_dedup[key] then
+                local_delta_keys_dedup[key] = true
+            end
+        end
+    end
+
     local nkeys = table_nkeys(local_delta_keys_dedup)
     local local_delta_keys_uniq = table_new(nkeys, 0)
 
-    core.log.info(nkeys, " keys to be sync")
+    core.log.info(nkeys, " keys to be sync, time_to_sync: ", time_to_sync)
 
     for key, _ in pairs(local_delta_keys_dedup) do
         table.insert(local_delta_keys_uniq, key)
