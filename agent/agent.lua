@@ -470,22 +470,23 @@ local function fetch_consumer(self, url, query)
     })
     if not resp then
         core.log.error("failed to fetch consumer from control plane: ", err)
-        return nil
+        return nil, err
     end
 
     if resp.status ~= 200 then
         if resp.status ~= 404 then
             core.log.error("failed to fetch consumer from control plane, status: ", resp.status, ", body: ", core.json.delay_encode(resp.body, true))
+            return nil, "failed to fetch consumer from control plane"
         else
             core.log.info("not found consumer, status: ", resp.status)
+            return nil, "not found"
         end
-        return nil
     end
 
     local consumer, err = core.json.decode(resp.body)
     if not consumer then
         core.log.error("failed to decode consumer body: ", err)
-        return nil
+        return nil, err
     end
     core.log.info("fetch consumer from agent: ", core.json.delay_encode(consumer))
 
@@ -497,7 +498,7 @@ local function fetch_consumer(self, url, query)
     local ok, err = check_consumer(consumer)
     if not ok then
         core.log.error("failed to check the fetched consumer: ", err)
-        return nil
+        return nil, err
     end
 
     if enable_gde() and consumer.auth_conf then
@@ -520,10 +521,13 @@ function _M.consumer_query(self, query)
         return nil, "not found consumer"
     end
 
-    local consumer = self.consumer_cache(cache_key, nil, fetch_consumer, self, self.consumer_query_url, query)
+    local consumer, err = self.consumer_cache(cache_key, nil, fetch_consumer, self, self.consumer_query_url, query)
     if not consumer then
-        self.miss_consumer_cache(cache_key, nil, function () return "not found consumer" end)
-        return nil, "not found consumer"
+        if err == "not found" then
+            self.miss_consumer_cache(cache_key, nil, function () return "not found consumer" end)
+            return nil, "not found consumer"
+        end
+        return nil, err
     end
     return consumer
 end
@@ -541,10 +545,13 @@ function _M.developer_query(self, query)
         return nil, "not found developer"
     end
 
-    local consumer = self.developer_cache(cache_key, nil, fetch_consumer, self, self.developer_query_url, query)
+    local consumer, err = self.developer_cache(cache_key, nil, fetch_consumer, self, self.developer_query_url, query)
     if not consumer then
-        self.miss_developer_cache(cache_key, nil, function () return "not found developer" end)
-        return nil, "not found developer"
+        if err == "not found" then
+            self.miss_developer_cache(cache_key, nil, function () return "not found developer" end)
+            return nil, "not found developer"
+        end
+        return nil, err
     end
     return consumer
 end

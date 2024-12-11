@@ -105,6 +105,14 @@ _EOC_
     server.api_dataplane_consumer_query = function()
         local plugin_name = ngx.var.arg_plugin_name
         local key_value = ngx.var.arg_key_value
+        if not plugin_name or not key_value then
+            return ngx.exit(400)
+        end
+
+        if key_value == "500" then
+            ngx.log(ngx.ERR, "query consumer error in nginx proxy")
+            return ngx.exit(500)
+        end
 
         ngx.log(ngx.INFO, "receive data plane consumer_query: ", plugin_name, ", ", key_value)
 
@@ -126,6 +134,7 @@ _EOC_
 
         local payload = auth_plugin_payload[plugin_name] and auth_plugin_payload[plugin_name][key_value]
         if not payload then
+            ngx.log(ngx.WARN, "not found consumer in nginx proxy")
             return ngx.exit(404)
         end
 
@@ -359,3 +368,81 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 GET /t
 --- response_body
 passed
+
+
+
+=== TEST 5: 404 will be cached
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.shared["config"]:set("consumer_proxy", "true")
+            local t = require("lib.test_admin").test
+
+            local codes = {}
+            for i = 1, 5 do
+                local code, body = t('/hello',
+                    ngx.HTTP_GET,
+                    "",
+                    nil,
+                    {apikey = "api7key-404"}
+                )
+                table.insert(codes, code)
+            end
+            ngx.say(table.concat(codes, ","))
+        }
+    }
+--- timeout: 13
+--- request
+GET /t
+--- response_body
+401,401,401,401,401
+--- grep_error_log eval
+qr/not found consumer in nginx proxy/
+--- grep_error_log_out
+not found consumer in nginx proxy
+
+
+
+=== TEST 6: 500 will not be cached
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.shared["config"]:set("consumer_proxy", "true")
+            local t = require("lib.test_admin").test
+
+            local codes = {}
+            for i = 1, 5 do
+                local code, body = t('/hello',
+                    ngx.HTTP_GET,
+                    "",
+                    nil,
+                    {apikey = "500"}
+                )
+                table.insert(codes, code)
+            end
+            ngx.say(table.concat(codes, ","))
+        }
+    }
+--- timeout: 13
+--- request
+GET /t
+--- response_body
+401,401,401,401,401
+--- grep_error_log eval
+qr/query consumer error in nginx proxy/
+--- grep_error_log_out
+query consumer error in nginx proxy
+query consumer error in nginx proxy
+query consumer error in nginx proxy
+query consumer error in nginx proxy
+query consumer error in nginx proxy
+--- error_log
+failed to fetch consumer from control plane
