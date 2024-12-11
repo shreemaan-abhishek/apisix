@@ -39,6 +39,11 @@ do_install() {
     # tree deps
 
     git clone --depth 1 https://github.com/openresty/test-nginx.git test-nginx
+    cd test-nginx
+    git fetch --depth=1 origin ced30a31bafab6c68873efb17b6d80f39bcd95f5
+    git checkout ced30a31bafab6c68873efb17b6d80f39bcd95f5
+    cd ..
+
     make utils
 
     mkdir -p build-cache
