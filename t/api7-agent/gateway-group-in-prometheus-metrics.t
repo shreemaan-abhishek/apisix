@@ -55,8 +55,8 @@ _EOC_
                         }
                     }
                 },
-                gateway_group_id = "some-id",
-            }
+            },
+            gateway_group_id = "some-id",
         }
 
         local core = require("apisix.core")

@@ -193,7 +193,12 @@ function _M.heartbeat(self, first)
     end
     core.log.debug("heartbeat response: ", core.json.delay_encode(resp_body))
 
-    local gateway_group_id = resp_body.config.gateway_group_id
+    local gateway_group_id = resp_body.gateway_group_id
+    if not gateway_group_id then
+        gateway_group_id = ""
+        core.log.warn("missing gateway_group_id in heartbeat response from control plane")
+    end
+
     local config = resp_body.config or {}
     local instance_id = resp_body.instance_id or uid
     config_dict:set("gateway_group_id", gateway_group_id)
