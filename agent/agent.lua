@@ -193,8 +193,10 @@ function _M.heartbeat(self, first)
     end
     core.log.debug("heartbeat response: ", core.json.delay_encode(resp_body))
 
+    local gateway_group_id = resp_body.config.gateway_group_id
     local config = resp_body.config or {}
     local instance_id = resp_body.instance_id or uid
+    config_dict:set("gateway_group_id", gateway_group_id)
     if config.config_version and config.config_version > self.config_version then
         core.log.info("config version changed, old version: ", self.config_version, ", new version: ", config.config_version)
 

@@ -41,6 +41,12 @@ local latency_details = require("apisix.utils.log-util").latency_details_in_ms
 local xrpc = require("apisix.stream.xrpc")
 local discovery_ok, discovery = pcall(require, "agent.discovery")
 
+local shdict_name = "config"
+if ngx.config.subsystem == "stream" then
+    shdict_name = shdict_name .. "-stream"
+end
+local config_dict = ngx.shared[shdict_name]
+
 local unpack = unpack
 local next = next
 
@@ -139,30 +145,32 @@ function _M.http_init(prometheus_enabled_in_stream)
 
     metrics.connections = prometheus:gauge("nginx_http_current_connections",
             "Number of HTTP connections",
-            {"state"})
+            {"state", "gateway_group_id", "instance_id"})
 
     metrics.requests = prometheus:gauge("http_requests_total",
-            "The total number of client requests since APISIX started")
+            "The total number of client requests since APISIX started",
+            {"gateway_group_id", "instance_id",})
 
     metrics.etcd_reachable = prometheus:gauge("etcd_reachable",
-            "Config server etcd reachable from APISIX, 0 is unreachable")
+            "Config server etcd reachable from APISIX, 0 is unreachable",
+            {"gateway_group_id", "instance_id",})
 
 
     metrics.node_info = prometheus:gauge("node_info",
             "Info of APISIX node",
-            {"hostname"})
+            {"hostname", "gateway_group_id", "instance_id",})
 
     metrics.etcd_modify_indexes = prometheus:gauge("etcd_modify_indexes",
             "Etcd modify index for APISIX keys",
-            {"key"})
+            {"key", "gateway_group_id", "instance_id"})
 
     metrics.shared_dict_capacity_bytes = prometheus:gauge("shared_dict_capacity_bytes",
             "The capacity of each nginx shared DICT since APISIX start",
-            {"name"})
+            {"name", "gateway_group_id", "instance_id",})
 
     metrics.shared_dict_free_space_bytes = prometheus:gauge("shared_dict_free_space_bytes",
             "The free space of each nginx shared DICT since APISIX start",
-            {"name"})
+            {"name", "gateway_group_id", "instance_id",})
 
     -- per service
 
@@ -172,6 +180,7 @@ function _M.http_init(prometheus_enabled_in_stream)
     metrics.status = prometheus:counter("http_status",
             "HTTP status codes per service in APISIX",
             {"code", "route", "route_id", "matched_uri", "matched_host", "service", "service_id", "consumer", "node",
+            "gateway_group_id", "instance_id",
             unpack(extra_labels("http_status"))}, exptime)
 
     local buckets = DEFAULT_BUCKETS
@@ -180,12 +189,14 @@ function _M.http_init(prometheus_enabled_in_stream)
     end
     metrics.latency = prometheus:histogram("http_latency",
         "HTTP request latency in milliseconds per service in APISIX",
-        {"type", "route", "route_id", "service", "service_id", "consumer", "node", unpack(extra_labels("http_latency"))},
+        {"type", "route", "route_id", "service", "service_id", "consumer", "node",
+        "gateway_group_id", "instance_id", unpack(extra_labels("http_latency"))},
         buckets, exptime)
 
     metrics.bandwidth = prometheus:counter("bandwidth",
             "Total bandwidth in bytes consumed per service in APISIX",
-            {"type", "route", "route_id", "service", "service_id", "consumer", "node", unpack(extra_labels("bandwidth"))}, exptime)
+            {"type", "route", "route_id", "service", "service_id", "consumer", "node",
+            "gateway_group_id", "instance_id", unpack(extra_labels("bandwidth"))}, exptime)
 
     if prometheus_enabled_in_stream then
         init_stream_metrics()
@@ -217,6 +228,16 @@ function _M.stream_init()
 end
 
 
+local function get_gateway_group_id()
+    local gateway_group_id, err = config_dict:get("gateway_group_id")
+    if not gateway_group_id then
+        core.log.warn("failed to get gateway_group_id: ", err)
+        return ""
+    end
+    return gateway_group_id
+end
+
+
 function _M.http_log(conf, ctx)
     local vars = ctx.var
 
@@ -226,6 +247,8 @@ function _M.http_log(conf, ctx)
     local service_id = ""
     local service = ""
     local consumer_name = ctx.consumer_name or ""
+    local gateway_group_id, err = get_gateway_group_id()
+    local instance_id = core.id.get()
 
     local matched_route = ctx.matched_route and ctx.matched_route.value
     if matched_route then
@@ -251,35 +274,35 @@ function _M.http_log(conf, ctx)
 
     metrics.status:inc(1,
         gen_arr(vars.status, route, route_id, matched_uri, matched_host,
-                service, service_id, consumer_name, balancer_ip,
-                unpack(extra_labels("http_status", ctx))))
+                service, service_id, consumer_name, balancer_ip, gateway_group_id,
+                instance_id, unpack(extra_labels("http_status", ctx))))
 
     local latency, upstream_latency, apisix_latency = latency_details(ctx)
     local latency_extra_label_values = extra_labels("http_latency", ctx)
 
     metrics.latency:observe(latency,
         gen_arr("request", route, route_id, service, service_id, consumer_name, balancer_ip,
-        unpack(latency_extra_label_values)))
+        gateway_group_id, instance_id, unpack(latency_extra_label_values)))
 
     if upstream_latency then
         metrics.latency:observe(upstream_latency,
             gen_arr("upstream", route, route_id, service, service_id, consumer_name, balancer_ip,
-            unpack(latency_extra_label_values)))
+            gateway_group_id, instance_id, unpack(latency_extra_label_values)))
     end
 
     metrics.latency:observe(apisix_latency,
         gen_arr("apisix", route, route_id, service, service_id, consumer_name, balancer_ip,
-        unpack(latency_extra_label_values)))
+        gateway_group_id, instance_id, unpack(latency_extra_label_values)))
 
     local bandwidth_extra_label_values = extra_labels("bandwidth", ctx)
 
     metrics.bandwidth:inc(vars.request_length,
         gen_arr("ingress", route, route_id, service, service_id, consumer_name, balancer_ip,
-        unpack(bandwidth_extra_label_values)))
+        gateway_group_id, instance_id, unpack(bandwidth_extra_label_values)))
 
     metrics.bandwidth:inc(vars.bytes_sent,
         gen_arr("egress", route, route_id, service, service_id, consumer_name, balancer_ip,
-        unpack(bandwidth_extra_label_values)))
+        gateway_group_id, instance_id, unpack(bandwidth_extra_label_values)))
 end
 
 
@@ -301,7 +324,7 @@ local ngx_status_items = {"active", "accepted", "handled", "total",
                          "reading", "writing", "waiting"}
 local label_values = {}
 
-local function nginx_status()
+local function nginx_status(gateway_group_id, instance_id)
     local res = ngx_capture("/apisix/nginx_status")
     if not res or res.status ~= 200 then
         core.log.error("failed to fetch Nginx status")
@@ -326,9 +349,9 @@ local function nginx_status()
         end
 
         if name == "total" then
-            metrics.requests:set(val[0])
+            metrics.requests:set(val[0], {gateway_group_id, instance_id})
         else
-            label_values[1] = name
+            label_values = {name, gateway_group_id, instance_id,}
             metrics.connections:set(val[0], label_values)
         end
     end
@@ -336,7 +359,7 @@ end
 
 
 local key_values = {}
-local function set_modify_index(key, items, items_ver, global_max_index)
+local function set_modify_index(key, items, items_ver, global_max_index, gateway_group_id, instance_id)
     clear_tab(key_values)
     local max_idx = 0
     if items_ver and items then
@@ -350,7 +373,7 @@ local function set_modify_index(key, items, items_ver, global_max_index)
         end
     end
 
-    key_values[1] = key
+    key_values = {key, gateway_group_id, instance_id}
     metrics.etcd_modify_indexes:set(max_idx, key_values)
 
 
@@ -360,66 +383,73 @@ local function set_modify_index(key, items, items_ver, global_max_index)
 end
 
 
-local function etcd_modify_index()
+local function etcd_modify_index(gateway_group_id, instance_id)
     clear_tab(key_values)
     local global_max_idx = 0
 
     -- routes
     local routes, routes_ver = get_routes()
-    global_max_idx = set_modify_index("routes", routes, routes_ver, global_max_idx)
+    global_max_idx = set_modify_index("routes", routes, routes_ver, global_max_idx,
+        gateway_group_id, instance_id)
 
     -- services
     local services, services_ver = get_services()
-    global_max_idx = set_modify_index("services", services, services_ver, global_max_idx)
+    global_max_idx = set_modify_index("services", services, services_ver, global_max_idx,
+        gateway_group_id, instance_id)
 
     -- ssls
     local ssls, ssls_ver = get_ssls()
-    global_max_idx = set_modify_index("ssls", ssls, ssls_ver, global_max_idx)
+    global_max_idx = set_modify_index("ssls", ssls, ssls_ver, global_max_idx,
+        gateway_group_id, instance_id)
 
     -- consumers
     local consumers, consumers_ver = get_consumers()
-    global_max_idx = set_modify_index("consumers", consumers, consumers_ver, global_max_idx)
+    global_max_idx = set_modify_index("consumers", consumers, consumers_ver, global_max_idx,
+        gateway_group_id, instance_id)
 
     -- global_rules
     local global_rules = router.global_rules
     if global_rules then
         global_max_idx = set_modify_index("global_rules", global_rules.values,
-            global_rules.conf_version, global_max_idx)
+            global_rules.conf_version, global_max_idx, gateway_group_id, instance_id)
 
         -- prev_index
-        key_values[1] = "prev_index"
+        key_values = {"prev_index", gateway_group_id, instance_id}
         metrics.etcd_modify_indexes:set(global_rules.prev_index, key_values)
 
     else
-        global_max_idx = set_modify_index("global_rules", nil, nil, global_max_idx)
+        global_max_idx = set_modify_index("global_rules", nil, nil, global_max_idx,
+            gateway_group_id, instance_id)
     end
 
     -- upstreams
     local upstreams, upstreams_ver = get_upstreams()
-    global_max_idx = set_modify_index("upstreams", upstreams, upstreams_ver, global_max_idx)
+    global_max_idx = set_modify_index("upstreams", upstreams, upstreams_ver, global_max_idx,
+        gateway_group_id, instance_id)
 
     -- stream_routes
     local stream_routes, stream_routes_ver = get_stream_routes()
     global_max_idx = set_modify_index("stream_routes", stream_routes,
-        stream_routes_ver, global_max_idx)
+        stream_routes_ver, global_max_idx, gateway_group_id, instance_id)
 
     -- proto
     local protos, protos_ver = get_protos()
-    global_max_idx = set_modify_index("protos", protos, protos_ver, global_max_idx)
+    global_max_idx = set_modify_index("protos", protos, protos_ver, global_max_idx,
+        gateway_group_id, instance_id)
 
     -- global max
-    key_values[1] = "max_modify_index"
+    key_values = {"max_modify_index", gateway_group_id, instance_id}
     metrics.etcd_modify_indexes:set(global_max_idx, key_values)
 
 end
 
 
-local function shared_dict_status()
-    local name = {}
+local function shared_dict_status(gateway_group_id, instance_id)
+    local labels = {}
     for shared_dict_name, shared_dict in pairs(ngx.shared) do
-        name[1] = shared_dict_name
-        metrics.shared_dict_capacity_bytes:set(shared_dict:capacity(), name)
-        metrics.shared_dict_free_space_bytes:set(shared_dict:free_space(), name)
+        labels = {shared_dict_name, gateway_group_id, instance_id}
+        metrics.shared_dict_capacity_bytes:set(shared_dict:capacity(), labels)
+        metrics.shared_dict_free_space_bytes:set(shared_dict:free_space(), labels)
     end
 end
 
@@ -431,11 +461,14 @@ local function collect(ctx, stream_only)
         return 500, {message = "An unexpected error occurred"}
     end
 
+    local gateway_group_id = get_gateway_group_id()
+    local instance_id = core.id.get()
+
     -- collect ngx.shared.DICT status
-    shared_dict_status()
+    shared_dict_status(gateway_group_id, instance_id)
 
     -- across all services
-    nginx_status()
+    nginx_status(gateway_group_id, instance_id)
 
     local config = core.config.new()
 
@@ -446,14 +479,14 @@ local function collect(ctx, stream_only)
     -- we can't get etcd index in metric server if only stream subsystem is enabled
     if config.type == "etcd" and not stream_only then
         -- etcd modify index
-        etcd_modify_index()
+        etcd_modify_index(gateway_group_id, instance_id)
 
         local version, err = config:server_version()
         if version then
-            metrics.etcd_reachable:set(1)
+            metrics.etcd_reachable:set(1, {gateway_group_id, instance_id,})
 
         else
-            metrics.etcd_reachable:set(0)
+            metrics.etcd_reachable:set(0, {gateway_group_id, instance_id,})
             core.log.error("prometheus: failed to reach config server while ",
                            "processing metrics endpoint: ", err)
         end
@@ -465,12 +498,12 @@ local function collect(ctx, stream_only)
         if res and res.headers then
             clear_tab(key_values)
             -- global max
-            key_values[1] = "x_etcd_index"
+            key_values = {"x_etcd_index", gateway_group_id, instance_id}
             metrics.etcd_modify_indexes:set(res.headers["X-Etcd-Index"], key_values)
         end
     end
 
-    metrics.node_info:set(1, gen_arr(hostname))
+    metrics.node_info:set(1, gen_arr(hostname, gateway_group_id, instance_id))
 
 
     core.response.set_header("content_type", "text/plain")

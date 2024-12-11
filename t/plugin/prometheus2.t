@@ -126,7 +126,7 @@ passed
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="",service_id="",consumer="",node=""\} \d+/
+qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="",service_id="",consumer="",node="".*\} \d+/
 
 
 
@@ -172,7 +172,7 @@ apikey: auth-one
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_http_status\{code="200",route="1",route_id="1",matched_uri="\/hello",matched_host="",service="",service_id="",consumer="jack",node="127.0.0.1"\} \d+/
+qr/apisix_http_status\{code="200",route="1",route_id="1",matched_uri="\/hello",matched_host="",service="",service_id="",consumer="jack",node="127.0.0.1".*\} \d+/
 
 
 
@@ -248,7 +248,7 @@ GET /not_found
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_http_status\{code="404",route="",route_id="",matched_uri="",matched_host="",service="",service_id="",consumer="",node=""\} \d+/
+qr/apisix_http_status\{code="404",route="",route_id="",matched_uri="",matched_host="",service="",service_id="",consumer="",node="".*\} \d+/
 
 
 
@@ -267,7 +267,7 @@ qr/404 Not Found/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_http_status\{code="404",route="9",route_id="9",matched_uri="\/foo\*",matched_host="foo.com",service="",service_id="",consumer="",node="127.0.0.1"\} \d+/
+qr/apisix_http_status\{code="404",route="9",route_id="9",matched_uri="\/foo\*",matched_host="foo.com",service="",service_id="",consumer="",node="127.0.0.1".*\} \d+/
 
 
 
@@ -286,7 +286,7 @@ qr/404 Not Found/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_http_status\{code="404",route="9",route_id="9",matched_uri="\/bar\*",matched_host="bar.com",service="",service_id="",consumer="",node="127.0.0.1"\} \d+/
+qr/apisix_http_status\{code="404",route="9",route_id="9",matched_uri="\/bar\*",matched_host="bar.com",service="",service_id="",consumer="",node="127.0.0.1".*\} \d+/
 
 
 
@@ -759,7 +759,7 @@ GET /hello
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_bandwidth\{type="egress",route="route_name",route_id="1",service="service_name",service_id="1",consumer="",node="127.0.0.1"\} \d+/
+qr/apisix_bandwidth\{type="egress",route="route_name",route_id="1",service="service_name",service_id="1",consumer="",node="127.0.0.1".*\} \d+/
 
 
 
@@ -802,7 +802,7 @@ GET /hello
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_bandwidth\{type="egress",route="route_name",route_id="1",service="1",service_id="1",consumer="",node="127.0.0.1"\} \d+/
+qr/apisix_bandwidth\{type="egress",route="route_name",route_id="1",service="1",service_id="1",consumer="",node="127.0.0.1".*\} \d+/
 
 
 
@@ -865,7 +865,7 @@ GET /hello
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="service_name",service_id="1",consumer="",node="127.0.0.1"\} \d+/
+qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="service_name",service_id="1",consumer="",node="127.0.0.1".*\} \d+/
 
 
 
@@ -909,7 +909,7 @@ GET /hello
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="service_name",service_id="1",consumer="",node="127.0.0.1"\} \d+/
+qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="service_name",service_id="1",consumer="",node="127.0.0.1".*\} \d+/
 
 
 
@@ -919,5 +919,5 @@ lua_shared_dict test-shared-dict 10m;
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like
-.*apisix_shared_dict_capacity_bytes\{name="test-shared-dict"\} 10485760(?:.|\n)*
-apisix_shared_dict_free_space_bytes\{name="test-shared-dict"\} \d+.*
+.*apisix_shared_dict_capacity_bytes\{name="test-shared-dict".*\} 10485760(?:.|\n)*
+apisix_shared_dict_free_space_bytes\{name="test-shared-dict".*\} \d+.*

@@ -109,7 +109,7 @@ done
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like
-apisix_etcd_reachable 1
+apisix_etcd_reachable.* 1
 
 
 
@@ -133,7 +133,7 @@ apisix_etcd_reachable 1
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="",service_id="",consumer="",node="127.0.0.1"\} \d+/
+qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="",service_id="",consumer="",node="127.0.0.1".*\} \d+/
 
 
 
@@ -190,7 +190,7 @@ passed
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="",service_id="",consumer="",node="127.0.0.1"\} \d+/
+qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="",service_id="",consumer="",node="127.0.0.1".*\} \d+/
 
 
 
@@ -198,7 +198,7 @@ qr/apisix_bandwidth\{type="egress",route="1",route_id="1",service="",service_id=
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_http_latency_count\{type="request",route="1",route_id="1",service="",service_id="",consumer="",node="127.0.0.1"\} \d+/
+qr/apisix_http_latency_count\{type="request",route="1",route_id="1",service="",service_id="",consumer="",node="127.0.0.1".*\} \d+/
 
 
 
@@ -269,7 +269,7 @@ passed
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_bandwidth\{type="egress",route="2",route_id="2",service="1",service_id="1",consumer="",node="127.0.0.1"\} \d+/
+qr/apisix_bandwidth\{type="egress",route="2",route_id="2",service="1",service_id="1",consumer="",node="127.0.0.1".*\} \d+/
 
 
 
@@ -386,7 +386,7 @@ passed
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_http_status\{code="404",route="3",route_id="3",matched_uri="\/hello3",matched_host="",service="",service_id="",consumer="",node="127.0.0.1"\} 2/
+qr/apisix_http_status\{code="404",route="3",route_id="3",matched_uri="\/hello3",matched_host="",service="",service_id="",consumer="",node="127.0.0.1".*\} 2/
 
 
 
@@ -511,7 +511,7 @@ passed
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="consumers"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="consumers".*\} \d+/
 
 
 
@@ -519,7 +519,7 @@ qr/apisix_etcd_modify_indexes\{key="consumers"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="global_rules"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="global_rules".*\} \d+/
 
 
 
@@ -527,7 +527,7 @@ qr/apisix_etcd_modify_indexes\{key="global_rules"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="max_modify_index"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="max_modify_index".*\} \d+/
 
 
 
@@ -535,7 +535,7 @@ qr/apisix_etcd_modify_indexes\{key="max_modify_index"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="protos"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="protos".*\} \d+/
 
 
 
@@ -543,7 +543,7 @@ qr/apisix_etcd_modify_indexes\{key="protos"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="routes"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="routes".*\} \d+/
 
 
 
@@ -551,7 +551,7 @@ qr/apisix_etcd_modify_indexes\{key="routes"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="services"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="services".*\} \d+/
 
 
 
@@ -559,7 +559,7 @@ qr/apisix_etcd_modify_indexes\{key="services"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="ssls"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="ssls".*\} \d+/
 
 
 
@@ -567,7 +567,7 @@ qr/apisix_etcd_modify_indexes\{key="ssls"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="stream_routes"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="stream_routes".*\} \d+/
 
 
 
@@ -575,7 +575,7 @@ qr/apisix_etcd_modify_indexes\{key="stream_routes"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="upstreams"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="upstreams".*\} \d+/
 
 
 
@@ -583,7 +583,7 @@ qr/apisix_etcd_modify_indexes\{key="upstreams"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="prev_index"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="prev_index".*\} \d+/
 
 
 
@@ -591,7 +591,7 @@ qr/apisix_etcd_modify_indexes\{key="prev_index"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body_like eval
-qr/apisix_etcd_modify_indexes\{key="x_etcd_index"\} \d+/
+qr/apisix_etcd_modify_indexes\{key="x_etcd_index".*\} \d+/
 
 
 
@@ -599,7 +599,7 @@ qr/apisix_etcd_modify_indexes\{key="x_etcd_index"\} \d+/
 --- request
 GET /apisix/prometheus/metrics
 --- response_body eval
-qr/apisix_node_info\{hostname=".*"\} 1/
+qr/apisix_node_info\{hostname=".*".*\} 1/
 
 
 
