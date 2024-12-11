@@ -104,7 +104,7 @@ WORKDIR /usr/local/apisix
 # build deps
 RUN apt update \
     && apt-get -y install --no-install-recommends ca-certificates sudo gcc unzip make git wget zlib1g-dev libxml2-dev libxslt-dev \
-    && wget -O go.tar.gz https://go.dev/dl/go1.21.5.linux-$(dpkg --print-architecture).tar.gz && tar -C /usr/local -xzf go.tar.gz && rm -f go.tar.gz \
+    && wget -O go.tar.gz https://go.dev/dl/go1.22.6.linux-$(dpkg --print-architecture).tar.gz && tar -C /usr/local -xzf go.tar.gz && rm -f go.tar.gz \
     && bash /usr/local/apisix/linux-install-luarocks.sh && rm /usr/local/apisix/linux-install-luarocks.sh \
     && export PATH=$PATH:/usr/local/go/bin CGO_ENABLED=1 \
     && luarocks config variables.OPENSSL_DIR /usr/local/openresty/openssl3 \
