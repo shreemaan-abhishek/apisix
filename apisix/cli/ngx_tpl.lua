@@ -852,6 +852,11 @@ http {
             set $dubbo_service_version       '';
             set $dubbo_method                '';
 
+            {% if use_apisix_base then %}
+            set $apisix_request_id $request_id;
+            lua_error_log_request_id $apisix_request_id;
+            {% end %}
+
             access_by_lua_block {
                 apisix.http_access_phase()
             }

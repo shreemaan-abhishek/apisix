@@ -772,6 +772,9 @@ _EOC_
             proxy_no_cache                      \$upstream_no_cache;
             proxy_cache_bypass                  \$upstream_cache_bypass;
 
+            set \$apisix_request_id \$request_id;
+            lua_error_log_request_id \$apisix_request_id;
+
             access_by_lua_block {
                 -- wait for etcd sync
                 ngx.sleep($wait_etcd_sync)

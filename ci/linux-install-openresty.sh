@@ -40,7 +40,7 @@ sudo apt-get install -y libldap2-dev openresty-pcre-dev openresty-zlib-dev build
 
 SSL_LIB_VERSION=${SSL_LIB_VERSION-openssl}
 ENABLE_FIPS=${ENABLE_FIPS:-"false"}
-APISIX_RUNTIME=${APISIX_RUNTIME:-"1.1.2"}
+APISIX_RUNTIME=${APISIX_RUNTIME:-"1.1.5"}
 OPENRESTY_PREFIX=${OPENRESTY_PREFIX:-"/usr/local/openresty"}
 BUILD_LATEST=${BUILD_LATEST:-"latest"}
 OPENRESTY_VERSION=${OPENRESTY_VERSION:-"default"}
@@ -57,13 +57,13 @@ if [ "$OPENRESTY_VERSION" == "source" ]; then
 fi
 
 export runtime_version=${APISIX_RUNTIME}
-wget "https://raw.githubusercontent.com/api7/apisix-build-tools/apisix-runtime/${APISIX_RUNTIME}/build-apisix-runtime.sh"
-chmod +x build-apisix-runtime.sh
-./build-apisix-runtime.sh ${BUILD_LATEST}
+wget "https://raw.githubusercontent.com/api7/apisix-build-tools/api7ee-runtime/${APISIX_RUNTIME}/build-api7ee-runtime.sh"
+chmod +x build-api7ee-runtime.sh
+./build-api7ee-runtime.sh ${BUILD_LATEST}
 
 if [ ! "$ENABLE_FIPS" == "true" ] && [ "$BUILD_LATEST" == "latest" ]; then
 curl -o $OPENRESTY_PREFIX/openssl3/ssl/openssl.cnf \
-    https://raw.githubusercontent.com/api7/apisix-build-tools/apisix-runtime/${APISIX_RUNTIME}/conf/openssl3/openssl.cnf
+    https://raw.githubusercontent.com/api7/apisix-build-tools/api7ee-runtime/${APISIX_RUNTIME}/conf/openssl3/openssl.cnf
 fi
 
 # patch lua-resty-events

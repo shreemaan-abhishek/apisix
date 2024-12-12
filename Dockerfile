@@ -14,12 +14,10 @@ RUN set -ex; \
         echo "deb https://openresty.org/package/arm64/debian bullseye openresty" | tee /etc/apt/sources.list.d/openresty.list \
         ;; \
     esac; \
-    apt update \
-    && apt install -y openresty-pcre-dev openresty-zlib-dev \
-    && set -ex; \
+    set -ex; \
     arch=$(dpkg --print-architecture); \
-    wget https://github.com/api7/apisix-build-tools/releases/download/apisix-runtime/1.1.3/apisix-runtime_1.1.3-0.debianbullseye-slim_${arch}.deb; \
-    dpkg -i ./apisix-runtime_1.1.3-0.debianbullseye-slim_${arch}.deb
+    wget https://github.com/api7/apisix-build-tools/releases/download/api7ee-runtime/1.1.5/api7ee-runtime_1.1.5-0.debianbullseye-slim_${arch}.deb; \
+    dpkg -i ./api7ee-runtime_1.1.5-0.debianbullseye-slim_${arch}.deb
 RUN rm /usr/local/openresty/bin/etcdctl && rm -rf /usr/local/openresty/openssl3/share
 
 FROM debian:bullseye-slim AS apisix-builder
