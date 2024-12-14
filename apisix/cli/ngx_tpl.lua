@@ -509,7 +509,11 @@ http {
     {% if http.enable_access_log == false then %}
     access_log off;
     {% else %}
+    {% if deployment_role ~= "control_plane" and use_apisix_base then %}
+    log_format main escape={* http.access_log_format_escape *} '{* http.access_log_format *} ' \"$apisix_request_id\";
+    {% else %}
     log_format main escape={* http.access_log_format_escape *} '{* http.access_log_format *}';
+    {% end %}
     uninitialized_variable_warn off;
 
     access_log {* http.access_log *} main buffer=16384 flush=3;
