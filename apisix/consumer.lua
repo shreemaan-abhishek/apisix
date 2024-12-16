@@ -228,6 +228,7 @@ do
         local consumer, err = agent_api7.developer_query({
             plugin_name = plugin_name,
             key_value = key_value,
+            service_id = ctx.service_id
         })
         if not consumer then
             return nil, nil, err

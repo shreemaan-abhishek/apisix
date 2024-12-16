@@ -1,6 +1,7 @@
 use t::APISIX 'no_plan';
 
 repeat_each(1);
+log_level('debug');
 no_long_string();
 no_root_location();
 
@@ -76,8 +77,9 @@ _EOC_
 
         local plugin_name = ngx.var.arg_plugin_name
         local key_value = ngx.var.arg_key_value
+        local service_id = ngx.var.arg_service_id
 
-        ngx.log(ngx.INFO, "receive data plane developer_query: ", plugin_name, ", ", key_value)
+        ngx.log(ngx.INFO, "receive data plane developer_query: ", plugin_name, ", ", key_value, ", ", service_id)
 
         local auth_plugin_payload = {
             ["key-auth"] = {
@@ -85,7 +87,13 @@ _EOC_
                     credential_id = "05ade19c-44ac-4d87-993c-c877dbce5d34",
                     consumer_name = "developer_test",
                     username = "developer_test",
-                    labels = {},
+                    labels = {
+                        application_id = "1e0388e9-05cf-4f96-965c-3bdff2c81769",
+                        api_product_id = "5c7d2ccf-08e3-43b9-956f-6e0f58de6142",
+                        developer_id = "1a758cf0-4166-48bf-9349-b0b06c4e590b",
+                        subscription_id = "6e8954e6-c95e-40cc-b778-688efd65a90b",
+                        developer_username = "developer_test",
+                    },
                     plugins = {
                         ["consumer-restriction"] = {
                             type = "route_id",
@@ -249,7 +257,7 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
                             ]
                         }
                     },
-                    "uri": "/hello"
+                    "uris": ["/hello", "/log_request"]
                 }]]
                 )
 
@@ -393,6 +401,7 @@ authkey: auth-one
 --- response_body
 {"message":"The route_id is forbidden."}
 --- error_log
+cache_key: key-auth/auth-one
 receive data plane developer_query: key-auth, auth-one
 
 
@@ -410,4 +419,140 @@ authkey: auth-one
 --- response_body
 hello world
 --- error_log
+cache_key: key-auth/auth-one
 receive data plane developer_query: key-auth, auth-one
+
+
+
+=== TEST 13: set service 1
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/services/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "plugins": {
+                        "portal-auth":{
+                            "auth_plugins": [
+                                {
+                                    "key-auth": {
+                                        "header": "authkey",
+                                        "query": "authkey"
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 14: route refer to service 1
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "methods": ["GET"],
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1981": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "service_id": "1",
+                    "uri": "/log_request"
+                }]]
+                )
+
+            if code <= 201 then
+                ngx.status = 200
+            end
+
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 15: control plane receive service_id
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- request
+GET /log_request
+--- more_headers
+authkey: auth-one
+--- error_code: 200
+--- error_log
+cache_key: key-auth/auth-one/1
+receive data plane developer_query: key-auth, auth-one, 1
+
+
+
+=== TEST 16: access upstream with more headers x-api7-portal-*
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- request
+GET /log_request
+--- more_headers
+authkey: auth-one
+--- error_code: 200
+--- error_log
+x-api7-portal-api-product-id: 5c7d2ccf-08e3-43b9-956f-6e0f58de6142
+x-api7-portal-application-id: 1e0388e9-05cf-4f96-965c-3bdff2c81769
+x-api7-portal-credential-id: 05ade19c-44ac-4d87-993c-c877dbce5d34
+x-api7-portal-developer-id: 1a758cf0-4166-48bf-9349-b0b06c4e590b
+x-api7-portal-developer-username: developer_test
+x-api7-portal-subscription-id: 6e8954e6-c95e-40cc-b778-688efd65a90b
+
+
+
+=== TEST 17: access upstream with request_id header
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- request
+GET /log_request
+--- more_headers
+authkey: auth-one
+--- error_code: 200
+--- error_log eval
+qr/x-api7-portal-request-id: [0-9a-f-]+,/

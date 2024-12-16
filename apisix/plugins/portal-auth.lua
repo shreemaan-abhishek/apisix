@@ -67,6 +67,16 @@ end
 function _M.rewrite(conf, ctx)
     local succeed, errors = execute_auth_plugins(conf.auth_plugins, ctx)
     if succeed then
+        local consumer = ctx.consumer
+        if consumer.labels then
+            core.request.set_header(ctx, "X-API7-Portal-Application-Id", consumer.labels.application_id)
+            core.request.set_header(ctx, "X-API7-Portal-Developer-Id", consumer.labels.developer_id)
+            core.request.set_header(ctx, "X-API7-Portal-Developer-Username", consumer.labels.developer_username)
+            core.request.set_header(ctx, "X-API7-Portal-Subscription-Id", consumer.labels.subscription_id)
+            core.request.set_header(ctx, "X-API7-Portal-API-Product-Id", consumer.labels.api_product_id)
+        end
+        core.request.set_header(ctx, "X-API7-Portal-Credential-Id", consumer.credential_id)
+        core.request.set_header(ctx, "X-API7-Portal-Request-Id", ctx.var.apisix_request_id)
         return
     end
 

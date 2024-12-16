@@ -545,7 +545,13 @@ function _M.developer_query(self, query)
         return nil, "developer_query: \"query\" is not a table"
     end
 
-    local cache_key = query.plugin_name .. "/" .. query.key_value
+    local cache_key = table.concat({
+        query.plugin_name,
+        query.key_value,
+        query.service_id
+    }, "/")
+
+    core.log.debug("developer_query cache_key: ", cache_key)
 
     local miss = self.miss_developer_cache(cache_key, nil, function () return nil end)
     if miss then
