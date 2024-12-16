@@ -137,10 +137,10 @@ function _M.http_init(prometheus_enabled_in_stream)
         metric_prefix = attr.metric_prefix
     end
     
-    local exptime
-    if attr and attr.expire then
-        exptime = attr.expire
-    end
+    local status_metrics_exptime = core.table.try_read_attr(attr, "metrics", "http_status", "expire")
+    local latency_metrics_exptime = core.table.try_read_attr(attr, "metrics", "http_latency", "expire")
+    local bandwidth_metrics_exptime = core.table.try_read_attr(attr, "metrics", "bandwidth", "expire")
+
     prometheus = base_prometheus.init("prometheus-metrics", metric_prefix)
 
     metrics.connections = prometheus:gauge("nginx_http_current_connections",
@@ -181,7 +181,7 @@ function _M.http_init(prometheus_enabled_in_stream)
             "HTTP status codes per service in APISIX",
             {"code", "route", "route_id", "matched_uri", "matched_host", "service", "service_id", "consumer", "node",
             "gateway_group_id", "instance_id",
-            unpack(extra_labels("http_status"))}, exptime)
+            unpack(extra_labels("http_status"))}, status_metrics_exptime)
 
     local buckets = DEFAULT_BUCKETS
     if attr and attr.default_buckets then
@@ -191,12 +191,12 @@ function _M.http_init(prometheus_enabled_in_stream)
         "HTTP request latency in milliseconds per service in APISIX",
         {"type", "route", "route_id", "service", "service_id", "consumer", "node",
         "gateway_group_id", "instance_id", unpack(extra_labels("http_latency"))},
-        buckets, exptime)
+        buckets, latency_metrics_exptime)
 
     metrics.bandwidth = prometheus:counter("bandwidth",
             "Total bandwidth in bytes consumed per service in APISIX",
             {"type", "route", "route_id", "service", "service_id", "consumer", "node",
-            "gateway_group_id", "instance_id", unpack(extra_labels("bandwidth"))}, exptime)
+            "gateway_group_id", "instance_id", unpack(extra_labels("bandwidth"))}, bandwidth_metrics_exptime)
 
     if prometheus_enabled_in_stream then
         init_stream_metrics()

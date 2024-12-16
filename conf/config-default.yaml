@@ -572,14 +572,18 @@ plugin_attr:
     #      # below labels are only examples, you could add any valid variables as you need
     #      - upstream_addr: $upstream_addr
     #      - upstream_status: $upstream_status
+    #    expiry: 0 # The expiration time after which metrics are removed. unit: second.
+    #              # 0 means the metrics will not expire
     #  http_latency:
     #    extra_labels:
     #      - upstream_addr: $upstream_addr
+    #    expiry: 0 # The expiration time after which metrics are removed. unit: second.
+    #              # 0 means the metrics will not expire
     #  bandwidth:
     #    extra_labels:
     #      - upstream_addr: $upstream_addr
-  # expire: 86400  # The expiration time after metrics become inactive, unit: second.
-                # 0 means the metrics will not expire
+    #    expiry: 0 # The expiration time after which metrics are removed. unit: second.
+    #              # 0 means the metrics will not expire
     # default_buckets:
     #   - 10
     #   - 50
