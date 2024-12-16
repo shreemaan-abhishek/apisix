@@ -61,7 +61,7 @@ ENV PATH=$PATH:/usr/local/openresty/luajit/bin:/usr/local/openresty/nginx/sbin:/
 WORKDIR /usr/local/apisix
 
 RUN apt update \
-    && apt install libldap2-dev libpcre3 debianutils -y \
+    && apt install libpcre3 debianutils -y \
     # forward request and error logs to docker log collector
     && ln -sf /dev/stdout /usr/local/apisix/logs/access.log \
     && ln -sf /dev/stderr /usr/local/apisix/logs/error.log

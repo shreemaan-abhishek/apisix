@@ -36,7 +36,7 @@ fi
 
 
 sudo apt-get update
-sudo apt-get install -y libldap2-dev openresty-pcre-dev openresty-zlib-dev build-essential gcc g++ cpanminus libxml2-dev libxslt-dev
+sudo apt-get install -y openresty-pcre-dev openresty-zlib-dev build-essential gcc g++ cpanminus libxml2-dev libxslt-dev
 
 SSL_LIB_VERSION=${SSL_LIB_VERSION-openssl}
 ENABLE_FIPS=${ENABLE_FIPS:-"false"}
