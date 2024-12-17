@@ -596,6 +596,9 @@ function _M.rewrite(plugin_conf, ctx)
             ctx.external_user = response.user
         end
     end
+    if session then
+        session:close()
+    end
 end
 
 
