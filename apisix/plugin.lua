@@ -582,15 +582,6 @@ function _M.filter(ctx, conf, plugins, route_conf, phase)
             local plugin_obj = plugins[i]
             local plugin_conf = plugins[i + 1]
 
-            -- in the rewrite phase, the plugin executes in the following order:
-            -- 1. execute the rewrite phase of the plugins on route(including the auth plugins)
-            -- 2. merge plugins from consumer and route
-            -- 3. execute the rewrite phase of the plugins on consumer(phase: rewrite_in_consumer)
-            -- in this case, we need to skip the plugins that was already executed(step 1)
-            if phase == "rewrite_in_consumer" and not plugin_conf._from_consumer then
-                plugin_conf._skip_rewrite_in_consumer = true
-            end
-
             tmp_plugin_objs[plugin_conf] = plugin_obj
             core.table.insert(tmp_plugin_confs, plugin_conf)
 
@@ -1237,7 +1228,12 @@ function _M.run_plugin(phase, plugins, api_ctx)
         for i = 1, #plugins, 2 do
             local phase_func
             if phase == "rewrite_in_consumer" then
-                if plugins[i].type == "auth" then
+                -- in the rewrite phase, the plugin executes in the following order:
+                -- 1. execute the rewrite phase of the plugins on route(including the auth plugins)
+                -- 2. merge plugins from consumer and route
+                -- 3. execute the rewrite phase of the plugins on consumer(phase: rewrite_in_consumer)
+                -- in this case, we need to skip the plugins that was already executed(step 1)
+                if plugins[i].type == "auth" or (not plugins[i + 1]._from_consumer) then
                     plugins[i + 1]._skip_rewrite_in_consumer = true
                 end
                 phase_func = plugins[i]["rewrite"]
