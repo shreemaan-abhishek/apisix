@@ -17,7 +17,8 @@
 local core = require("apisix.core")
 local delayed_syncer = require("apisix.plugins.limit-count-advanced.delayed-syncer")
 local sliding_window = require("apisix.plugins.limit-count-advanced.sliding-window.sliding-window")
-local sliding_window_store = require("apisix.plugins.limit-count-advanced.sliding-window.store.redis")
+local sliding_window_store = require("apisix.plugins.limit-count-advanced."
+                                     .. "sliding-window.store.redis")
 local redis_cli = require("apisix.plugins.limit-count-advanced.util").redis_cli
 
 local assert = assert

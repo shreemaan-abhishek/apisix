@@ -25,6 +25,7 @@ local ipairs = ipairs
 local str_format = string.format
 local ngx = ngx
 local ngx_var = ngx.var
+local require = require
 local events
 
 local _M = {}

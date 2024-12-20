@@ -69,6 +69,7 @@ GET /hello
 failed to get schema for plugin:
 
 
+
 === TEST 2: sanity
 --- apisix_yaml
 upstreams:
@@ -88,4 +89,3 @@ plugin_metadata:
 GET /hello
 --- error_log
 failed to check item data of [plugin_metadata]
-

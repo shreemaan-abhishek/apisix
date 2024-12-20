@@ -7,7 +7,6 @@ run_tests;
 
 __DATA__
 
-
 === TEST 1: test continuous watch etcd changes without APISIX reload
 --- config
     location /t {

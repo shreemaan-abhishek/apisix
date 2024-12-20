@@ -119,7 +119,7 @@ function _M.check_schema(conf)
             local ok, err = expr.new(rule.case)
             if not ok then
                 return false, "failed to validate the 'case' expression: " .. err
-            end         
+            end
         end
         local actions = rule.actions
         for _, action in ipairs(actions) do

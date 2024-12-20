@@ -18,7 +18,6 @@ local ngx        = ngx
 local abs        = math.abs
 local ngx_time   = ngx.time
 local ngx_re     = require("ngx.re")
-local re_gmatch  = ngx.re.gmatch
 local ipairs     = ipairs
 local hmac_sha1  = ngx.hmac_sha1
 local core       = require("apisix.core")
@@ -203,7 +202,7 @@ local function validate(ctx, conf, params)
 
     local consumer_conf = consumer.auth_conf
     local found_algorithm = false
-    -- check supported alorithm used
+    -- check supported algorithm used
     if not conf.allowed_algorithms then
         conf.allowed_algorithms = ALLOWED_ALGORITHMS
     end
@@ -274,7 +273,7 @@ local function validate(ctx, conf, params)
         end
 
         req_body = req_body or ""
-        local digest_created = "SHA-256" .. "=" .. 
+        local digest_created = "SHA-256" .. "=" ..
                 ngx_encode_base64(sha256(req_body))
         if digest_created ~= digest_header then
             return nil, "Invalid digest"

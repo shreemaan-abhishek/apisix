@@ -303,7 +303,6 @@ success
 
 
 
-
 === TEST 7: mask json body
 --- config
     location /t {

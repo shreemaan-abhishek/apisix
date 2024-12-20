@@ -28,6 +28,7 @@ _EOC_
 run_tests();
 
 __DATA__
+
 === TEST 1: load the test table and check table count
 --- extra_init_by_lua
             local lfs = require("lfs")
@@ -60,7 +61,7 @@ __DATA__
             end
 
             -- Define the new multiline string to be inserted into the file
-            local new_config = 
+            local new_config =
 [[
 return {
   table_count = {lua_modules = {"t.table-count-example"}, interval = 1}
@@ -113,7 +114,7 @@ package t.table-count-example table count is: 4
             end
 
             -- Define the new multiline string to be inserted into the file
-            local new_config = 
+            local new_config =
 [[
 return {
   table_count = {lua_modules = {"t.table-count-example"}, interval = 1,depth = 10}
@@ -166,7 +167,7 @@ package t.table-count-example table count is: 8
             end
 
             -- Define the new multiline string to be inserted into the file
-            local new_config = 
+            local new_config =
 [[
 return {
   table_count = {lua_modules = {"t.table-count-example"}, interval = 1}
@@ -222,16 +223,16 @@ out of depth..skipping count
             end
 
             -- Define the new multiline string to be inserted into the file
-            local new_config = 
+            local new_config =
 [[
 return {
-	table_count = {
-		lua_modules = {}, -- change it
-		interval = 5,
-		depth = 10, -- when it is not passed, default depth will be 1
-		-- optional, default is all APISIX processes
-		scopes = {"worker", "privileged agent"}
-	}
+    table_count = {
+        lua_modules = {}, -- change it
+        interval = 5,
+        depth = 10, -- when it is not passed, default depth will be 1
+        -- optional, default is all APISIX processes
+        scopes = {"worker", "privileged agent"}
+    }
 }
 
 ]]
@@ -252,5 +253,3 @@ qr/no lua_modules provided for table count/
 --- grep_error_log_out
 no lua_modules provided for table count
 no lua_modules provided for table count
-
-

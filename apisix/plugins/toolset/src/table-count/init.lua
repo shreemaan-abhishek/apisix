@@ -7,6 +7,7 @@ local ipairs = ipairs
 local type = type
 local timer = ngx.timer
 local require = require
+local package = package
 
 local plugin_name = "table-count"
 
@@ -17,11 +18,11 @@ local stop = false
 local current_run = 0
 
 local _M = {
-	version = 0.1,
-	priority = 22902,
-	name = plugin_name,
-	schema = schema,
-	scope = "global",
+  version = 0.1,
+  priority = 22902,
+  name = plugin_name,
+  schema = schema,
+  scope = "global",
 }
 
 local function tab_item_count(tab, cache,depth)
@@ -71,7 +72,7 @@ function _M.init()
     return
   end
   ::continue::
-	-- Extract configuration values
+  -- Extract configuration values
   current_run = current_run + 1
   local interval = config.interval or 5
   local run_count

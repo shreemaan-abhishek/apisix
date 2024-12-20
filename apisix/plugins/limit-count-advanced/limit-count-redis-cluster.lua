@@ -19,7 +19,8 @@ local rediscluster = require("resty.rediscluster")
 local core = require("apisix.core")
 local delayed_syncer = require("apisix.plugins.limit-count-advanced.delayed-syncer")
 local sliding_window = require("apisix.plugins.limit-count-advanced.sliding-window.sliding-window")
-local sliding_window_store = require("apisix.plugins.limit-count-advanced.sliding-window.store.redis")
+local sliding_window_store = require("apisix.plugins.limit-count-advanced."
+                                     .. "sliding-window.store.redis")
 
 local setmetatable = setmetatable
 local tostring = tostring
@@ -84,7 +85,8 @@ function _M.new(plugin_name, limit, window, conf)
 
     if conf.window_type == "sliding" then
 
-        local sw_limit_count, err = sliding_window.new(sliding_window_store, limit, window, conf, red_cli)
+        local sw_limit_count, err = sliding_window.new(sliding_window_store,
+                                                       limit, window, conf, red_cli)
         if not sw_limit_count then
             return nil, err
         end

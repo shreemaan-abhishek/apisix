@@ -311,8 +311,6 @@ function _M.init(env, args)
         util.die("failed to read `etcd` field from yaml file when init etcd")
     end
 
-    local etcd_conf = yaml_conf.etcd
-
     -- convert old single etcd config to multiple etcd config
     if type(yaml_conf.etcd.host) == "string" then
         yaml_conf.etcd.host = {yaml_conf.etcd.host}

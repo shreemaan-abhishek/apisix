@@ -17,7 +17,6 @@ local ngx_exit = ngx.exit
 local concat_tab = table.concat
 local str_sub = string.sub
 local tonumber = tonumber
-local clear_tab = require("table.clear")
 local pairs = pairs
 local table = require("apisix.core.table")
 local _M = {version = 0.1}

@@ -36,13 +36,14 @@ local tostring      = tostring
 local error         = error
 local loadstring    = loadstring
 local lua_load      = load
+
 local is_http       = ngx.config.subsystem == "http"
 local ngx_decode_base64 = ngx.decode_base64
 local local_plugins_hash    = core.table.new(0, 32)
 local stream_local_plugins  = core.table.new(32, 0)
 local stream_local_plugins_hash = core.table.new(0, 32)
 
-local include_custom_plugins, custom_plugins = pcall(require, "agent.custom_plugins")
+local _, custom_plugins = pcall(require, "agent.custom_plugins")
 
 local merged_route = core.lrucache.new({
     ttl = 300, count = 512
@@ -146,7 +147,9 @@ local function load_plugin(name, plugins_list, plugin_type, plugin_object, is_cu
             if is_custom then
                 local custom_plugin = custom_plugins.get(name)
                 if not custom_plugin then
-                    core.log.info("could not find custom plugin [", name, "], it might be due to the order of etcd events, will retry loading when custom plugin available")
+                    core.log.info("could not find custom plugin [", name,
+                                  "], it might be due to the order of etcd events,",
+                                  " will retry loading when custom plugin available")
                     return
                 end
                 local content = ngx_decode_base64(custom_plugin.value.content)
@@ -159,7 +162,7 @@ local function load_plugin(name, plugins_list, plugin_type, plugin_object, is_cu
                     ok = true
                     pkg_loaded[pkg_name] = plugin
                 end
-            else 
+            else
                 ok, plugin = pcall(require, pkg_name)
             end
         end
@@ -966,11 +969,12 @@ local function check_single_plugin_schema(name, plugin_conf, schema_type, skip_d
             end
 
             if plugin_conf._meta.pre_function then
-                local pre_function, err = meta_pre_func_load_lrucache(plugin_conf._meta.pre_function, "",
-                                          lua_load,
+                local pre_function, err = meta_pre_func_load_lrucache(
+                                          plugin_conf._meta.pre_function, "", lua_load,
                                           plugin_conf._meta.pre_function, "meta pre_function")
                 if not pre_function then
-                    return nil, "failed to load _meta.pre_function in plugin " .. name .. ": " .. err
+                    return nil, "failed to load _meta.pre_function in plugin "
+                                .. name .. ": " .. err
                 end
             end
         end
@@ -1002,7 +1006,8 @@ local function get_plugin_schema_for_gde(name, schema_type)
 
     local schema
     if schema_type == core.schema.TYPE_CONSUMER then
-        -- when we use a non-auth plugin in the consumer (where the consumer_schema field does not exist),
+        -- when we use a non-auth plugin in the consumer
+        -- (where the consumer_schema field does not exist),
         -- we need to fallback to it's schema for encryption and decryption.
         schema = plugin_schema.consumer_schema or plugin_schema.schema
     elseif schema_type == core.schema.TYPE_METADATA then
@@ -1231,7 +1236,8 @@ function _M.run_plugin(phase, plugins, api_ctx)
                 -- in the rewrite phase, the plugin executes in the following order:
                 -- 1. execute the rewrite phase of the plugins on route(including the auth plugins)
                 -- 2. merge plugins from consumer and route
-                -- 3. execute the rewrite phase of the plugins on consumer(phase: rewrite_in_consumer)
+                -- 3. execute the rewrite phase of the plugins on consumer
+                --    (phase: rewrite_in_consumer)
                 -- in this case, we need to skip the plugins that was already executed(step 1)
                 if plugins[i].type == "auth" or (not plugins[i + 1]._from_consumer) then
                     plugins[i + 1]._skip_rewrite_in_consumer = true
@@ -1310,7 +1316,7 @@ end
 
 
 function _M.run_global_rules(api_ctx, global_rules, phase_name)
-    -- Since we will set `false` in the removed resource, refer: 
+    -- Since we will set `false` in the removed resource, refer:
     -- https://github.com/apache/apisix/blob/release/3.2/apisix/core/config_etcd.lua#L716
     -- so we should use values_hash instead.
     if global_rules and global_rules.values

@@ -7,7 +7,6 @@ run_tests;
 
 __DATA__
 
-
 === TEST 1: enable key-auth on /hello
 --- config
     location /t {

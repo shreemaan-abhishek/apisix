@@ -412,7 +412,8 @@ local deployment_schema = {
                                 pattern = [[^https?://]]
                             },
                         },
-                        required = {"access_key", "secret_key", "resource_bucket", "config_bucket", "region",}
+                        required = {"access_key", "secret_key", "resource_bucket",
+                                    "config_bucket", "region",}
                     }
                 },
                 required = {"aws_s3"}

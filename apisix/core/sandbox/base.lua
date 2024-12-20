@@ -1,3 +1,19 @@
+local error = error
+local debug = debug
+local type = type
+local string = string
+local tostring = tostring
+local table = table
+local pcall = pcall
+local assert = assert
+local pairs = pairs
+local setmetatable = setmetatable
+local loadstring = loadstring
+local setfenv = setfenv
+local _ENV = _ENV
+local _G = _G
+local load = load
+
 local sandbox = {
   _VERSION      = "sandbox 0.5",
   _DESCRIPTION  = "A pure-lua solution for running untrusted Lua code.",
@@ -122,7 +138,8 @@ function sandbox.protect(code, options)
 
   local quota = false
   if options.quota and not quota_supported then
-    error("options.quota is not supported on this environment (usually LuaJIT). Please unset options.quota")
+    error("options.quota is not supported on this environment (usually LuaJIT). " ..
+          "Please unset options.quota")
   end
   if options.quota ~= false then
     quota = options.quota or 500000
@@ -163,13 +180,16 @@ function sandbox.protect(code, options)
 
     string.rep = nil -- luacheck: no global
 
+    -- luacheck: push ignore
     local t = table.pack(pcall(f, ...))
-
+    -- luacheck: pop
     cleanup()
 
     if not t[1] then error(t[2]) end
 
+    -- luacheck: push ignore
     return table.unpack(t, 2, t.n)
+    -- luacheck: pop
   end
 end
 

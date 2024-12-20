@@ -44,8 +44,8 @@ _EOC_
         local core = require("apisix.core")
         ngx.say(core.json.encode(resp_payload))
     end
-		
-		server.apisix_prometheus_metrics = function()
+
+        server.apisix_prometheus_metrics = function()
         ngx.say('apisix_http_status{code="200",route="httpbin",matched_uri="/*",matched_host="nic.httpbin.org",service="",consumer="",node="172.30.5.135"} 61')
     end
 _EOC_
@@ -125,5 +125,3 @@ qr/the payload.api_calls is: \d+/
 --- grep_error_log_out
 the payload.api_calls is: 0
 the payload.api_calls is: 1
-
-

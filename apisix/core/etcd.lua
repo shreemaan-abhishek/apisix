@@ -30,7 +30,6 @@ local health_check      = require("resty.etcd.health_check")
 local pl_path           = require("pl.path")
 local url               = require("net.url")
 local ipairs            = ipairs
-local pcall             = pcall
 local setmetatable      = setmetatable
 local string            = string
 local tonumber          = tonumber
@@ -68,7 +67,8 @@ local function _new(etcd_conf)
     local url_decoded = url.parse(etcd_conf.http_host[1])
     if url_decoded.scheme == "https" and not etcd_conf.sni and url_decoded.host then
         etcd_conf.sni = url_decoded.host
-        log.info("The configuration of `etcd.tls.sni` was not found, so use etcd host as sni: ", etcd_conf.sni)
+        log.info("The configuration of `etcd.tls.sni` was not found, ",
+                 "so use etcd host as sni: ", etcd_conf.sni)
     end
 
     local etcd_cli, err = etcd.new(etcd_conf)

@@ -17,8 +17,9 @@
 local core = require("apisix.core")
 local apisix_plugin = require("apisix.plugin")
 local tab_insert = table.insert
-local ipairs = ipairs
+local tab_concat = table.concat
 local pairs = pairs
+local select = select
 
 local NO_DELAYED_SYNC = -1
 
@@ -213,7 +214,7 @@ local function gen_group_key(conf)
             conf.redis_password
         )
     end
-    return table.concat(keys, "_")
+    return tab_concat(keys, "_")
 end
 
 

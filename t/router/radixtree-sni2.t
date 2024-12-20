@@ -649,6 +649,9 @@ release table api_ctx
 VAULT_TOKEN='root' VAULT_CLIENT_TIMEOUT=100 VAULT_ADDR='http://0.0.0.0:8200' vault kv put kv/apisix/ssl test2.com.crt=@t/certs/test2.crt test2.com.key=@t/certs/test2.key
 --- response_body
 Success! Data written to: kv/apisix/ssl
+
+
+
 === TEST 16: set ssl conf with secret ref: vault
 --- request
 GET /t

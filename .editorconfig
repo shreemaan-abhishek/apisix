@@ -1,0 +1,6 @@
+# top-most EditorConfig file
+root = true
+
+# Ignore paths
+[/ci/common.sh]
+indent_style = unset

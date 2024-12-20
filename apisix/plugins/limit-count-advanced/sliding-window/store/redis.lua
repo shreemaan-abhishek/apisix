@@ -1,4 +1,5 @@
 local ngx_null  = ngx.null
+local tonumber  = tonumber
 local str       = require("apisix.core.string")
 
 local _M = {}

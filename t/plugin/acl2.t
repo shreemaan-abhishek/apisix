@@ -82,7 +82,7 @@ passed
 
 
 
-=== TEST 4: verify unauthorized
+=== TEST 3: verify unauthorized
 --- request
 GET /hello
 --- error_code: 401
@@ -91,7 +91,7 @@ GET /hello
 
 
 
-=== TEST 5: verify jack
+=== TEST 4: verify jack
 --- request
 GET /hello
 --- more_headers

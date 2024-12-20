@@ -73,7 +73,7 @@ __DATA__
             local httpc = http.new()
             local res = httpc:request_uri(uri, opt)
 
-            assert(res.status == 401)            
+            assert(res.status == 401)
             ngx.say(res.reason)
         }
     }
@@ -278,13 +278,13 @@ Content-Disposition: form-data; name="age"
                 {%
                     local core = require 'apisix.core'
                     local cjson = require 'cjson'
-                    
+
                     if tonumber(context.age) > 18 then
                         context._multipart:set_simple("status", "major")
                     else
                         context._multipart:set_simple("status", "minor")
                     end
-                    
+
                     local body = context._multipart:tostring()
                 %}{* body *}
             ]]

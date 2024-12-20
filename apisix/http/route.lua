@@ -26,6 +26,7 @@ local ipairs = ipairs
 local type = type
 local error = error
 local loadstring = loadstring
+local string = string
 
 
 local _M = {}
@@ -37,8 +38,10 @@ function _M.prefix_uris(route, service)
         if route.value.uris then
             uris = core.table.new(#route.value.uris, 0)
             for _, uri in ipairs(route.value.uris) do
-                -- to handle when service.path_prefix is "/" and route.uri is also "/foo/bar", the result should be "/foo/bar"
-                if string.sub(service.value.path_prefix, -1, 1) == "/" and string.sub(uri, 1, 1) == "/" then
+                -- to handle when service.path_prefix is "/" and route.uri is also "/foo/bar",
+                -- the result should be "/foo/bar"
+                if string.sub(service.value.path_prefix, -1, 1) == "/"
+                   and string.sub(uri, 1, 1) == "/" then
                     uri = string.gsub(uri, "^/", "")
                 end
                 core.table.insert(uris, service.value.path_prefix .. uri)
@@ -46,8 +49,10 @@ function _M.prefix_uris(route, service)
         end
         if route.value.uri then
             uri = route.value.uri
-            -- to handle when service.path_prefix is "/" and route.uri is also "/foo/bar", the result should be "/foo/bar"
-            if string.sub(service.value.path_prefix, -1, 1) == "/" and string.sub(uri, 1, 1) == "/" then
+            -- to handle when service.path_prefix is "/" and route.uri is also "/foo/bar",
+            -- the result should be "/foo/bar"
+            if string.sub(service.value.path_prefix, -1, 1) == "/"
+               and string.sub(uri, 1, 1) == "/" then
                 uri = string.gsub(uri, "^/", "")
             end
             uri = service.value.path_prefix .. uri

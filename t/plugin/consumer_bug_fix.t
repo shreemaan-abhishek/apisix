@@ -9,7 +9,6 @@ run_tests;
 
 __DATA__
 
-
 === TEST 1: add consumer jack1
 --- config
     location /t {
@@ -111,7 +110,6 @@ apikey: auth-one
 GET /t
 --- response_body
 passed
-
 
 
 

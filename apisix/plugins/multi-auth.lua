@@ -17,6 +17,8 @@
 local core = require("apisix.core")
 local require = require
 local pairs = pairs
+local type = type
+local ipairs = ipairs
 local plugin = require("apisix.plugin")
 
 local schema = {
@@ -84,7 +86,8 @@ function _M.rewrite(conf, ctx)
                 core.log.debug(auth_plugin_name .. " succeed to authenticate the request")
                 goto authenticated
             else
-                core.table.insert(errors, auth_plugin_name .. " failed to authenticate the request, code: "
+                core.table.insert(errors, auth_plugin_name ..
+                        " failed to authenticate the request, code: "
                         .. auth_code .. ". error: " .. err)
             end
         end

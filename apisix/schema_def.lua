@@ -750,7 +750,7 @@ _M.credential = {
 
 
 _M.upstream = upstream_schema
-_M.upstream_name = upstream_name
+_M.upstream_name = rule_name_def
 
 
 local secret_uri_schema = {

@@ -10,20 +10,20 @@ curl "http://127.0.0.1:7080/apisix/admin/services/1?gateway_group_id=default" \
   -H "X-API-KEY: $TOKEN" \
   -X PUT -d '
 {
-	"name": "test",
-	"upstream": {
-			"type": "roundrobin",
-			"nodes": [
-					{
-							"host": "nginx",
-							"port": 80,
-							"weight": 1
-					}
-			]
-	},
-	"plugins": {
-			"prometheus": {}
-	}
+  "name": "test",
+  "upstream": {
+      "type": "roundrobin",
+      "nodes": [
+          {
+              "host": "nginx",
+              "port": 80,
+              "weight": 1
+          }
+      ]
+  },
+  "plugins": {
+      "prometheus": {}
+  }
 }'
 
 curl "http://127.0.0.1:7080/apisix/admin/routes/1?gateway_group_id=default" \
@@ -31,9 +31,9 @@ curl "http://127.0.0.1:7080/apisix/admin/routes/1?gateway_group_id=default" \
   -H "X-API-KEY: $TOKEN" \
   -X PUT -d '
 {
-	"name": "route_1",
-	"paths": ["/hello"],
-	"service_id": "1"
+  "name": "route_1",
+  "paths": ["/hello"],
+  "service_id": "1"
 }'
 pids=$(ps -ef | grep openresty -A 2 | grep 'nginx: worker process' | awk '{print $2}')
 worker_pid_1=$(echo "$pids" | awk 'NR==1{print}')
@@ -59,12 +59,12 @@ jq --arg TEST_NAME "$TEST_NAME" \
    --arg QPS "$QPS" \
    --arg BEFORE_MEM_1 "$BEFORE_MEM_1" \
    --arg AFTER_MEM_1 "$AFTER_MEM_1" \
-   '. += [{"TEST_NAME": $TEST_NAME, 
-           "QPS": $QPS, 
-           "BEFORE_CPU_1": $BEFORE_CPU_1, 
-           "DURING_CPU": $DURING_CPU, 
-           "AFTER_CPU_1": $AFTER_CPU_1, 
-           "BEFORE_MEM_1": $BEFORE_MEM_1, 
+   '. += [{"TEST_NAME": $TEST_NAME,
+           "QPS": $QPS,
+           "BEFORE_CPU_1": $BEFORE_CPU_1,
+           "DURING_CPU": $DURING_CPU,
+           "AFTER_CPU_1": $AFTER_CPU_1,
+           "BEFORE_MEM_1": $BEFORE_MEM_1,
            "AFTER_MEM_1": $AFTER_MEM_1}]' "$filepath" > tmp.json
 
 # Verify jq operation success before replacing the original file

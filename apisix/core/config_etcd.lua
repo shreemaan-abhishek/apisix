@@ -60,6 +60,7 @@ local tablex       = require("pl.tablex")
 local ngx_thread_spawn = ngx.thread.spawn
 local ngx_thread_kill = ngx.thread.kill
 local ngx_thread_wait = ngx.thread.wait
+local ngx_shared      = ngx.shared
 
 local is_http = ngx.config.subsystem == "http"
 local err_etcd_unhealthy_all = "has no healthy etcd endpoint available"
@@ -288,7 +289,8 @@ local function run_watch(premature)
 
     local ok, err = ngx_thread_wait(run_watch_th, check_worker_th)
     if not ok then
-        log.error("run_watch or check_worker thread terminates failed, retart those threads, error: " .. inspect(err))
+        log.error("run_watch or check_worker thread terminates failed, ",
+                  "retart those threads, error: ", inspect(err))
     end
 
     ngx_thread_kill(run_watch_th)
@@ -481,7 +483,7 @@ local function sync_status_to_shdict(status)
     if not local_conf.apisix.status then
         return
     end
-    local status_shdict = ngx.shared.status_report
+    local status_shdict = ngx_shared.status_report
     if process.type() ~= "worker" then
         return
     end

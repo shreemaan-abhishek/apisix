@@ -111,7 +111,7 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
             local core = require("apisix.core")
             ngx.sleep(1)
 
-            ngx.say("uid: ", core.id.get())    
+            ngx.say("uid: ", core.id.get())
             local log_file = ngx.config.prefix() .. "conf/apisix.uid"
             local f = io.open(log_file, "r")
             local uid = f:read("*a")

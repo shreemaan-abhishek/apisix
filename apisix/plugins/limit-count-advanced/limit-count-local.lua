@@ -16,7 +16,8 @@
 --
 local limit_count = require("resty.limit.count")
 local sliding_window = require("apisix.plugins.limit-count-advanced.sliding-window.sliding-window")
-local shared_dict_store = require("apisix.plugins.limit-count-advanced.sliding-window.store.shared-dict")
+local shared_dict_store = require("apisix.plugins.limit-count-advanced.sliding-window."
+                                  .. "store.shared-dict")
 
 local ngx = ngx
 local ngx_time = ngx.time

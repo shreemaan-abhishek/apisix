@@ -649,7 +649,7 @@ passed
 
 
 
-=== TEST 20: group with constant key
+=== TEST 19: group with constant key
 --- config
     location /t {
         content_by_lua_block {
@@ -686,7 +686,7 @@ passed
 
 
 
-=== TEST 21: hit multiple paths
+=== TEST 20: hit multiple paths
 --- config
     location /t {
         content_by_lua_block {
@@ -728,7 +728,7 @@ limit key: afafafhao2_2_60:remote_addr
 
 
 
-=== TEST 22: group with disable
+=== TEST 21: group with disable
 --- config
     location /t {
         content_by_lua_block {
@@ -767,7 +767,7 @@ passed
 
 
 
-=== TEST 23: set the same group with different configuration items
+=== TEST 22: set the same group with different configuration items
 --- config
     location /t {
         content_by_lua_block {
@@ -830,7 +830,7 @@ passed
 
 
 
-=== TEST 24: hit the same group, but with different configuration items
+=== TEST 23: hit the same group, but with different configuration items
 --- config
     location /t {
         content_by_lua_block {
@@ -864,8 +864,7 @@ passed
 
 
 
-
-=== TEST 25: group come with the same and different configurations
+=== TEST 24: group come with the same and different configurations
 --- config
     location /t {
         content_by_lua_block {
@@ -954,7 +953,7 @@ passed
 
 
 
-=== TEST 26: hit the same group
+=== TEST 25: hit the same group
 --- config
     location /t {
         content_by_lua_block {

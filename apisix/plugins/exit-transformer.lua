@@ -1,8 +1,11 @@
 local lua_load = load
+local ipairs = ipairs
+local pcall = pcall
+
 local core = require("apisix.core")
 
 local lrucache = core.lrucache.new({
-	ttl = 300, count = 512
+    ttl = 300, count = 512
 })
 
 local schema = {
@@ -47,7 +50,8 @@ local function exit_callback(resp_code, resp_body, resp_header, lua_code_func)
         return resp_code, resp_body, resp_header
     end
 
-    local ok, err_or_new_resp_code, new_resp_body, new_resp_header = pcall(safe_loaded_func, resp_code, resp_body, resp_header)
+    local ok, err_or_new_resp_code, new_resp_body, new_resp_header
+                = pcall(safe_loaded_func, resp_code, resp_body, resp_header)
     if not ok then
         core.log.error("failed to run lua code: ", err_or_new_resp_code)
         return resp_code, resp_body, resp_header

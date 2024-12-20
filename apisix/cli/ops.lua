@@ -14,6 +14,7 @@ local errno = require("posix.errno")
 local constants = require("apisix.constants")
 local pl_path = require("pl.path")
 
+local require = require
 local stderr = io.stderr
 local ipairs = ipairs
 local pairs = pairs
@@ -178,7 +179,8 @@ local function init(env)
         end
 
         local s3 = require("resty.s3")
-        local res, err = s3.get_object(ha_conf.resource_bucket, gw_id, ha_conf.region, ha_conf.access_key, ha_conf.secret_key, ha_conf.endpoint)
+        local res, err = s3.get_object(ha_conf.resource_bucket, gw_id, ha_conf.region,
+                                       ha_conf.access_key, ha_conf.secret_key, ha_conf.endpoint)
         if not res then
             util.die("failed to get resource data from s3: ", err)
         end
@@ -188,7 +190,8 @@ local function init(env)
             util.die("failed to write to apisix config file: ", err)
         end
 
-        res, err = s3.get_object(ha_conf.config_bucket, gw_id, ha_conf.region, ha_conf.access_key, ha_conf.secret_key, ha_conf.endpoint)
+        res, err = s3.get_object(ha_conf.config_bucket, gw_id, ha_conf.region, ha_conf.access_key,
+                                 ha_conf.secret_key, ha_conf.endpoint)
         if not res then
             util.die("failed to get config data from s3: ", err)
         end
@@ -529,7 +532,8 @@ Please modify "admin_key" in conf/config.yaml .
         if servers[1]:find(prefix, 1, true) then
             enable_https = true
         end
-        if yaml_conf.deployment.role ~= "data_plane" and enable_https and yaml_conf.deployment.etcd.tls.verify then
+        if yaml_conf.deployment.role ~= "data_plane" and enable_https
+           and yaml_conf.deployment.etcd.tls.verify then
             if not yaml_conf.apisix.ssl.ssl_trusted_certificate then
                 util.die("should set ssl_trusted_certificate if etcd tls verify is enabled")
             end

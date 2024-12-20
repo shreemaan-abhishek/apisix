@@ -1,6 +1,7 @@
 local ngx       = ngx
 local ipairs    = ipairs
 local next      = next
+local type      = type
 local re_sub    = ngx.re.sub
 local core      = require("apisix.core")
 local jp        = require("jsonpath")
@@ -115,7 +116,7 @@ end
 
 
 -- jsonpath index of array starts from 0, lua table index starts from 1
-function table_index(idx)
+local function table_index(idx)
     if type(idx) == "number" then
         return idx + 1
     end
@@ -123,7 +124,7 @@ function table_index(idx)
 end
 
 
-function mask_json(obj, conf)
+local function mask_json(obj, conf)
     -- local nodes = jp.nodes(data, '$..author')
     -- {
     --   { path = {'$', 'store', 'book', 0, 'author'}, value = 'Nigel Rees' },

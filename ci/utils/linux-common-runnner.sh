@@ -129,11 +129,11 @@ install_module() {
     sed -i '314i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/limit-count-advanced/sliding-window' "${VAR_APISIX_HOME}/Makefile"
     sed -i '315i __to_replace__	$(ENV_INSTALL) apisix/plugins/limit-count-advanced/sliding-window/*.lua $(ENV_INST_LUADIR)/apisix/plugins/limit-count-advanced/sliding-window' "${VAR_APISIX_HOME}/Makefile"
 
-	sed -i '308i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/core/sandbox' "${VAR_APISIX_HOME}/Makefile"
-	sed -i '309i __to_replace__	$(ENV_INSTALL) apisix/core/sandbox/*.lua $(ENV_INST_LUADIR)/apisix/core/sandbox' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '308i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/core/sandbox' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '309i __to_replace__	$(ENV_INSTALL) apisix/core/sandbox/*.lua $(ENV_INST_LUADIR)/apisix/core/sandbox' "${VAR_APISIX_HOME}/Makefile"
 
-	sed -i '310i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
-	sed -i '311i __to_replace__	$(ENV_INSTALL) apisix/plugins/jwt-auth/*.lua $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '310i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
+    sed -i '311i __to_replace__	$(ENV_INSTALL) apisix/plugins/jwt-auth/*.lua $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
     echo '
 ### ci-env-stop : CI env temporary stop
 .PHONY: ci-env-stop
@@ -144,7 +144,7 @@ ci-env-stop:
     sed -i 's/__to_replace__//g' "${VAR_APISIX_HOME}/Makefile"
 
     # openssl
-    sed -i '24i __to_replace__	export OPENSSL111_BIN=$OPENRESTY_PREFIX/openssl111/bin/openssl' "${VAR_APISIX_HOME}/ci/common.sh"
+    sed -i '24i __to_replace__    export OPENSSL111_BIN=$OPENRESTY_PREFIX/openssl111/bin/openssl' "${VAR_APISIX_HOME}/ci/common.sh"
     sed -i 's/__to_replace__//g' "${VAR_APISIX_HOME}/ci/common.sh"
 
     sed -i 's|"error"|"\\[error\\]"|' "${VAR_APISIX_HOME}/t/fuzzing/public.py"

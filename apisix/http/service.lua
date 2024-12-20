@@ -3,7 +3,7 @@ local apisix_upstream = require("apisix.upstream")
 local plugin = require("apisix.plugin")
 local services
 local error = error
-
+local ngx_config = ngx.config
 
 local _M = {
     version = 0.2,
@@ -39,11 +39,11 @@ end
 local function service_checker(...)
     local args = {...}
     local item = args[1]
-    if ngx.config.subsystem == "stream" and item.type == "stream" then
+    if ngx_config.subsystem == "stream" and item.type == "stream" then
         return plugin.stream_plugin_checker(...)
     end
 
-    if ngx.config.subsystem ~= "stream" and item.type ~= "stream" then
+    if ngx_config.subsystem ~= "stream" and item.type ~= "stream" then
         return plugin.plugin_checker(...)
     end
 

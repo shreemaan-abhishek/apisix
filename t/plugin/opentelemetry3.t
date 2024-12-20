@@ -58,6 +58,7 @@ _EOC_
 });
 run_tests;
 __DATA__
+
 === TEST 1: add plugin metadata
 --- config
     location /t {

@@ -21,7 +21,6 @@ local apisix_consumer = require("apisix.consumer")
 local setmetatable = setmetatable
 local tostring = tostring
 local type = type
-local ipairs = ipairs
 
 
 local _M = {
@@ -236,7 +235,8 @@ function _M:put(id, conf, sub_path, args)
             return res.status, {error_msg = "consumer not found"}
         end
         if res.status ~= 200 then
-            core.log.debug("failed to get consumer for the credential, credential key: ", key, ", consumer key: ", consumer_key, ", res.status: ", res.status)
+            core.log.debug("failed to get consumer for the credential, credential key: ", key,
+                           ", consumer key: ", consumer_key, ", res.status: ", res.status)
             return res.status, {error_msg = "failed to get the consumer"}
         end
     end

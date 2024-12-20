@@ -159,8 +159,8 @@ stream {
     {% else %}
     lua_shared_dict worker-events-stream 10m;
     {% end %}
-    
-    
+
+
     {% if stream.lua_shared_dict["config-stream"] then %}
     lua_shared_dict config-stream {* stream.lua_shared_dict["config-stream"] *};
     {% else %}
@@ -174,7 +174,7 @@ stream {
 
     {% if stream.lua_shared_dict["plugin-limit-conn-stream"] then %}
     lua_shared_dict plugin-limit-conn-stream {* stream.lua_shared_dict["plugin-limit-conn-stream"] *};
-    {% else %}  
+    {% else %}
     lua_shared_dict plugin-limit-conn-stream 10m
     {% end %}
 
@@ -291,7 +291,7 @@ http {
     {% else %}
     lua_shared_dict internal-status 10m;
     {% end %}
-    
+
     {% if http.lua_shared_dict["upstream-healthcheck"] then %}
     lua_shared_dict upstream-healthcheck {* http.lua_shared_dict["upstream-healthcheck"] *};
     {% else %}
@@ -303,13 +303,13 @@ http {
     {% else %}
     lua_shared_dict worker-events 10m;
     {% end %}
-    
+
     {% if http.lua_shared_dict["lrucache-lock"] then %}
     lua_shared_dict lrucache-lock {* http.lua_shared_dict["lrucache-lock"] *};
     {% else %}
      lua_shared_dict lrucache-lock 10m;
     {% end %}
-  
+
     {% if http.lua_shared_dict["balancer-ewma"] then %}
     lua_shared_dict balancer-ewma {* http.lua_shared_dict["balancer-ewma"] *};
     {% else %}
@@ -327,7 +327,7 @@ http {
     {% else %}
     lua_shared_dict balancer-ewma-last-touched-at 10m;
     {% end %}
-   
+
     {% if http.lua_shared_dict["etcd-cluster-health-check"] then %}
     lua_shared_dict etcd-cluster-health-check {* http.lua_shared_dict["etcd-cluster-health-check"] *}; # etcd health check
     {% else %}
@@ -378,7 +378,7 @@ http {
     {% else %}
     lua_shared_dict plugin-limit-count-reset-header 10m;
     {% end %}
-    
+
     {% if http.lua_shared_dict["plugin-limit-count-advanced"] then %}
     lua_shared_dict plugin-limit-count-advanced {* http.lua_shared_dict["plugin-limit-count-advanced"] *};
     {% else %}
@@ -420,14 +420,14 @@ http {
     {% else %}
     lua_shared_dict plugin-api-breaker 10m;
     {% end %}
-    
+
 
     {% if http.lua_shared_dict["discovery"] then %}
     lua_shared_dict discovery {* http.lua_shared_dict["discovery"] *}; # cache for discovery metadata documents
     {% else %}
     lua_shared_dict discovery 10m; # cache for discovery metadata documents
     {% end %}
-    
+
     {% if http.lua_shared_dict["status_report"] then %}
     lua_shared_dict status_report {* http.lua_shared_dict["status_report"] *};
     {% end %}
@@ -444,19 +444,19 @@ http {
     {% else %}
     lua_shared_dict introspection 10m; # cache for JWT verification results
     {% end %}
-   
+
     {% if http.lua_shared_dict["cas-auth"] then %}
     lua_shared_dict cas_sessions {* http.lua_shared_dict["cas-auth"] *};
     {% else %}
     lua_shared_dict cas_sessions 10m;
-    {% end %}  
+    {% end %}
 
 
     {% if http.lua_shared_dict["saml_sessions"] then %}
     lua_shared_dict saml_sessions {* http.lua_shared_dict["saml_sessions"] *};
     {% else %}
     lua_shared_dict saml_sessions 10m;
-    {% end %}  
+    {% end %}
 
 
 
@@ -465,14 +465,14 @@ http {
     lua_shared_dict access-tokens {* http.lua_shared_dict["access-tokens"] *}; # cache for service account access tokens
     {% else %}
     lua_shared_dict access-tokens 10m; # cache for service account access tokens
-    {% end %}  
+    {% end %}
 
 
     {% if http.lua_shared_dict["ext-plugin"] then %}
     lua_shared_dict ext-plugin {* http.lua_shared_dict["ext-plugin"] *}; # cache for ext-plugin
     {% else %}
     lua_shared_dict ext-plugin 10m; # cache for ext-plugin
-    {% end %}  
+    {% end %}
 
 
     {% if config_center == "xds" then %}

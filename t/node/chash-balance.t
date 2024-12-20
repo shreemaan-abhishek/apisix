@@ -59,6 +59,7 @@ passed
 --- wait: 3
 
 
+
 === TEST 2: hit routes
 --- config
     location /t {

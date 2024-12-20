@@ -275,7 +275,7 @@ passed
 
 
 
-=== TEST 6: specify invalid header
+=== TEST 5: specify invalid header
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -292,7 +292,7 @@ Missing API key found in request
 
 
 
-=== TEST 7: specify invalid query
+=== TEST 6: specify invalid query
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -307,7 +307,7 @@ Missing API key found in request
 
 
 
-=== TEST 8: access success with header authkey
+=== TEST 7: access success with header authkey
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -324,7 +324,7 @@ receive data plane developer_query: key-auth, auth-one
 
 
 
-=== TEST 9: access success with query authkey
+=== TEST 8: access success with query authkey
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -339,7 +339,7 @@ receive data plane developer_query: key-auth, auth-one
 
 
 
-=== TEST 10: add route 2
+=== TEST 9: add route 2
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -388,7 +388,7 @@ passed
 
 
 
-=== TEST 11: route 2 is forbidden
+=== TEST 10: route 2 is forbidden
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -406,7 +406,7 @@ receive data plane developer_query: key-auth, auth-one
 
 
 
-=== TEST 12: access success with header authkey
+=== TEST 11: access success with header authkey
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -424,7 +424,7 @@ receive data plane developer_query: key-auth, auth-one
 
 
 
-=== TEST 13: set service 1
+=== TEST 12: set service 1
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -470,7 +470,7 @@ passed
 
 
 
-=== TEST 14: route refer to service 1
+=== TEST 13: route refer to service 1
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -508,7 +508,7 @@ passed
 
 
 
-=== TEST 15: control plane receive service_id
+=== TEST 14: control plane receive service_id
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -524,7 +524,7 @@ receive data plane developer_query: key-auth, auth-one, 1
 
 
 
-=== TEST 16: access upstream with more headers x-api7-portal-*
+=== TEST 15: access upstream with more headers x-api7-portal-*
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -544,7 +544,7 @@ x-api7-portal-subscription-id: 6e8954e6-c95e-40cc-b778-688efd65a90b
 
 
 
-=== TEST 17: access upstream with request_id header
+=== TEST 16: access upstream with request_id header
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;

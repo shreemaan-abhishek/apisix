@@ -268,6 +268,7 @@ receive data plane consumer_query: key-auth, auth-one
 consumer_query api receive header [control-plane-token: a7ee-token]
 
 
+
 === TEST 4: enable key-auth plugin with anonymous consumer
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;

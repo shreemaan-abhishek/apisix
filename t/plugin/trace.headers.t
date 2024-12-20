@@ -116,7 +116,7 @@ trace:
 return {
   trace = {
      rate = 1,
-     vars = {"foo", "request_method"} 
+     vars = {"foo", "request_method"}
   }
 }
 ]])

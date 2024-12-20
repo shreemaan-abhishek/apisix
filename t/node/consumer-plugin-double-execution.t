@@ -85,7 +85,7 @@ passed
 
 
 
-=== TEST 4: valid consumer
+=== TEST 3: valid consumer
 --- request
 GET /hello
 --- more_headers

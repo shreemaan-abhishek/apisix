@@ -105,7 +105,8 @@ local function extra_values_with_parser(value, parser, sep)
             return values
         end
         if not core.string.has_prefix(value, "[") then
-            core.log.warn("the parser is specified as json array, but the value do not has prefix '['")
+            core.log.warn("the parser is specified as json array, ",
+                          "but the value do not has prefix '['")
             return values
         end
 
@@ -136,7 +137,8 @@ local function extra_values_without_parser(value)
         if core.string.find(value, ",") then
             return extra_values_with_parser(value, parsers.SEGMENTED_TEXT, ",")
         end
-        core.log.info("the string value can not parsed by ", parsers.JSON, " or ", parsers.SEGMENTED_TEXT)
+        core.log.info("the string value can not parsed by ", parsers.JSON,
+                      " or ",parsers.SEGMENTED_TEXT)
         return { value }
     end
 

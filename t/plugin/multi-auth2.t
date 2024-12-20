@@ -423,7 +423,7 @@ GET /hello
 --- response_body
 {"message":"Authorization Failed"}
 --- error_log
-openid-connect failed to authenticate the request, code: 500. error: OIDC authentication failed: request to the redirect_uri path but there's no session state found, 
+openid-connect failed to authenticate the request, code: 500. error: OIDC authentication failed: request to the redirect_uri path but there's no session state found,
 
 
 

@@ -7,7 +7,6 @@ run_tests;
 
 __DATA__
 
-
 === TEST 1: enable basic-auth on the route /hello
 --- config
     location /t {

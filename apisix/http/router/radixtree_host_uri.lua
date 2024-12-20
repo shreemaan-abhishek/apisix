@@ -22,7 +22,6 @@ local base_router = require("apisix.http.route")
 local get_services = require("apisix.http.service").services
 local service_fetch = require("apisix.http.service").get
 local ipairs = ipairs
-local type = type
 local tab_insert = table.insert
 local loadstring = loadstring
 local pairs = pairs
@@ -119,7 +118,8 @@ local function create_radixtree_router(routes)
             end
         end
         -- check the status
-        if (not route_status or route_status == 1) and (not service_status or service_status == 1) then
+        if (not route_status or route_status == 1)
+           and (not service_status or service_status == 1) then
             push_host_router(route, host_routes, only_uri_routes)
         end
     end

@@ -4,6 +4,7 @@ local https = require("ssl.https")
 
 local str_sub      = string.sub
 local table_concat = table.concat
+local type         = type
 
 local _M = {}
 

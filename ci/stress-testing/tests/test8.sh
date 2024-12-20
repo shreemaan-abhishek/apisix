@@ -15,20 +15,20 @@ curl "http://127.0.0.1:7080/apisix/admin/services/1?gateway_group_id=default" \
   -H "X-API-KEY: $TOKEN" \
   -X PUT -d '
 {
-	"name": "test",
-	"upstream": {
-			"type": "roundrobin",
-			"nodes": [
-					{
-							"host": "nginx",
-							"port": 80,
-							"weight": 1
-					}
-			]
-	},
-	"plugins": {
-			"prometheus": {}
-	}
+  "name": "test",
+  "upstream": {
+      "type": "roundrobin",
+      "nodes": [
+          {
+              "host": "nginx",
+              "port": 80,
+              "weight": 1
+          }
+      ]
+  },
+  "plugins": {
+      "prometheus": {}
+  }
 }'
 
 curl "http://127.0.0.1:7080/apisix/admin/routes/1?gateway_group_id=default" \
@@ -36,9 +36,9 @@ curl "http://127.0.0.1:7080/apisix/admin/routes/1?gateway_group_id=default" \
   -H "X-API-KEY: $TOKEN" \
   -X PUT -d '
 {
-	"name": "route_1",
-	"paths": ["/hello"],
-	"service_id": "1"
+  "name": "route_1",
+  "paths": ["/hello"],
+  "service_id": "1"
 }'
 
 worker_pid=$(ps -ef | grep openresty -A 1 | grep 'nginx: worker process' | head -n 1 | awk '{print $2}')
@@ -52,11 +52,11 @@ start_time=$(date +%s)
 record_during=0
 # Loop until the duration has elapsed
 while [ $(($(date +%s) - start_time)) -lt $duration ]; do
-	#in the middle check cpu usage
-	if  [ $record_during -eq 0 ] && [ $(($(date +%s) - start_time)) -gt $((duration/2)) ]; then
-		top -b -n 1 -p $worker_pid > during_cpu_mem.txt
-		record_during=1
-	fi
+  #in the middle check cpu usage
+  if  [ $record_during -eq 0 ] && [ $(($(date +%s) - start_time)) -gt $((duration/2)) ]; then
+    top -b -n 1 -p $worker_pid > during_cpu_mem.txt
+    record_during=1
+  fi
   curl -s "http://127.0.0.1:9091/apisix/prometheus/metrics" >/dev/null
 done
 sleep 15
@@ -73,11 +73,11 @@ jq --arg TEST_NAME "$TEST_NAME" \
    --arg AFTER_CPU "$AFTER_CPU" \
    --arg BEFORE_MEM "$BEFORE_MEM" \
    --arg AFTER_MEM "$AFTER_MEM" \
-   '. += [{"TEST_NAME": $TEST_NAME, 
-           "BEFORE_CPU": $BEFORE_CPU, 
-           "DURING_CPU": $DURING_CPU, 
-           "AFTER_CPU": $AFTER_CPU, 
-           "BEFORE_MEM": $BEFORE_MEM, 
+   '. += [{"TEST_NAME": $TEST_NAME,
+           "BEFORE_CPU": $BEFORE_CPU,
+           "DURING_CPU": $DURING_CPU,
+           "AFTER_CPU": $AFTER_CPU,
+           "BEFORE_MEM": $BEFORE_MEM,
            "AFTER_MEM": $AFTER_MEM}]' "$filepath" > tmp.json
 
 if [ $? -eq 0 ]; then

@@ -39,7 +39,6 @@ local get_protos = require("apisix.plugins.grpc-transcode.proto").protos
 local service_fetch = require("apisix.http.service").get
 local latency_details = require("apisix.utils.log-util").latency_details_in_ms
 local xrpc = require("apisix.stream.xrpc")
-local discovery_ok, discovery = pcall(require, "agent.discovery")
 
 local shdict_name = "config"
 if ngx.config.subsystem == "stream" then
@@ -136,10 +135,10 @@ function _M.http_init(prometheus_enabled_in_stream)
     if attr and attr.metric_prefix then
         metric_prefix = attr.metric_prefix
     end
-    
-    local status_metrics_exptime = core.table.try_read_attr(attr, "metrics", "http_status", "expire")
-    local latency_metrics_exptime = core.table.try_read_attr(attr, "metrics", "http_latency", "expire")
-    local bandwidth_metrics_exptime = core.table.try_read_attr(attr, "metrics", "bandwidth", "expire")
+
+    local status_exptime = core.table.try_read_attr(attr, "metrics", "http_status", "expire")
+    local latency_exptime = core.table.try_read_attr(attr, "metrics", "http_latency", "expire")
+    local bandwidth_exptime = core.table.try_read_attr(attr, "metrics", "bandwidth", "expire")
 
     prometheus = base_prometheus.init("prometheus-metrics", metric_prefix)
 
@@ -179,9 +178,10 @@ function _M.http_init(prometheus_enabled_in_stream)
     -- no consumer in request.
     metrics.status = prometheus:counter("http_status",
             "HTTP status codes per service in APISIX",
-            {"code", "route", "route_id", "matched_uri", "matched_host", "service", "service_id", "consumer", "node",
+            {"code", "route", "route_id", "matched_uri",
+            "matched_host", "service", "service_id","consumer", "node",
             "gateway_group_id", "instance_id",
-            unpack(extra_labels("http_status"))}, status_metrics_exptime)
+            unpack(extra_labels("http_status"))}, status_exptime)
 
     local buckets = DEFAULT_BUCKETS
     if attr and attr.default_buckets then
@@ -191,12 +191,13 @@ function _M.http_init(prometheus_enabled_in_stream)
         "HTTP request latency in milliseconds per service in APISIX",
         {"type", "route", "route_id", "service", "service_id", "consumer", "node",
         "gateway_group_id", "instance_id", unpack(extra_labels("http_latency"))},
-        buckets, latency_metrics_exptime)
+        buckets, latency_exptime)
 
     metrics.bandwidth = prometheus:counter("bandwidth",
             "Total bandwidth in bytes consumed per service in APISIX",
             {"type", "route", "route_id", "service", "service_id", "consumer", "node",
-            "gateway_group_id", "instance_id", unpack(extra_labels("bandwidth"))}, bandwidth_metrics_exptime)
+            "gateway_group_id", "instance_id", unpack(extra_labels("bandwidth"))},
+            bandwidth_exptime)
 
     if prometheus_enabled_in_stream then
         init_stream_metrics()
@@ -247,7 +248,7 @@ function _M.http_log(conf, ctx)
     local service_id = ""
     local service = ""
     local consumer_name = ctx.consumer_name or ""
-    local gateway_group_id, err = get_gateway_group_id()
+    local gateway_group_id = get_gateway_group_id()
     local instance_id = core.id.get()
 
     local matched_route = ctx.matched_route and ctx.matched_route.value
@@ -359,7 +360,8 @@ end
 
 
 local key_values = {}
-local function set_modify_index(key, items, items_ver, global_max_index, gateway_group_id, instance_id)
+local function set_modify_index(key, items, items_ver, global_max_index,
+                                gateway_group_id, instance_id)
     clear_tab(key_values)
     local max_idx = 0
     if items_ver and items then
@@ -445,9 +447,8 @@ end
 
 
 local function shared_dict_status(gateway_group_id, instance_id)
-    local labels = {}
     for shared_dict_name, shared_dict in pairs(ngx.shared) do
-        labels = {shared_dict_name, gateway_group_id, instance_id}
+        local labels = {shared_dict_name, gateway_group_id, instance_id}
         metrics.shared_dict_capacity_bytes:set(shared_dict:capacity(), labels)
         metrics.shared_dict_free_space_bytes:set(shared_dict:free_space(), labels)
     end

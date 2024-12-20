@@ -29,6 +29,8 @@ local str_find = string.find
 local str_sub = string.sub
 local print = print
 local pl_path = require("pl.path")
+local string = string
+local table = table
 
 local _M = {}
 local exported_vars
@@ -180,7 +182,8 @@ local function replace_by_reserved_env_vars(conf, overwrite_temporary_file)
 
     conf["apisix"]["ssl"] = conf["apisix"]["ssl"] or {}
     if conf["apisix"]["ssl"]["ssl_trusted_certificate"] then
-        conf["apisix"]["ssl"]["ssl_trusted_certificate"] = conf["apisix"]["ssl"]["ssl_trusted_certificate"] .. ", " .. ca_path
+        conf["apisix"]["ssl"]["ssl_trusted_certificate"]
+            = conf["apisix"]["ssl"]["ssl_trusted_certificate"] .. ", " .. ca_path
     else
         conf["apisix"]["ssl"]["ssl_trusted_certificate"] = ca_path
     end
@@ -305,10 +308,12 @@ function _M.read_yaml_conf(apisix_home, overwrite_temporary_file, plugins_warnin
 
         if plugins_warning then
             if user_conf.plugins then
-                print("WARNING: the plugins in config.yaml is no longer supported and will be ignored.")
+                print("WARNING: the plugins in config.yaml is no longer supported "
+                        .. "and will be ignored.")
             end
             if user_conf.stream_plugins then
-                print("WARNING: the stream_plugins in config.yaml is no longer supported and will be ignored.")
+                print("WARNING: the stream_plugins in config.yaml is no longer supported "
+                        .. "and will be ignored.")
             end
         end
 
@@ -356,7 +361,9 @@ function _M.read_yaml_conf(apisix_home, overwrite_temporary_file, plugins_warnin
 
     -- set ssl cert
     if default_conf.apisix.ssl.ssl_trusted_certificate ~= nil then
-        local combined_cert_filepath =  default_conf.apisix.ssl.ssl_trusted_combined_path or profile.apisix_home .. "conf/cert/" .. ".ssl_trusted_combined.pem"
+        local combined_cert_filepath = default_conf.apisix.ssl.ssl_trusted_combined_path or
+                                       profile.apisix_home .. "conf/cert/"
+                                       ..".ssl_trusted_combined.pem"
         if overwrite_temporary_file then
             local cert_paths = {}
             local ssl_certificates = default_conf.apisix.ssl.ssl_trusted_certificate
@@ -376,11 +383,11 @@ function _M.read_yaml_conf(apisix_home, overwrite_temporary_file, plugins_warnin
                     if not pl_path.exists(cert_path) then
                         util.die("certificate path", cert_path, "doesn't exist\n")
                     end
-    
+
                     table.insert(cert_paths, cert_path)
                 end
             end
-            
+
             util.gen_trusted_certs_combined_file(combined_cert_filepath, cert_paths)
         end
         default_conf.apisix.ssl.ssl_trusted_certificate = combined_cert_filepath

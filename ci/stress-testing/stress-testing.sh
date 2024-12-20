@@ -76,7 +76,7 @@ if [[ "$testname" == "all" ]]; then
 else
   # Try to source the specific test file
   test_file="./tests/$testname.sh"
-  
+
   if [[ -f "$test_file" ]]; then
     source "$test_file"
   else

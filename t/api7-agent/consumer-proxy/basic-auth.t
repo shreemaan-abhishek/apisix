@@ -248,7 +248,7 @@ not found consumer, status: 404
 
 
 
-=== TSET 3: username not found
+=== TEST 3: username not found
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;

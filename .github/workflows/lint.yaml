@@ -1,12 +1,22 @@
 name: ❄️ Lint
 
-on: [push, pull_request]
+on:
+  pull_request:
+    types: [labeled, synchronize]
+    branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - '**/*.md'
 
 permissions:
   contents: read
 
 jobs:
   misc:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-3.2') ||
+      contains(github.event.pull_request.labels.*.name, 'ci-gateway-all') ||
+      github.ref == 'refs/heads/main'
     name: misc checker
     runs-on: buildjet-2vcpu-ubuntu-2004
     steps:
@@ -47,6 +57,10 @@ jobs:
           bash ./utils/check-plugins-code.sh
 
   ci-eclint:
+    if: |
+      contains(github.event.pull_request.labels.*.name, 'ci-3.2') ||
+      contains(github.event.pull_request.labels.*.name, 'ci-gateway-all') ||
+      github.ref == 'refs/heads/main'
     runs-on: buildjet-2vcpu-ubuntu-2004
     timeout-minutes: 40
 
@@ -62,6 +76,7 @@ jobs:
           make init_apisix
           make patch_apisix
           make install
+          cp ./.editorconfig ./workbench
 
       - name: Modify the files
         working-directory: workbench

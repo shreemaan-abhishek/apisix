@@ -316,6 +316,7 @@ apisix:
 hello world
 
 
+
 === TEST 8: test service "/" prefix and route uri also starts with /: radixtree_uri
 --- yaml_config
 apisix:

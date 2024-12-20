@@ -25,8 +25,14 @@ local setmetatable = setmetatable
 local tostring = tostring
 local pairs = pairs
 local ipairs = ipairs
+local tab_insert = table.insert
+local type = type
+
 local ngx_now = ngx.now
 local worker_id = ngx.worker.id
+local ngx_worker = ngx.worker
+local ngx_sleep = ngx.sleep
+local ngx_timer = ngx.timer
 
 local shdict_name = "plugin-limit-count"
 local shd = ngx.shared[shdict_name]
@@ -35,7 +41,8 @@ assert(shd, "get shared dict(" .. shdict_name .. ") failed")
 local KEY_PREFIX_LOCKER = "locker#"
 local KEY_PREFIX_LOCAL_DELTA = "local_delta#" -- delta since last time sync with redis
 local KEY_PREFIX_LOCAL_DELTA_KEYS = "local_delta_keys#" -- keys to be sync with redis next time
-local KEY_PREFIX_SYNC_TIMER = "sync_timer#" -- per plugin instance timer, in server instance dimension
+ -- per plugin instance timer, in server instance dimension
+local KEY_PREFIX_SYNC_TIMER = "sync_timer#"
 local KEY_PREFIX_REMOTE_QUOTA = "remote_quota#" -- save remaining/reset/sync_at in JSON format
 
 local time_to_sync_records = {}
@@ -207,7 +214,7 @@ function _M._delayed_sync(self, key, cost, syncer_id)
         success, err = shd:add(key_sync_timer, time_to_sync)
         if success then
             -- start timer ASAP
-            ngx.timer.at(
+            ngx_timer.at(
                 0,
                 function (premature)
                     if not premature then
@@ -245,7 +252,7 @@ end
 function _M.sync(self, syncer_id, time_to_sync)
     local key_local_delta_keys = self:key_local_delta_keys(syncer_id) -- name of keys queue
     local local_delta_keys_dedup = {} -- duplicate removal
-    while not ngx.worker.exiting() and time_to_sync > ngx_now() do
+    while not ngx_worker.exiting() and time_to_sync > ngx_now() do
         local key, err = shd:rpop(key_local_delta_keys)
         if err then
             core.log.error("shdict.rpop failed: ", err, ", syncer_id: ", syncer_id)
@@ -256,11 +263,11 @@ function _M.sync(self, syncer_id, time_to_sync)
                 local_delta_keys_dedup[key] = true
             end
         else
-            ngx.sleep(0.001)
+            ngx_sleep(0.001)
         end
     end
 
-    if ngx.worker.exiting() then
+    if ngx_worker.exiting() then
         core.log.info("sync interrupted due to worker exit")
         return
     end
@@ -288,7 +295,7 @@ function _M.sync(self, syncer_id, time_to_sync)
     core.log.info(nkeys, " keys to be sync, time_to_sync: ", time_to_sync)
 
     for key, _ in pairs(local_delta_keys_dedup) do
-        table.insert(local_delta_keys_uniq, key)
+        tab_insert(local_delta_keys_uniq, key)
     end
 
     local locker, err = resty_lock:new(shdict_name)
@@ -297,7 +304,7 @@ function _M.sync(self, syncer_id, time_to_sync)
         return
     end
 
-    local _, remaining_or_err, reset, delta, elapsed
+    local remaining_or_err, reset, delta, elapsed
     for _, key in ipairs(local_delta_keys_uniq) do
         elapsed, err = locker:lock(self:key_locker(key))
         if err then

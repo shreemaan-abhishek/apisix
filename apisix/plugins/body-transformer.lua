@@ -37,7 +37,10 @@ local setmetatable      = setmetatable
 local transform_schema = {
     type = "object",
     properties = {
-        input_format = { type = "string", enum = {"xml", "json", "encoded", "args", "plain", "multipart",} },
+        input_format = {
+            type = "string",
+            enum = {"xml", "json", "encoded", "args", "plain", "multipart",}
+        },
         template = { type = "string" },
         template_is_base64 = { type = "boolean" },
     },

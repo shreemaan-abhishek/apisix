@@ -247,7 +247,7 @@ location /t {
         local hmac = require("resty.hmac")
         local ngx_encode_base64 = ngx.encode_base64
 
-        local secret_key = "1s2NX5sbWv2XCo7O1t30k" 
+        local secret_key = "1s2NX5sbWv2XCo7O1t30k"
         local timestamp = ngx_time()
         local gmt = ngx_http_time(timestamp)
         local key_id = "invalid"
@@ -307,7 +307,7 @@ location /t {
         local hmac = require("resty.hmac")
         local ngx_encode_base64 = ngx.encode_base64
 
-        local secret_key = "1s2NX5sbWv2XCo7O1t30k" 
+        local secret_key = "1s2NX5sbWv2XCo7O1t30k"
         local timestamp = ngx_time()
         local gmt = ngx_http_time(timestamp)
         local key_id = "csK-kcVylsu6MgFAg0kEW"

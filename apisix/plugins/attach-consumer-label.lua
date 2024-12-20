@@ -1,5 +1,6 @@
 local core = require("apisix.core")
 local plugin_name = "attach-consumer-label"
+local pairs = pairs
 
 local schema = {
     type = "object",
@@ -34,7 +35,8 @@ function _M.before_proxy(conf, ctx)
     end
 
     local labels = ctx.consumer.labels
-    core.log.info("consumer username: ", ctx.consumer.username, " labels: ", core.json.delay_encode(labels))
+    core.log.info("consumer username: ", ctx.consumer.username,
+                  " labels: ", core.json.delay_encode(labels))
     if not labels then
         return
     end

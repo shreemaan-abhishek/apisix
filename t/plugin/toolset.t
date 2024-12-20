@@ -27,6 +27,7 @@ _EOC_
 run_tests();
 
 __DATA__
+
 === TEST 1: check if toolset plugin sync function is run every second
 --- error_code: 404
 --- wait: 1
@@ -73,7 +74,7 @@ syncing toolset plugin
             end
 
             -- Define the new multiline string to be inserted into the file
-            local new_config = 
+            local new_config =
 [[
 return {
   table_count = {}
@@ -133,15 +134,15 @@ empty config found for table_count.Running with default values
             end
 
             -- Define the new multiline string to be inserted into the file
-            local new_config = 
+            local new_config =
 [[
 return {
   table_count = {
     lua_modules = { "t.table-count-example" }, -- change it
-	interval = 5,
-	depth = 10, -- when it is not passed, default depth will be 1
-	-- optional, default is all APISIX processes
-	scopes = {}
+    interval = 5,
+    depth = 10, -- when it is not passed, default depth will be 1
+    -- optional, default is all APISIX processes
+    scopes = {}
   }
 }
 ]]
@@ -157,10 +158,10 @@ return {
         }
     }
 --- grep_error_log eval
-qr/config changed. reloading plugin: /
+qr/config changed. reloading plugin:/
 --- grep_error_log_out
-config changed. reloading plugin: 
-config changed. reloading plugin: 
+config changed. reloading plugin:
+config changed. reloading plugin:
 
 
 
@@ -199,7 +200,7 @@ config changed. reloading plugin:
             end
 
             -- Define the new multiline string to be inserted into the file
-            local new_config = 
+            local new_config =
 [[
 ]]
 

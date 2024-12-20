@@ -28,7 +28,6 @@ local table_insert = table.insert
 local table_concat = table.concat
 local ngx_re_gmatch = ngx.re.gmatch
 local plugin_name = "jwt-auth"
-local pcall = pcall
 local schema_def = require("apisix.schema_def")
 local jwt_parser = require("apisix.plugins.jwt-auth.parser")
 local auth_utils = require("apisix.utils.auth")
@@ -318,7 +317,7 @@ end
 local function gen_jwt_header(consumer)
     local x5c
     if consumer.auth_conf.algorithm and consumer.auth_conf.algorithm:sub(1, 2) ~= "HS" then
-        local public_key, private_key, err = get_rsa_or_ecdsa_keypair(
+        local public_key, _, err = get_rsa_or_ecdsa_keypair(
             consumer.auth_conf, consumer.username
         )
         if not public_key then
@@ -466,7 +465,8 @@ local function gen_token()
     end
 
     local real_payload = get_real_payload(key, consumer.auth_conf, payload, key_claim_name)
-    local jwt_token, err = jwt_parser.encode(consumer.auth_conf.algorithm, auth_secret, jwt_header, real_payload)
+    local jwt_token, err = jwt_parser.encode(consumer.auth_conf.algorithm, auth_secret,
+                                             jwt_header, real_payload)
     if not jwt_token then
         core.log.warn("failed to sign jwt: ", err)
         return core.response.exit(500, {message = "failed to sign jwt"})

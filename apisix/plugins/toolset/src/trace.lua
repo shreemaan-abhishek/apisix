@@ -245,13 +245,13 @@ function _M.init()
     if not old_resolve then
       old_resolve = dns.resolve
     end
-  
+
     dns.resolve = function (...)
       local match_start = ngx.now()
       ngx.ctx.dns_lt = localtime_msec(match_start)
       local ret = old_resolve(...)
       ngx.update_time()
-  
+
       ngx.ctx.dns_resolve_timespan = ngx.now() - match_start
       return ret
     end

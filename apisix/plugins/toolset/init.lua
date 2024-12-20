@@ -4,13 +4,17 @@ local ngx = ngx
 local cache = core.table.new(0, 32)
 local stop_timer = false
 local load, unload = "load", "unload"
+local package = package
+local pcall = pcall
+local require = require
+local string = string
 
 local _M = {
-	version = 0.1,
-	priority = 22901,
-	name = "toolset",
-	schema = {},
-	scope = "global",
+  version = 0.1,
+  priority = 22901,
+  name = "toolset",
+  schema = {},
+  scope = "global",
 }
 
 
@@ -46,7 +50,8 @@ end
 local function perform_operation_for_plugin(plugin_name, plugin_config, operation)
   cache[plugin_name] = plugin_config
   if operation == load then
-    local loaded, plugin = pcall(require, "apisix.plugins.toolset.src." .. string.gsub(plugin_name, "_", "-"))
+    local loaded, plugin = pcall(require, "apisix.plugins.toolset.src."
+                           .. string.gsub(plugin_name, "_", "-"))
     if not loaded then
       core.log.warn("could not load plugin because it was not found: ", plugin_name)
       return
@@ -54,7 +59,8 @@ local function perform_operation_for_plugin(plugin_name, plugin_config, operatio
     core.log.warn("initializing sub plugin for toolset plugin: ", plugin_name)
     plugin.init()
   elseif operation == unload then
-    local loaded, plugin = pcall(require, "apisix.plugins.toolset.src." .. string.gsub(plugin_name, "_", "-"))
+    local loaded, plugin = pcall(require, "apisix.plugins.toolset.src." ..
+                                 string.gsub(plugin_name, "_", "-"))
     if not loaded then
       core.log.warn("could not unload plugin because it was not found: ", plugin_name)
       return
@@ -67,7 +73,7 @@ end
 
 local function sync()
   core.log.info("syncing toolset plugin")
-	local plugin_configs = get_plugin_config()
+  local plugin_configs = get_plugin_config()
   local processed_plugins = {}
   if plugin_configs then
     for plugin_name, plugin_config in pairs(plugin_configs) do
@@ -75,7 +81,8 @@ local function sync()
       -- checks if the config is different from cache
       if is_config_changed(plugin_name, plugin_config) then
           if is_config_empty(plugin_config) then
-            -- allow executing even with empty config. Assuming the plugin will run with default values
+            -- allow executing even with empty config.
+            -- Assuming the plugin will run with default values
             core.log.warn("empty config found for ", plugin_name,".Running with default values")
           end
           core.log.warn("config changed. reloading plugin: ", plugin_name)
@@ -105,7 +112,8 @@ function _M.init()
     if plugins_config then
       for plugin_name, plugin_config in pairs(plugins_config) do
         if is_config_empty(plugin_config) then
-          -- allow executing even with empty config. Assuming the plugin will run with default values
+          -- allow executing even with empty config.
+          -- Assuming the plugin will run with default values
           core.log.warn("empty config found for ", plugin_name,".Running with default values")
         end
         perform_operation_for_plugin(plugin_name, plugin_config, load)
@@ -121,7 +129,7 @@ function _M.destroy()
     for plugin_name, plugin_config in pairs(plugin_configs) do
       perform_operation_for_plugin(plugin_name, plugin_config, unload)
     end
-  
+
   end
   for plugin_name, plugin_config in pairs(cache) do
     perform_operation_for_plugin(plugin_name, plugin_config, unload)

@@ -1,6 +1,9 @@
 local core = require("apisix.core")
 local require = require
 local pairs = pairs
+local type  = type
+local ipairs = ipairs
+
 local plugin = require("apisix.plugin")
 local key_auth = require("apisix.plugins.key-auth")
 
@@ -56,7 +59,8 @@ local function execute_auth_plugins(auth_plugins, ctx)
             if type(err) == "table" then
                 err = err.message  -- compat
             end
-            core.table.insert(errors, auth_plugin_name .. " failed to authenticate the request, code: "
+            core.table.insert(errors, auth_plugin_name ..
+                " failed to authenticate the request, code: "
                 .. auth_code .. ". error: " .. err)
         end
     end
@@ -69,11 +73,16 @@ function _M.rewrite(conf, ctx)
     if succeed then
         local consumer = ctx.consumer
         if consumer.labels then
-            core.request.set_header(ctx, "X-API7-Portal-Application-Id", consumer.labels.application_id)
-            core.request.set_header(ctx, "X-API7-Portal-Developer-Id", consumer.labels.developer_id)
-            core.request.set_header(ctx, "X-API7-Portal-Developer-Username", consumer.labels.developer_username)
-            core.request.set_header(ctx, "X-API7-Portal-Subscription-Id", consumer.labels.subscription_id)
-            core.request.set_header(ctx, "X-API7-Portal-API-Product-Id", consumer.labels.api_product_id)
+            core.request.set_header(ctx, "X-API7-Portal-Application-Id",
+                                    consumer.labels.application_id)
+            core.request.set_header(ctx, "X-API7-Portal-Developer-Id",
+                                    consumer.labels.developer_id)
+            core.request.set_header(ctx, "X-API7-Portal-Developer-Username",
+                                    consumer.labels.developer_username)
+            core.request.set_header(ctx, "X-API7-Portal-Subscription-Id",
+                                    consumer.labels.subscription_id)
+            core.request.set_header(ctx, "X-API7-Portal-API-Product-Id",
+                                    consumer.labels.api_product_id)
         end
         core.request.set_header(ctx, "X-API7-Portal-Credential-Id", consumer.credential_id)
         core.request.set_header(ctx, "X-API7-Portal-Request-Id", ctx.var.apisix_request_id)

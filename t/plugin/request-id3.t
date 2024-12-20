@@ -16,6 +16,7 @@ add_block_preprocessor(sub {
 run_tests;
 
 __DATA__
+
 === TEST 1: enable request-id plugin
 --- yaml_config
 --- config
