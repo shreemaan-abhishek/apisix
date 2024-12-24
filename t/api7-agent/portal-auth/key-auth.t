@@ -438,6 +438,7 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
                 [[{
                     "plugins": {
                         "portal-auth":{
+                            "api_product_id": "5c7d2ccf-08e3-43b9-956f-6e0f58de6142",
                             "auth_plugins": [
                                 {
                                     "key-auth": {
@@ -446,7 +447,8 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
                                     }
                                 }
                             ]
-                        }
+                        },
+                        "prometheus": {}
                     },
                     "upstream": {
                         "nodes": {
@@ -494,10 +496,25 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
                 }]]
                 )
 
-            if code <= 201 then
-                ngx.status = 200
+            if code >= 300 then
+                ngx.status = code
+                ngx.say(body)
+                return
             end
 
+            local code, body = t('/apisix/admin/routes/metrics',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "plugins": {
+                        "public-api": {}
+                    },
+                    "uri": "/apisix/prometheus/metrics"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
             ngx.say(body)
         }
     }
@@ -556,3 +573,33 @@ authkey: auth-one
 --- error_code: 200
 --- error_log eval
 qr/x-api7-portal-request-id: [0-9a-f-]+,/
+
+
+
+=== TEST 17: api_product_id label present in prometheus metrics
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- pipelined_requests eval
+["GET /log_request", "GET /log_request", "GET /apisix/prometheus/metrics"]
+--- error_code eval
+[401, 401, 200]
+--- response_body_like eval
+[".*Authorization Failed.*", ".*Authorization Failed.*", ".*apisix_http_status\{code=\"401\",route=\"1\",route_id=\"1\",matched_uri=\"\/log_request\",matched_host=\"\",service=\"1\",service_id=\"1\",consumer=\"\",.*api_product_id=\"5c7d2ccf-08e3-43b9-956f-6e0f58de6142\"\} 2.*"]
+
+
+
+=== TEST 18: api_product_id and consumer labels present in prometheus metrics
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- pipelined_requests eval
+["GET /log_request", "GET /log_request", "GET /apisix/prometheus/metrics"]
+--- more_headers
+authkey: auth-one
+--- error_code eval
+[200, 200, 200]
+--- response_body_like eval
+[".*", ".*", ".*apisix_http_status\{code=\"200\",route=\"1\",route_id=\"1\",matched_uri=\"\/log_request\",matched_host=\"\",service=\"1\",service_id=\"1\",consumer=\"developer_test\",.*api_product_id=\"5c7d2ccf-08e3-43b9-956f-6e0f58de6142\"\} 2.*"]

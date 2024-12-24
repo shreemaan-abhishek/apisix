@@ -180,7 +180,7 @@ function _M.http_init(prometheus_enabled_in_stream)
             "HTTP status codes per service in APISIX",
             {"code", "route", "route_id", "matched_uri",
             "matched_host", "service", "service_id","consumer", "node",
-            "gateway_group_id", "instance_id",
+            "gateway_group_id", "instance_id", "api_product_id",
             unpack(extra_labels("http_status"))}, status_exptime)
 
     local buckets = DEFAULT_BUCKETS
@@ -190,14 +190,14 @@ function _M.http_init(prometheus_enabled_in_stream)
     metrics.latency = prometheus:histogram("http_latency",
         "HTTP request latency in milliseconds per service in APISIX",
         {"type", "route", "route_id", "service", "service_id", "consumer", "node",
-        "gateway_group_id", "instance_id", unpack(extra_labels("http_latency"))},
+        "gateway_group_id", "instance_id", "api_product_id",unpack(extra_labels("http_latency"))},
         buckets, latency_exptime)
 
     metrics.bandwidth = prometheus:counter("bandwidth",
             "Total bandwidth in bytes consumed per service in APISIX",
             {"type", "route", "route_id", "service", "service_id", "consumer", "node",
-            "gateway_group_id", "instance_id", unpack(extra_labels("bandwidth"))},
-            bandwidth_exptime)
+            "gateway_group_id", "instance_id", "api_product_id",
+            unpack(extra_labels("bandwidth"))}, bandwidth_exptime)
 
     if prometheus_enabled_in_stream then
         init_stream_metrics()
@@ -250,6 +250,7 @@ function _M.http_log(conf, ctx)
     local consumer_name = ctx.consumer_name or ""
     local gateway_group_id = get_gateway_group_id()
     local instance_id = core.id.get()
+    local api_product_id = ctx.api_product_id or ""
 
     local matched_route = ctx.matched_route and ctx.matched_route.value
     if matched_route then
@@ -276,34 +277,34 @@ function _M.http_log(conf, ctx)
     metrics.status:inc(1,
         gen_arr(vars.status, route, route_id, matched_uri, matched_host,
                 service, service_id, consumer_name, balancer_ip, gateway_group_id,
-                instance_id, unpack(extra_labels("http_status", ctx))))
+                instance_id, api_product_id, unpack(extra_labels("http_status", ctx))))
 
     local latency, upstream_latency, apisix_latency = latency_details(ctx)
     local latency_extra_label_values = extra_labels("http_latency", ctx)
 
     metrics.latency:observe(latency,
         gen_arr("request", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, unpack(latency_extra_label_values)))
+        gateway_group_id, instance_id, api_product_id, unpack(latency_extra_label_values)))
 
     if upstream_latency then
         metrics.latency:observe(upstream_latency,
             gen_arr("upstream", route, route_id, service, service_id, consumer_name, balancer_ip,
-            gateway_group_id, instance_id, unpack(latency_extra_label_values)))
+            gateway_group_id, instance_id, api_product_id, unpack(latency_extra_label_values)))
     end
 
     metrics.latency:observe(apisix_latency,
         gen_arr("apisix", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, unpack(latency_extra_label_values)))
+        gateway_group_id, instance_id, api_product_id, unpack(latency_extra_label_values)))
 
     local bandwidth_extra_label_values = extra_labels("bandwidth", ctx)
 
     metrics.bandwidth:inc(vars.request_length,
         gen_arr("ingress", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, unpack(bandwidth_extra_label_values)))
+        gateway_group_id, instance_id, api_product_id, unpack(bandwidth_extra_label_values)))
 
     metrics.bandwidth:inc(vars.bytes_sent,
         gen_arr("egress", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, unpack(bandwidth_extra_label_values)))
+        gateway_group_id, instance_id, api_product_id, unpack(bandwidth_extra_label_values)))
 end
 
 

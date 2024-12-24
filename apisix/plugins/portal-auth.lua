@@ -11,6 +11,11 @@ local schema = {
     type = "object",
     title = "work with route or service object",
     properties = {
+        api_product_id = {
+            type = "string",
+            minLength = 1,
+            maxLength = 256,
+        },
         auth_plugins = {
             type = "array",
             minItems = 1,
@@ -69,6 +74,10 @@ end
 
 
 function _M.rewrite(conf, ctx)
+    if conf.api_product_id then
+        ctx.api_product_id = conf.api_product_id
+    end
+
     local succeed, errors = execute_auth_plugins(conf.auth_plugins, ctx)
     if succeed then
         local consumer = ctx.consumer
