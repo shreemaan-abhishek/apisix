@@ -126,6 +126,7 @@ public-api
 prometheus
 datadog
 error-page
+loki-logger
 elasticsearch-logger
 echo
 loggly
