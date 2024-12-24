@@ -16,8 +16,8 @@ RUN set -ex; \
     esac; \
     set -ex; \
     arch=$(dpkg --print-architecture); \
-    wget https://github.com/api7/apisix-build-tools/releases/download/api7ee-runtime/1.1.5/api7ee-runtime_1.1.5-0.debianbullseye-slim_${arch}.deb; \
-    dpkg -i ./api7ee-runtime_1.1.5-0.debianbullseye-slim_${arch}.deb
+    wget https://github.com/api7/apisix-build-tools/releases/download/api7ee-runtime/1.1.6/api7ee-runtime_1.1.6-0.debianbullseye-slim_${arch}.deb; \
+    dpkg -i ./api7ee-runtime_1.1.6-0.debianbullseye-slim_${arch}.deb
 RUN rm /usr/local/openresty/bin/etcdctl && rm -rf /usr/local/openresty/openssl3/share
 
 FROM debian:bullseye-slim AS apisix-builder
