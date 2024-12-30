@@ -102,13 +102,13 @@ function _M.sync_to_shm(self, key, remaining, reset, local_delta)
         return err
     end
 
-    _, err = shd:set(self:key_remote_quota(key), quota_json)
+    _, err = shd:set(self:key_remote_quota(key), quota_json, 2 * self.window)
     if err then
         core.log.error("set remote quota to shm failed: ", err, ", key: ", key)
         return err
     end
 
-    _, err = shd:incr(self:key_local_delta(key), -local_delta, 0)
+    _, err = shd:incr(self:key_local_delta(key), -local_delta, 0, 2 * self.window)
     if err then
         core.log.error("incr local delta shm to failed: ", err, ", key: ", key)
         return err
@@ -238,7 +238,7 @@ function _M._delayed_sync(self, key, cost, syncer_id)
 
     remaining = remote_remaining - local_delta - cost
     if 0 <= remaining then
-        _, err = shd:incr(self:key_local_delta(key), cost, 0)
+        _, err = shd:incr(self:key_local_delta(key), cost, 0, 2 * self.window)
         if err then
             core.log.error("incr local delta to shm failed: ", err, ", key: ", key)
             return nil, nil, err

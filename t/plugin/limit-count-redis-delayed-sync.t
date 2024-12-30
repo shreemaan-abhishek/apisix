@@ -416,3 +416,70 @@ passed
     }
 --- response_body
 195
+
+
+
+=== TEST 14: create a route with limit-count plugin that enable delay sync(time_window = 1s)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin")
+            local core = require("apisix.core")
+            local code, body = t.test('/apisix/admin/routes/1ab5c95d',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/status",
+                    "plugins": {
+                      "limit-count": {
+                          "count": 200,
+                          "time_window": 1,
+                          "key_type": "var",
+                          "key": "remote_addr",
+                          "show_limit_quota_header": true,
+                          "policy": "redis",
+                          "redis_host": "127.0.0.1",
+                          "redis_port": 6379,
+                          "sync_interval": 0.5
+                      }
+                    },
+                    "upstream": {
+                        "type": "roundrobin",
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        }
+                    }
+                }]]
+            )
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 15: check shared memory is released after 2.5*time_window
+--- config
+    location /t {
+        content_by_lua_block {
+            local json = require "t.toolkit.json"
+            local http = require "resty.http"
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/status"
+            local httpc = http.new()
+            local res, err = httpc:request_uri(uri)
+            if not res then
+                ngx.say(err)
+                return
+            end
+            local shd = ngx.shared["plugin-limit-count"]
+            ngx.say(#shd:get_keys())
+            ngx.sleep(2.5)
+            ngx.say(#shd:get_keys())
+        }
+    }
+--- response_body
+3
+0
