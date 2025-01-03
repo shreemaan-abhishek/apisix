@@ -427,7 +427,6 @@ empty_var:
 
 
 
-
 === TEST 19: set route (return headers)
 --- config
        location /t {
