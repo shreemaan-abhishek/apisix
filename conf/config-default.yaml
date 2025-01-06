@@ -613,6 +613,8 @@ plugin_attr:
   inspect:
     delay: 3            # in seconds
     hooks_file: "/usr/local/apisix/plugin_inspect_hooks.lua"
+  zipkin:                             # Plugin: zipkin
+    set_ngx_var: false                # export zipkin variables to nginx variables
 
 deployment:
   role: traditional
