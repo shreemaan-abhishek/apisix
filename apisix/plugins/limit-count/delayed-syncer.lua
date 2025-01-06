@@ -317,14 +317,16 @@ function _M.sync(self, syncer_id, time_to_sync)
             core.log.error("get local delta from shm failed: ", err)
         end
 
-        _, remaining_or_err, reset = self.limiter:incoming(key, delta)
-        -- compat
-        if type(remaining_or_err) ~= "string" then
-            self:sync_to_shm(key, remaining_or_err, reset, delta)
-        elseif remaining_or_err ~= "rejected" then
-            core.log.error("sync to redis failed: ", remaining_or_err, ", key: ", key)
-        else
-            self:sync_to_shm(key, 0, reset, delta)
+        if delta then
+            _, remaining_or_err, reset = self.limiter:incoming(key, delta)
+            -- compat
+            if type(remaining_or_err) ~= "string" then
+                self:sync_to_shm(key, remaining_or_err, reset, delta)
+            elseif remaining_or_err ~= "rejected" then
+                core.log.error("sync to redis failed: ", remaining_or_err, ", key: ", key)
+            else
+                self:sync_to_shm(key, 0, reset, delta)
+            end
         end
 
         local ok, err_unlock = locker:unlock()
