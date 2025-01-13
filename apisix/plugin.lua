@@ -22,6 +22,7 @@ local wasm          = require("apisix.wasm")
 local expr          = require("resty.expr.v1")
 local apisix_ssl    = require("apisix.ssl")
 local re_split      = require("ngx.re").split
+
 local ngx           = ngx
 local crc32         = ngx.crc32_short
 local ngx_exit      = ngx.exit
@@ -413,6 +414,7 @@ function _M.load(config)
     if ignored then
         return local_plugins
     end
+    local exporter = require("apisix.plugins.prometheus.exporter")
 
     if ngx.config.subsystem == "http" then
         if not http_plugins then
@@ -426,6 +428,15 @@ function _M.load(config)
             local ok, err = load(http_plugins, wasm_plugin_names)
             if not ok then
                 core.log.error("failed to load plugins: ", err)
+            end
+
+            local enabled = local_plugins_hash["prometheus"] ~= nil
+            local active  = exporter.get_prometheus() ~= nil
+            if not enabled then
+                exporter.destroy()
+            end
+            if enabled and not active then
+                exporter.http_init()
             end
         end
     end
