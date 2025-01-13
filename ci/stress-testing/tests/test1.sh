@@ -1,9 +1,19 @@
 #!/bin/bash
+# Set the PS4 environment variable to print the command itself
+export PS4='+ $BASH_SOURCE:$LINENO: '
+
+# Enable command tracing
+set -x
+
 #sourced in stress-testing.sh
 TEST_NAME="Case 1: Single core, Service + upstream, hit route, torture testing 1 min"
 echo "-----------Running test1: $TEST_NAME---------------"
 yq -i '.nginx_config.worker_processes = 1' gateway_conf/config.yaml
 ./run.sh start_dp
+if [ $? -ne 0 ]; then
+  echo "Error: run.sh failed. Exiting stress-testing script."
+  exit 1
+fi
 #Create Route and service
 curl "http://127.0.0.1:7080/apisix/admin/services/1?gateway_group_id=default" \
   -H 'Content-Type: application/json' \
@@ -34,14 +44,26 @@ curl "http://127.0.0.1:7080/apisix/admin/routes/1?gateway_group_id=default" \
 }'
 
 worker_pid=$(ps -ef | grep openresty -A 1 | grep 'nginx: worker process' | head -n 1 | awk '{print $2}')
-top -b -n 1 -p $worker_pid >before_cpu_mem.txt
-wrk -c 200 -t 2  -d 60s  -R 40000    http://127.0.0.1:9080/hello >wrk.txt &
+echo "worker_pid is $worker_pid"
+top -p $worker_pid
+top -b -n 1 -p $worker_pid > before_cpu_mem.txt
+echo "before_cpu_mem.txt is"
+cat before_cpu_mem.txt
+wrk -c 200 -t 2  -d 60s  -R 40000 http://127.0.0.1:9080/hello >wrk.txt &
 sleep 30
 top -b -n 1 -p $worker_pid >during_cpu_mem.txt
 wait
 sleep 15
-cat wrk.txt
 top -b -n 1 -p $worker_pid >after_cpu_mem.txt
+echo "after_cpu_mem.txt is"
+cat after_cpu_mem.txt
+if [ ! -s wrk.txt ]; then
+  echo "Error: wrk.txt is empty. The wrk command did not produce any output."
+  ./run.sh stop_dp
+  exit 1
+fi
+echo "=======wrk output======="
+cat wrk.txt
 QPS=$(cat wrk.txt | grep 'Req/Sec' wrk.txt | awk '{print $2}')
 BEFORE_CPU=$(awk '/%CPU/ {cpu_col=NF-3} /openres/ && cpu_col {print $cpu_col; exit}' before_cpu_mem.txt)
 BEFORE_MEM=$(awk '/%MEM/ {mem_col=NF-2} /openres/ && mem_col {print $mem_col; exit}' before_cpu_mem.txt)

@@ -1,5 +1,9 @@
 #!/bin/bash
+# Set the PS4 environment variable to print the command itself
+export PS4='+ $BASH_SOURCE:$LINENO: '
 
+# Enable command tracing
+set -x
 create_uuid() {
   local uuid=""
   if command -v uuidgen &>/dev/null; then
@@ -61,7 +65,12 @@ command=${1:-start_cp}
 case $command in
 start_cp)
   docker compose -f ./docker-compose-cp.yml up -d #control plane
-  wait_for_service api7-ee-dp-manager http://127.0.0.1:7900
+  sleep 10
+  docker container logs stress-testing-api7-ee-dashboard-1
+  wait_for_service api7-ee-dp-manager http://127.0.0.1:7900 || {
+    echo "Failed to start api7-ee-dp-manager. Exiting."
+    exit 1
+  }
   docker run -d --network stress-testing_api7 -v ./cert.crt:/etc/ssl/certs/cert.crt -v ./cert.key:/etc/ssl/private/cert.key -v ./ups_nginx.conf:/etc/nginx/nginx.conf --name nginx nginx
   ;;
 start_dp)
@@ -78,7 +87,15 @@ start_dp)
     -p 9443:9443 \
     -p 9091:9091 \
     hkccr.ccs.tencentyun.com/api7-dev/api7-ee-3-gateway:dev
-  validate_api7_ee
+  wait 30
+  docker container logs api7-ee-gateway-1
+  docker container ps
+  curl http://localhost:9080
+  
+  validate_api7_ee || {
+    echo "Failed to validate API7-EE readiness. Exiting."
+    exit 1
+  }
   echo "API7-EE is ready!"
   output_listen_address
   ;;

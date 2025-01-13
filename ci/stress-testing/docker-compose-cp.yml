@@ -49,7 +49,7 @@ services:
       test: ["CMD", "nc", "-z", "127.0.0.1", "7443"]
       interval: 10s
       timeout: 5s
-      retries: 3
+      retries: 12
     depends_on:
       prometheus:
         condition: service_healthy
