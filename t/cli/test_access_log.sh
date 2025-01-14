@@ -112,6 +112,11 @@ if [ `grep -c '"client_ip": "127.0.0.1"' output.log` -eq '0' ]; then
     exit 1
 fi
 
+if [ `egrep "^{[^}]+}$" output.log` -eq '0' ]; then
+    echo "failed: invalid JSON log in access log"
+    exit 1
+fi
+
 if [ `grep -c 'main escape=json' conf/nginx.conf` -eq '0' ]; then
     echo "failed: not found \"escape=json\" in conf/nginx.conf"
     exit 1
@@ -120,6 +125,29 @@ fi
 make stop
 
 echo "passed: access log with JSON format"
+
+# access log with default log format
+echo '
+nginx_config:
+  http:
+    enable_access_log: true
+' > conf/config.yaml
+
+make init
+make run
+sleep 0.1
+curl http://127.0.0.1:9080/hello2
+sleep 4
+tail -n 1 logs/access.log > output.log
+
+if [ `egrep '[0-9|.]+ - - \[[^]]+\] [0-9|.:]+ "[^"]+" [0-9]+ [0-9]+ [0|.]+ "-" "[^"]+" - - - "[^"]+" ".{36}"' output.log` -eq '0' ]; then
+    echo "failed: access log don't match default log format"
+    exit 1
+fi
+
+make stop
+
+echo "passed: access log with default format"
 
 # check uninitialized variable in access log when access admin
 git checkout conf/config.yaml
