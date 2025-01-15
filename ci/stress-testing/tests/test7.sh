@@ -47,10 +47,12 @@ top -b -n 1 -p $worker_pid_1 >after_cpu_mem_1.txt
 
 QPS=$(cat wrk.txt | grep 'Req/Sec' wrk.txt | awk '{print $2}')
 BEFORE_CPU_1=$(awk '/%CPU/ {cpu_col=NF-3} /openres/ && cpu_col {print $cpu_col; exit}' before_cpu_mem_1.txt)
-BEFORE_MEM_1=$(awk '/%MEM/ {mem_col=NF-2} /openres/ && mem_col {print $mem_col; exit}' before_cpu_mem_1.txt)
+res_kb=$(awk '/RES/ {mem_col=NF-6} /openres/ && mem_col {print $mem_col; exit}' before_cpu_mem_1.txt)
+BEFORE_MEM_1=$(echo "scale=2; $res_kb / 1024" | bc)
 AFTER_CPU_1=$(awk '/%CPU/ {cpu_col=NF-3} /openres/ && cpu_col {print $cpu_col; exit}' after_cpu_mem_1.txt)
 DURING_CPU=$(awk '/%CPU/ {cpu_col=NF-3} /openres/ && cpu_col {print $cpu_col; exit}' during_cpu_mem.txt)
-AFTER_MEM_1=$(awk '/%MEM/ {mem_col=NF-2} /openres/ && mem_col {print $mem_col; exit}' after_cpu_mem_1.txt)
+res_kb=$(awk '/RES/ {mem_col=NF-6} /openres/ && mem_col {print $mem_col; exit}' after_cpu_mem_1.txt)
+AFTER_MEM_1=$(echo "scale=2; $res_kb / 1024" | bc)
 cat $filepath
 jq --arg TEST_NAME "$TEST_NAME" \
    --arg BEFORE_CPU_1 "$BEFORE_CPU_1" \
@@ -64,8 +66,8 @@ jq --arg TEST_NAME "$TEST_NAME" \
            "BEFORE_CPU_1": $BEFORE_CPU_1,
            "DURING_CPU": $DURING_CPU,
            "AFTER_CPU_1": $AFTER_CPU_1,
-           "BEFORE_MEM_1": $BEFORE_MEM_1,
-           "AFTER_MEM_1": $AFTER_MEM_1}]' "$filepath" > tmp.json
+           "BEFORE_MEM_1(in MB)": $BEFORE_MEM_1,
+           "AFTER_MEM_1(in MB)": $AFTER_MEM_1}]' "$filepath" > tmp.json
 
 # Verify jq operation success before replacing the original file
 if [ $? -eq 0 ]; then

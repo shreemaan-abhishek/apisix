@@ -93,10 +93,12 @@ done
 sleep 15
 top -b -n 1 -p $worker_pid >after_cpu_mem.txt
 BEFORE_CPU=$(awk '/%CPU/ {cpu_col=NF-3} /openres/ && cpu_col {print $cpu_col; exit}' before_cpu_mem.txt)
-BEFORE_MEM=$(awk '/%MEM/ {mem_col=NF-2} /openres/ && mem_col {print $mem_col; exit}' before_cpu_mem.txt)
+res_kb=$(awk '/RES/ {mem_col=NF-6} /openres/ && mem_col {print $mem_col; exit}' before_cpu_mem.txt)
+BEFORE_MEM=$(echo "scale=2; $res_kb / 1024" | bc)
 AFTER_CPU=$(awk '/%CPU/ {cpu_col=NF-3} /openres/ && cpu_col {print $cpu_col; exit}' after_cpu_mem.txt)
 DURING_CPU=$(awk '/%CPU/ {cpu_col=NF-3} /openres/ && cpu_col {print $cpu_col; exit}' during_cpu_mem.txt)
-AFTER_MEM=$(awk '/%MEM/ {mem_col=NF-2} /openres/ && mem_col {print $mem_col; exit}' after_cpu_mem.txt)
+res_kb=$(awk '/RES/ {mem_col=NF-6} /openres/ && mem_col {print $mem_col; exit}' after_cpu_mem.txt)
+AFTER_MEM=$(echo "scale=2; $res_kb / 1024" | bc)
 jq --arg TEST_NAME "$TEST_NAME" \
    --arg BEFORE_CPU "$BEFORE_CPU" \
    --arg DURING_CPU "$DURING_CPU" \
@@ -107,8 +109,8 @@ jq --arg TEST_NAME "$TEST_NAME" \
            "BEFORE_CPU": $BEFORE_CPU,
            "DURING_CPU": $DURING_CPU,
            "AFTER_CPU": $AFTER_CPU,
-           "BEFORE_MEM": $BEFORE_MEM,
-           "AFTER_MEM": $AFTER_MEM}]' "$filepath" > tmp.json
+           "BEFORE_MEM(in MB)": $BEFORE_MEM,
+           "AFTER_MEM(in MB)": $AFTER_MEM}]' "$filepath" > tmp.json
 
 if [ $? -eq 0 ]; then
     mv tmp.json "$filepath"
