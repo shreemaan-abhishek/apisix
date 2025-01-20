@@ -1,9 +1,11 @@
 local core = require("apisix.core")
 local plugin = require("apisix.plugin")
 local expr = require("resty.expr.v1")
-local ngx  = ngx
+local content_decode = require("apisix.utils.content-decode")
+local ngx = ngx
 local pairs = pairs
 local ngx_now = ngx.now
+local ngx_header = ngx.header
 local os_date = os.date
 local str_byte = string.byte
 local str_sub  = string.sub
@@ -324,7 +326,29 @@ function _M.collect_body(conf, ctx)
             if not final_body then
                 return
             end
-            ctx.resp_body = final_body
+
+            local response_encoding = ngx_header["Content-Encoding"]
+            if not response_encoding then
+                ctx.resp_body = final_body
+                return
+            end
+
+            local decoder = content_decode.dispatch_decoder(response_encoding)
+            if not decoder then
+                core.log.warn("unsupported compression encoding type: ",
+                              response_encoding)
+                ctx.resp_body = final_body
+                return
+            end
+
+            local decoded_body, err = decoder(final_body)
+            if err ~= nil then
+                core.log.warn("try decode compressed data err: ", err)
+                ctx.resp_body = final_body
+                return
+            end
+
+            ctx.resp_body = decoded_body
         end
     end
 end

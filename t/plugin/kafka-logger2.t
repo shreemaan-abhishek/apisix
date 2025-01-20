@@ -633,7 +633,74 @@ done
 
 
 
-=== TEST 12: set route(id: 1,include_resp_body = true,include_resp_body_expr = array)
+=== TEST 12: set route include_resp_body - gzip
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [=[{
+                        "plugins": {
+                            "kafka-logger": {
+                                "broker_list" :
+                                  {
+                                    "127.0.0.1":9092
+                                  },
+                                "kafka_topic" : "test2",
+                                "key" : "key1",
+                                "timeout" : 1,
+                                "include_resp_body": true,
+                                "batch_max_size": 1
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:11451": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/gzip_hello"
+                }]=]
+                )
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 13: hit
+--- http_config
+server {
+    listen 11451;
+    gzip on;
+    gzip_types *;
+    gzip_min_length 1;
+    location /gzip_hello {
+        content_by_lua_block {
+            ngx.req.read_body()
+            local s = "gzip hello world"
+            ngx.header['Content-Length'] = #s + 1
+            ngx.say(s)
+        }
+    }
+}
+--- request
+GET /gzip_hello
+--- more_headers
+Accept-Encoding: gzip
+--- error_log eval
+qr/send data to kafka: \{.*"body":"gzip hello world\\n"/
+--- wait: 2
+
+
+
+=== TEST 14: set route(id: 1,include_resp_body = true,include_resp_body_expr = array)
 --- config
     location /t {
         content_by_lua_block {
@@ -682,7 +749,7 @@ passed
 
 
 
-=== TEST 13: hit route, expr eval success
+=== TEST 15: hit route, expr eval success
 --- request
 POST /hello?name=qwerty
 abcdef
@@ -694,7 +761,7 @@ qr/send data to kafka: \{.*"body":"hello world\\n"/
 
 
 
-=== TEST 14: hit route,expr eval fail
+=== TEST 16: hit route,expr eval fail
 --- request
 POST /hello?name=zcxv
 abcdef
@@ -706,7 +773,7 @@ qr/send data to kafka: \{.*"body":"hello world\\n"/
 
 
 
-=== TEST 15: multi level nested expr conditions
+=== TEST 17: multi level nested expr conditions
 --- config
     location /t {
         content_by_lua_block {
@@ -758,7 +825,7 @@ passed
 
 
 
-=== TEST 16: hit route, req_body_expr and resp_body_expr both eval success
+=== TEST 18: hit route, req_body_expr and resp_body_expr both eval success
 --- request
 POST /hello?name=qwerty
 abcdef
@@ -771,7 +838,7 @@ qr/send data to kafka: \{.*"body":"hello world\\n"/]
 
 
 
-=== TEST 17: hit route, req_body_expr eval success, resp_body_expr both eval failed
+=== TEST 19: hit route, req_body_expr eval success, resp_body_expr both eval failed
 --- request
 POST /hello?name=asdfgh
 abcdef
@@ -785,7 +852,7 @@ qr/send data to kafka: \{.*"body":"hello world\\n"/
 
 
 
-=== TEST 18: hit route, req_body_expr eval failed, resp_body_expr both eval success
+=== TEST 20: hit route, req_body_expr eval failed, resp_body_expr both eval success
 --- request
 POST /hello?name=zxcvbn
 abcdef
@@ -799,7 +866,7 @@ qr/send data to kafka: \{.*"body":"abcdef"/
 
 
 
-=== TEST 19: hit route, req_body_expr eval success, resp_body_expr both eval failed
+=== TEST 21: hit route, req_body_expr eval success, resp_body_expr both eval failed
 --- request
 POST /hello?name=xxxxxx
 abcdef
@@ -812,7 +879,7 @@ qr/send data to kafka: \{.*"body":"hello world\\n"/]
 
 
 
-=== TEST 20: update route(id: 1,include_req_body = true,include_req_body_expr = array)
+=== TEST 22: update route(id: 1,include_req_body = true,include_req_body_expr = array)
 --- config
     location /t {
         content_by_lua_block {
@@ -862,7 +929,7 @@ passed
 
 
 
-=== TEST 21: hit route, expr eval success
+=== TEST 23: hit route, expr eval success
 --- request
 POST /hello?name=qwerty
 abcdef
@@ -874,7 +941,7 @@ qr/send data to kafka: \{.*"body":"abcdef"/
 
 
 
-=== TEST 22: setup route with meta_refresh_interval
+=== TEST 24: setup route with meta_refresh_interval
 --- config
     location /t {
         content_by_lua_block {
@@ -918,7 +985,7 @@ passed
 
 
 
-=== TEST 23: hit route, send data to kafka successfully
+=== TEST 25: hit route, send data to kafka successfully
 --- request
 POST /hello
 abcdef
