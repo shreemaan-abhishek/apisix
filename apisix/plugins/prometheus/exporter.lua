@@ -460,7 +460,7 @@ local function shared_dict_status(gateway_group_id, instance_id)
 end
 
 
-local function collect(ctx, stream_only)
+local function collect_regular_metrics(ctx, stream_only)
     if not prometheus or not metrics then
         core.log.error("prometheus: plugin is not initialized, please make sure ",
                      " 'prometheus_metrics' shared dict is present in nginx template")
@@ -473,14 +473,7 @@ local function collect(ctx, stream_only)
     -- collect ngx.shared.DICT status
     shared_dict_status(gateway_group_id, instance_id)
 
-    -- across all services
-    nginx_status(gateway_group_id, instance_id)
-
     local config = core.config.new()
-
-    -- config server status
-    local vars = ngx.var or {}
-    local hostname = vars.hostname or ""
 
     -- we can't get etcd index in metric server if only stream subsystem is enabled
     if config.type == "etcd" and not stream_only then
@@ -508,15 +501,33 @@ local function collect(ctx, stream_only)
             metrics.etcd_modify_indexes:set(res.headers["X-Etcd-Index"], key_values)
         end
     end
+end
 
+
+local function collect_api_specific_metrics()
+    local gateway_group_id = get_gateway_group_id()
+    local instance_id = core.id.get()
+    -- across all services
+    nginx_status(gateway_group_id, instance_id)
+
+    local vars = ngx.var or {}
+    local hostname = vars.hostname or ""
     metrics.node_info:set(1, gen_arr(hostname, gateway_group_id, instance_id))
+end
 
+
+local function collect(ctx, stream_only)
+    collect_api_specific_metrics()
+    collect_regular_metrics(ctx, stream_only)
 
     core.response.set_header("content_type", "text/plain")
     return 200, core.table.concat(prometheus:metric_data())
 end
-_M.collect = collect
 
+
+_M.collect = collect
+_M.collect_regular_metrics = collect_regular_metrics
+_M.collect_api_specific_metrics = collect_api_specific_metrics
 
 local function get_api(called_by_api_router)
     local export_uri = default_export_uri

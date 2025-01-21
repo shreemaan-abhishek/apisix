@@ -230,7 +230,53 @@ function _M.heartbeat(self, first)
 end
 
 
+local function iterator(tab, max_size)
+    local index = 0
+    local total = #tab
+    local size_until_now = 0
+    return function()
+        ::continue::
+        index = index + 1
+        if index > total then
+            return
+        end
+
+        if index == total then
+            return "0\r\n\r\n"
+        end
+
+        local metric = tab[index]
+        if not metric then
+            goto continue
+        end
+        local cur_size = #metric
+        if (size_until_now + cur_size) > max_size then -- skip sending this metric
+            -- set the current iteration to second last one
+            -- so that the last chunk is sent in next iteration
+            index = total - 1
+            goto continue
+        end
+        size_until_now = size_until_now + cur_size
+        return string.format("%x\r\n%s\r\n", cur_size, metric)
+    end
+end
+
+
+local function get_metrics_total_size(metrics_tab)
+    local size = 0
+    for i, metric in ipairs(metrics_tab) do
+        if string.sub(metric, 1, 1) == "#" then
+            metrics_tab[i] = nil
+        else
+            size = size + #metric
+        end
+    end
+    return size
+end
+
+
 function _M.upload_metrics(self)
+    local exporter = require("apisix.plugins.prometheus.exporter")
     local current_time = ngx_time()
     if self.last_metrics_uploading_time and
             current_time - self.last_metrics_uploading_time < self.telemetry.interval then
@@ -241,32 +287,39 @@ function _M.upload_metrics(self)
         return
     end
 
-    local payload = {
-        instance_id = core.id.get(),
+    local prom = exporter.get_prometheus()
+    if not prom then
+        core.log.warn("prometheus is uninitialised")
+        return
+    end
+
+    -- collect nginx API related metrics by HTTP
+    -- because some APIs (ngx.var and subrequest) are disabled in ngx.timer
+    local res, err = utils.fetch_nginx_metrics(self.http_timeout)
+    if err or not res or res.status ~= 200 then
+        core.log.error("fetch nginx metrics error ", err or (res and res.status))
+    end
+
+    -- collect remaining metrics by function call
+    exporter.collect_regular_metrics()
+
+    -- extract metrics from prometheus object
+    local metrics_tab = prom:metric_data()
+
+    local metrics_headers = {
+        ["X-Is-Truncated"] = false,
+        ["X-Instance-Id"] = core.id.get(),
+        [AUTH_HEADER] = control_plane_token,
+        ["Transfer-Encoding"] = "chunked",
+        ["Content-Type"] = "text/plain",
     }
 
-    -- Since we should get the metrics of nginx status,
-    -- and we can't start sub-request in timer,
-    -- so we should send request to APISIX metrics port.
-    local res, err = utils.fetch_metrics(self.http_timeout)
-    if err then
-        core.log.error("fetch prometheus metrics error ", err)
-        return
+    local size = get_metrics_total_size(metrics_tab)
+    if size > self.telemetry.max_metrics_size then
+        core.log.warn("metrics size is too large, truncating it, size: ", size,
+                      ", after truncated: ", self.telemetry.max_metrics_size)
+        metrics_headers["X-Is-Truncated"] = true
     end
-    if res.status ~= 200 then
-        core.log.error("failed to fetch prometheus metrics, status: ", res.status)
-        return
-    end
-
-    local metrics = res.body
-
-    if #metrics > self.telemetry.max_metrics_size then
-        core.log.warn("metrics size is too large, truncating it, size: ", #metrics, ", after truncated: ", self.telemetry.max_metrics_size)
-        payload.truncated = true
-        metrics = string.sub(metrics, 1, self.telemetry.max_metrics_size)
-    end
-
-    payload.metrics = metrics
 
     local http_cli = resty_http.new()
 
@@ -275,8 +328,8 @@ function _M.upload_metrics(self)
     self.ongoing_metrics_uploading = true
     local res, err = http_cli:request_uri(self.metrics_url, {
         method =  "POST",
-        body = core.json.encode(payload),
-        headers = headers,
+        body = iterator(metrics_tab, self.telemetry.max_metrics_size),
+        headers = metrics_headers,
         keepalive = true,
         ssl_verify = false,
         ssl_cert_path = self.ssl_cert_path,
@@ -594,7 +647,7 @@ function _M.new(agent_conf)
         consumer_query_url = agent_conf.endpoint .. "/api/dataplane/consumer_query",
         developer_query_url = agent_conf.endpoint .. "/api/dataplane/developer_query",
         heartbeat_url = agent_conf.endpoint .. "/api/dataplane/heartbeat",
-        metrics_url = agent_conf.endpoint .. "/api/dataplane/metrics",
+        metrics_url = agent_conf.endpoint .. "/api/dataplane/streaming_metrics",
         healthcheck_url = agent_conf.endpoint .. "/api/dataplane/healthcheck",
         service_registry_healthcheck_url = agent_conf.endpoint .. "/api/dataplane/service_registry_healthcheck",
         ssl_cert_path = agent_conf.ssl_cert_path,

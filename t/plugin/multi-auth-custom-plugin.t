@@ -24,11 +24,7 @@ _EOC_
         ngx.say("{}")
     end
 
-    server.api_dataplane_metrics = function()
-    end
-
-    server.apisix_prometheus_metrics = function()
-        ngx.say('apisix_http_status{code="200",route="httpbin",matched_uri="/*",matched_host="nic.httpbin.org",service="",consumer="",node="172.30.5.135"} 61')
+    server.api_dataplane_streaming_metrics = function()
     end
 _EOC_
 

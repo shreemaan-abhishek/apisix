@@ -45,9 +45,20 @@ _EOC_
         ngx.say(core.json.encode(resp_payload))
     end
 
-        server.apisix_prometheus_metrics = function()
-        ngx.say('apisix_http_status{code="200",route="httpbin",matched_uri="/*",matched_host="nic.httpbin.org",service="",consumer="",node="172.30.5.135"} 61')
+    server.apisix_collect_nginx_status = function()
+        local prometheus = require("apisix.plugins.prometheus.exporter")
+        prometheus.collect_api_specific_metrics()
     end
+
+    server.apisix_nginx_status = function()
+        ngx.say([[
+Active connections: 6
+server accepts handled requests
+ 11 22 23
+Reading: 0 Writing: 6 Waiting: 0
+]])
+    end
+
 _EOC_
 
     $block->set_value("extra_init_by_lua", $extra_init_by_lua);

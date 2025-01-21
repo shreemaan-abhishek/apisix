@@ -64,27 +64,34 @@ _EOC_
         ngx.say(core.json.encode(resp_payload))
     end
 
-    server.api_dataplane_metrics = function()
-        ngx.req.read_body()
-        local data = ngx.req.get_body_data()
-        ngx.log(ngx.NOTICE, "receive data plane metrics: ", data)
+    server.api_dataplane_streaming_metrics = function()
+        local req = require("apisix.core.request")
+        local data = req.get_body()
+        ngx.log(ngx.NOTICE, "receive data plane metrics: ", #data)
 
-        local json_decode = require("toolkit.json").decode
-        local payload = json_decode(data)
-
-        if not payload.instance_id then
+        if not ngx.req.get_headers()["X-Instance-Id"] then
             ngx.log(ngx.ERR, "missing instance_id")
             return ngx.exit(400)
         end
-        if not payload.metrics then
-            ngx.log(ngx.ERR, "missing metrics")
+        if ngx.req.get_headers()["Transfer-Encoding"] ~= "chunked" then
+            ngx.log(ngx.ERR, "transfer-encoding must be chunked")
             return ngx.exit(400)
         end
-        ngx.log(ngx.NOTICE, "metrics size: ", #payload.metrics)
+        ngx.log(ngx.NOTICE, "metrics size: ", #data)
     end
 
-    server.apisix_prometheus_metrics = function()
-        ngx.say('apisix_http_status{code="200",route="httpbin",matched_uri="/*",matched_host="nic.httpbin.org",service="",consumer="",node="172.30.5.135"} 61')
+    server.apisix_collect_nginx_status = function()
+        local prometheus = require("apisix.plugins.prometheus.exporter")
+        prometheus.collect_api_specific_metrics()
+    end
+
+    server.apisix_nginx_status = function()
+        ngx.say([[
+Active connections: 6
+server accepts handled requests
+ 11 22 23
+Reading: 0 Writing: 6 Waiting: 0
+]])
     end
 _EOC_
 
@@ -140,7 +147,7 @@ plugin_attr:
 --- wait: 17
 --- error_log
 receive data plane metrics
-metrics size: 141
+metrics size:
 upload metrics to control plane successfully
 
 
@@ -184,7 +191,7 @@ plugin_attr:
 api7ee:
   telemetry:
     interval: 1
-    max_metrics_size: 8
+    max_metrics_size: 117
 --- config
     location /t {
         content_by_lua_block {
@@ -196,7 +203,7 @@ api7ee:
 registered timer to send telemetry data to control plane
 metrics size is too large, truncating it
 receive data plane metrics
-metrics size: 8
+metrics size: 117
 upload metrics to control plane successfully
 
 
@@ -225,7 +232,7 @@ disabled send telemetry data to control plane
 
 
 
-=== TEST 6: fetch prometheus metrics failed
+=== TEST 6: fetch nginx API related metrics failed
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
@@ -245,7 +252,7 @@ api7ee:
     }
 --- wait: 2
 --- error_log
-fetch prometheus metrics error
+fetch nginx metrics error connection refused
 
 
 

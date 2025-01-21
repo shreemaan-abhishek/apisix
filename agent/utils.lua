@@ -93,12 +93,12 @@ end
 
 
 local metric_url
-function _M.fetch_metrics(http_timeout)
+function _M.fetch_nginx_metrics(http_timeout)
     if not metric_url then
         local attr = plugin.plugin_attr("prometheus")
         local metric_host = attr.export_addr and attr.export_addr.host or "127.0.0.1"
         local metric_port = attr.export_addr and attr.export_addr.port or "9091"
-        local metric_uri = attr.export_addr and attr.export_uri or "/apisix/prometheus/metrics"
+        local metric_uri = "/apisix/collect_nginx_status"
         metric_url = "http://" .. metric_host .. ":" .. metric_port .. metric_uri
     end
 

@@ -677,6 +677,13 @@ http {
             deny all;
             stub_status;
         }
+        
+        location = /apisix/collect_nginx_status {
+            content_by_lua_block {
+                local prometheus = require("apisix.plugins.prometheus.exporter")
+                prometheus.collect_api_specific_metrics()
+            }
+        }
     }
     {% end %}
 
