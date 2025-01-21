@@ -622,3 +622,284 @@ GET /test/plugin/proxy/rewrite HTTP/1.1
     }
 --- response_body
 /plugin_proxy_rewrite?a=c
+
+
+
+=== TEST 27: use variables in headers when captured by regex_uri
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                      "uri": "/test/*",
+                      "plugins": {
+                        "proxy-rewrite": {
+                            "regex_uri": ["^/test/(.*)/(.*)/(.*)", "/echo"],
+                            "headers": {
+                                "add": {
+                                    "X-Request-ID": "$1/$2/$3"
+                                }
+                            }
+                        }
+                      },
+                      "upstream": {
+                          "nodes": {
+                              "127.0.0.1:1980": 1
+                          },
+                          "type": "roundrobin"
+                      }
+                 }]]
+                 )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 28: hit
+--- request
+GET /test/plugin/proxy/rewrite HTTP/1.1
+--- response_headers
+X-Request-ID: plugin/proxy/rewrite
+
+
+
+=== TEST 29: use variables in header when not matched regex_uri
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                      "uri": "/echo*",
+                      "plugins": {
+                        "proxy-rewrite": {
+                            "regex_uri": ["^/test/(.*)/(.*)/(.*)", "/echo"],
+                            "headers": {
+                                "add": {
+                                    "X-Request-ID": "$1/$2/$3"
+                                }
+                            }
+                        }
+                      },
+                      "upstream": {
+                          "nodes": {
+                              "127.0.0.1:1980": 1
+                          },
+                          "type": "roundrobin"
+                      }
+                 }]]
+                 )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 30: hit
+--- request
+GET /echo HTTP/1.1
+--- more_headers
+X-Foo: Foo
+--- response_headers
+X-Foo: Foo
+
+
+
+=== TEST 31: use variables in headers when captured by regex_uri
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                      "uri": "/test/*",
+                      "plugins": {
+                        "proxy-rewrite": {
+                            "regex_uri": ["^/test/(not_matched)?.*", "/echo"],
+                            "headers": {
+                                "add": {
+                                    "X-Request-ID": "test1/$1/$2/test2"
+                                }
+                            }
+                        }
+                      },
+                      "upstream": {
+                          "nodes": {
+                              "127.0.0.1:1980": 1
+                          },
+                          "type": "roundrobin"
+                      }
+                 }]]
+                 )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 32: hit
+--- request
+GET /test/plugin/proxy/rewrite HTTP/1.1
+--- response_headers
+X-Request-ID: test1///test2
+
+
+
+=== TEST 33: setting multiple regex_uris
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                      "plugins": {
+                          "proxy-rewrite": {
+                              "regex_uri": [
+                                  "^/test/(.*)/(.*)/(.*)/hello",
+                                  "/hello/$1_$2_$3",
+                                  "^/test/(.*)/(.*)/(.*)/world",
+                                  "/world/$1_$2_$3"
+                              ]
+                          }
+                      },
+                      "upstream": {
+                          "nodes": {
+                              "127.0.0.1:8125": 1
+                          },
+                          "type": "roundrobin"
+                      },
+                      "uri": "/test/*"
+                 }]]
+                 )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 34: hit
+--- request
+GET /test/plugin/proxy/rewrite/hello HTTP/1.1
+--- http_config
+    server {
+        listen 8125;
+        location / {
+            content_by_lua_block {
+                ngx.say(ngx.var.request_uri)
+            }
+        }
+    }
+--- response_body
+/hello/plugin_proxy_rewrite
+
+
+
+=== TEST 35: hit
+--- request
+GET /test/plugin/proxy/rewrite/world HTTP/1.1
+--- http_config
+    server {
+        listen 8125;
+        location / {
+            content_by_lua_block {
+                ngx.say(ngx.var.request_uri)
+            }
+        }
+    }
+--- response_body
+/world/plugin_proxy_rewrite
+
+
+
+=== TEST 36: use regex uri with unsafe allowed
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                      "plugins": {
+                          "proxy-rewrite": {
+                              "regex_uri": [
+                                  "/hello/(.+)",
+                                  "/hello?unsafe_variable=$1"
+                              ],
+                              "use_real_request_uri_unsafe": true
+                           }
+                        },
+                      "upstream": {
+                          "nodes": {
+                              "127.0.0.1:8125": 1
+                          },
+                          "type": "roundrobin"
+                      },
+                      "uri": "/hello/*"
+                 }]]
+                 )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 37: hit
+--- request
+GET /hello/%ED%85%8C%EC%8A%A4%ED%8A%B8 HTTP/1.1
+--- http_config
+    server {
+        listen 8125;
+        location / {
+            content_by_lua_block {
+                ngx.say(ngx.var.request_uri)
+            }
+        }
+    }
+--- response_body
+/hello?unsafe_variable=%ED%85%8C%EC%8A%A4%ED%8A%B8
