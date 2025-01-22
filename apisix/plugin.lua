@@ -430,7 +430,7 @@ function _M.load(config)
                 core.log.error("failed to load plugins: ", err)
             end
 
-            if type(config) == ngx.null or (config and not config.value.is_custom) then
+            if not config or (config and not config.value.is_custom) then
                 local enabled = local_plugins_hash["prometheus"] ~= nil
                 local active  = exporter.get_prometheus() ~= nil
                 if not enabled then
