@@ -26,6 +26,29 @@ add_block_preprocessor(sub {
     if (!$block->request) {
         $block->set_value("request", "GET /t");
     }
+
+    my $http_config = $block->http_config // <<_EOC_;
+    # fake server, only for test
+    server {
+        listen 1970;
+        location / {
+            content_by_lua_block {
+                ngx.say(1970)
+            }
+        }
+    }
+
+    server {
+        listen 1971;
+        location / {
+            content_by_lua_block {
+                ngx.say(1971)
+            }
+        }
+    }
+_EOC_
+
+    $block->set_value("http_config", $http_config);
 });
 
 run_tests();
