@@ -19,6 +19,8 @@ local core = require("apisix.core")
 local discovery = require("apisix.discovery.init").discovery
 local upstream_util = require("apisix.utils.upstream")
 local apisix_ssl = require("apisix.ssl")
+local openssl_x509_store = require "resty.openssl.x509.store"
+local openssl_x509 = require "resty.openssl.x509"
 local error = error
 local tostring = tostring
 local ipairs = ipairs
@@ -31,14 +33,41 @@ local healthcheck
 
 
 local set_upstream_tls_client_param
+local set_upstream_ssl_verify
+local set_upstream_ssl_trusted_store
 local ok, apisix_ngx_upstream = pcall(require, "resty.apisix.upstream")
 if ok then
     set_upstream_tls_client_param = apisix_ngx_upstream.set_cert_and_key
+    set_upstream_ssl_verify = apisix_ngx_upstream.set_ssl_verify
+    set_upstream_ssl_trusted_store = apisix_ngx_upstream.set_ssl_trusted_store
 else
     set_upstream_tls_client_param = function ()
         return nil, "need to build APISIX-Base to support upstream mTLS"
     end
 end
+
+local ca_ssl_trusted_store_lrucache = core.lrucache.new({
+    ttl = 300, count = 30
+})
+local function create_openssl_store_by_certs(ca_certs)
+    local trust_store, err = openssl_x509_store.new()
+    if err then
+        return nil, err
+    end
+
+    for _, ca_data in ipairs(ca_certs) do
+        local x509, err = openssl_x509.new(ca_data, "PEM")
+        if err then
+            return nil, err
+        end
+        local _, err = trust_store:add(x509)
+        if err then
+            return nil, err
+        end
+    end
+    return trust_store
+end
+
 
 local set_stream_upstream_tls
 if not is_http then
@@ -355,6 +384,28 @@ function _M.set_by_route(route, api_ctx)
 
     local scheme = up_conf.scheme
     if (scheme == "https" or scheme == "grpcs") and up_conf.tls then
+        if up_conf.tls.verify ~= nil then
+            local ok, err = set_upstream_ssl_verify(up_conf.tls.verify)
+            if not ok then
+                return 503, err
+            end
+        end
+
+        if up_conf.tls.ca_certs then
+            local store, err = ca_ssl_trusted_store_lrucache(conf_version, nil,
+                                                create_openssl_store_by_certs, up_conf.tls.ca_certs)
+            if not store then
+                return 503, err
+            end
+            local ok, err = set_upstream_ssl_trusted_store(store)
+            if not ok then
+                return 503, err
+            end
+        end
+
+        if not up_conf.tls.client_cert_id and not up_conf.tls.client_cert then
+            return
+        end
 
         local client_cert, client_key
         if up_conf.tls.client_cert_id then
@@ -493,6 +544,15 @@ local function check_upstream_conf(in_dp, conf)
         local ok, err = apisix_ssl.validate(cert, key)
         if not ok then
             return false, err
+        end
+    end
+
+    if conf.tls and conf.tls.ca_certs then
+        for _, ca in ipairs(conf.tls.ca_certs) do
+            local ok, err = apisix_ssl.validate(ca)
+            if not ok then
+                return false, err
+            end
         end
     end
 

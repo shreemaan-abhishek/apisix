@@ -401,10 +401,14 @@ local upstream_schema = {
                 client_key = private_key_schema,
                 verify = {
                     type = "boolean",
-                    description = "Turn on server certificate verification, "..
-                        "currently only kafka upstream is supported",
-                    default = false,
+                    description = "enable or disable upstream certificate validation, " ..
+                    "default to nginx configuration when not set",
                 },
+                ca_certs = {
+                    type = "array",
+                    description = "CA certificates",
+                    items = certificate_scheme,
+                }
             },
             dependencies = {
                 client_cert = {
