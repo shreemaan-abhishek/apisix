@@ -47,7 +47,6 @@ if ngx.config.subsystem == "stream" then
 end
 local config_dict = ngx.shared[shdict_name]
 
-local unpack = unpack
 local next = next
 
 
@@ -112,6 +111,33 @@ local function init_stream_metrics()
     xrpc.init_metrics(prometheus)
 end
 
+local metric_label_map = {
+    connections = {"state", "gateway_group_id", "instance_id"},
+    requests = {"gateway_group_id", "instance_id"},
+    etcd_reachable = {"gateway_group_id", "instance_id"},
+    node_info = {"hostname", "gateway_group_id", "instance_id"},
+    etcd_modify_indexes = {"key", "gateway_group_id", "instance_id"},
+    shared_dict_capacity_bytes = {"name", "gateway_group_id", "instance_id"},
+    shared_dict_free_space_bytes = {"name", "gateway_group_id", "instance_id"},
+    status = {"code", "route", "route_id", "matched_uri", "matched_host",
+              "service", "service_id", "consumer", "node",
+              "gateway_group_id", "instance_id", "api_product_id"},
+    latency = {"type", "route", "route_id", "service", "service_id", "consumer",
+               "node", "gateway_group_id", "instance_id", "api_product_id"},
+    bandwidth = {"type", "route", "route_id", "service", "service_id", "consumer",
+                 "node", "gateway_group_id", "instance_id", "api_product_id"},
+}
+
+
+local function append_tables(...)
+    local t3 = {}
+    for _, t2 in ipairs({...}) do
+        for _, v in ipairs(t2) do
+            core.table.insert(t3, v)
+        end
+    end
+    return t3
+ end
 
 function _M.http_init(prometheus_enabled_in_stream)
     -- todo: support hot reload, we may need to update the lua-prometheus
@@ -148,32 +174,32 @@ function _M.http_init(prometheus_enabled_in_stream)
 
     metrics.connections = prometheus:gauge("nginx_http_current_connections",
             "Number of HTTP connections",
-            {"state", "gateway_group_id", "instance_id"})
+            metric_label_map.connections)
 
     metrics.requests = prometheus:gauge("http_requests_total",
             "The total number of client requests since APISIX started",
-            {"gateway_group_id", "instance_id",})
+            metric_label_map.requests)
 
     metrics.etcd_reachable = prometheus:gauge("etcd_reachable",
             "Config server etcd reachable from APISIX, 0 is unreachable",
-            {"gateway_group_id", "instance_id",})
+            metric_label_map.etcd_reachable)
 
 
     metrics.node_info = prometheus:gauge("node_info",
             "Info of APISIX node",
-            {"hostname", "gateway_group_id", "instance_id",})
+            metric_label_map.node_info)
 
     metrics.etcd_modify_indexes = prometheus:gauge("etcd_modify_indexes",
             "Etcd modify index for APISIX keys",
-            {"key", "gateway_group_id", "instance_id"})
+            metric_label_map.etcd_modify_indexes)
 
     metrics.shared_dict_capacity_bytes = prometheus:gauge("shared_dict_capacity_bytes",
             "The capacity of each nginx shared DICT since APISIX start",
-            {"name", "gateway_group_id", "instance_id",})
+            metric_label_map.shared_dict_capacity_bytes)
 
     metrics.shared_dict_free_space_bytes = prometheus:gauge("shared_dict_free_space_bytes",
             "The free space of each nginx shared DICT since APISIX start",
-            {"name", "gateway_group_id", "instance_id",})
+            metric_label_map.shared_dict_free_space_bytes)
 
     -- per service
 
@@ -182,10 +208,8 @@ function _M.http_init(prometheus_enabled_in_stream)
     -- no consumer in request.
     metrics.status = prometheus:counter("http_status",
             "HTTP status codes per service in APISIX",
-            {"code", "route", "route_id", "matched_uri",
-            "matched_host", "service", "service_id","consumer", "node",
-            "gateway_group_id", "instance_id", "api_product_id",
-            unpack(extra_labels("http_status"))}, status_exptime)
+            append_tables(metric_label_map.status,
+            extra_labels("http_status")), status_exptime)
 
     local buckets = DEFAULT_BUCKETS
     if attr and attr.default_buckets then
@@ -193,15 +217,14 @@ function _M.http_init(prometheus_enabled_in_stream)
     end
     metrics.latency = prometheus:histogram("http_latency",
         "HTTP request latency in milliseconds per service in APISIX",
-        {"type", "route", "route_id", "service", "service_id", "consumer", "node",
-        "gateway_group_id", "instance_id", "api_product_id",unpack(extra_labels("http_latency"))},
+        append_tables(metric_label_map.latency,
+        extra_labels("http_latency")),
         buckets, latency_exptime)
 
     metrics.bandwidth = prometheus:counter("bandwidth",
             "Total bandwidth in bytes consumed per service in APISIX",
-            {"type", "route", "route_id", "service", "service_id", "consumer", "node",
-            "gateway_group_id", "instance_id", "api_product_id",
-            unpack(extra_labels("bandwidth"))}, bandwidth_exptime)
+            append_tables(metric_label_map.bandwidth,
+            extra_labels("bandwidth")), bandwidth_exptime)
 
     if prometheus_enabled_in_stream then
         init_stream_metrics()
@@ -243,7 +266,41 @@ local function get_gateway_group_id()
 end
 
 
+local function get_enabled_label_values_for_metric(metric_name, disabled_label_metric_map, ...)
+    local label_values = { ... }
+    local metric_labels = metric_label_map[metric_name]
+
+    if not metric_labels then
+        return { ... }
+    end
+
+    local disabled_labels = disabled_label_metric_map[metric_name] or {}
+
+    -- Iterate through the label values and update as needed.
+    -- There is 1:1 mapping between metric_labels as keys and label_values as values.
+    for i in ipairs(label_values) do
+        local label_name = metric_labels[i]
+        if label_name and disabled_labels[label_name] then
+            label_values[i] = ""
+        end
+    end
+
+    return label_values
+end
+
+
 function _M.http_log(conf, ctx)
+    local metadata = plugin.plugin_metadata(plugin_name)
+    core.log.info("metadata: ", core.json.delay_encode(metadata))
+    local disabled_labels = (metadata and metadata.value and metadata.value.disabled_labels) or {}
+    local disabled_label_metric_map = {}
+    for metric_name, disabled_labels_arr in pairs(disabled_labels) do
+        disabled_label_metric_map[metric_name] = {}
+        for _, label in ipairs(disabled_labels_arr) do
+            disabled_label_metric_map[metric_name][label] = true
+        end
+    end
+
     local vars = ctx.var
 
     local route_id = ""
@@ -279,36 +336,42 @@ function _M.http_log(conf, ctx)
     end
 
     metrics.status:inc(1,
-        gen_arr(vars.status, route, route_id, matched_uri, matched_host,
-                service, service_id, consumer_name, balancer_ip, gateway_group_id,
-                instance_id, api_product_id, unpack(extra_labels("http_status", ctx))))
+        append_tables(get_enabled_label_values_for_metric("status", disabled_label_metric_map,
+        vars.status, route, route_id, matched_uri, matched_host,
+        service, service_id, consumer_name, balancer_ip, gateway_group_id,
+        instance_id, api_product_id), extra_labels("http_status", ctx)))
 
     local latency, upstream_latency, apisix_latency = latency_details(ctx)
     local latency_extra_label_values = extra_labels("http_latency", ctx)
 
     metrics.latency:observe(latency,
-        gen_arr("request", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, api_product_id, unpack(latency_extra_label_values)))
+        append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
+        "request", route, route_id, service, service_id, consumer_name, balancer_ip,
+        gateway_group_id, instance_id, api_product_id), latency_extra_label_values))
 
     if upstream_latency then
         metrics.latency:observe(upstream_latency,
-            gen_arr("upstream", route, route_id, service, service_id, consumer_name, balancer_ip,
-            gateway_group_id, instance_id, api_product_id, unpack(latency_extra_label_values)))
+            append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
+            "upstream", route, route_id, service, service_id, consumer_name, balancer_ip,
+            gateway_group_id, instance_id, api_product_id), latency_extra_label_values))
     end
 
     metrics.latency:observe(apisix_latency,
-        gen_arr("apisix", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, api_product_id, unpack(latency_extra_label_values)))
+        append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
+        "apisix", route, route_id, service, service_id, consumer_name, balancer_ip,
+        gateway_group_id, instance_id, api_product_id), latency_extra_label_values))
 
     local bandwidth_extra_label_values = extra_labels("bandwidth", ctx)
 
     metrics.bandwidth:inc(vars.request_length,
-        gen_arr("ingress", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, api_product_id, unpack(bandwidth_extra_label_values)))
+        append_tables(get_enabled_label_values_for_metric("bandwidth", disabled_label_metric_map,
+        "ingress", route, route_id, service, service_id, consumer_name, balancer_ip,
+        gateway_group_id, instance_id, api_product_id), bandwidth_extra_label_values))
 
     metrics.bandwidth:inc(vars.bytes_sent,
-        gen_arr("egress", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, api_product_id, unpack(bandwidth_extra_label_values)))
+        append_tables(get_enabled_label_values_for_metric("bandwidth", disabled_label_metric_map,
+        "egress", route, route_id, service, service_id, consumer_name, balancer_ip,
+        gateway_group_id, instance_id, api_product_id), bandwidth_extra_label_values))
 end
 
 
