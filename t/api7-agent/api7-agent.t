@@ -201,9 +201,9 @@ api7ee:
 --- wait: 2
 --- error_log
 registered timer to send telemetry data to control plane
-metrics size is too large, truncating it
+metrics size is too large, truncated it
 receive data plane metrics
-metrics size: 117
+metrics size: 237
 upload metrics to control plane successfully
 
 

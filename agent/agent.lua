@@ -230,18 +230,16 @@ function _M.heartbeat(self, first)
 end
 
 
-local function iterator(tab, max_size)
+local function iterator(tab, last_index)
     local index = 0
-    local total = #tab
-    local size_until_now = 0
     return function()
         ::continue::
         index = index + 1
-        if index > total then
+        if index > (last_index + 1) then
             return
         end
 
-        if index == total then
+        if index == (last_index + 1) then
             return "0\r\n\r\n"
         end
 
@@ -249,29 +247,32 @@ local function iterator(tab, max_size)
         if not metric then
             goto continue
         end
-        local cur_size = #metric
-        if (size_until_now + cur_size) > max_size then -- skip sending this metric
-            -- set the current iteration to second last one
-            -- so that the last chunk is sent in next iteration
-            index = total - 1
-            goto continue
-        end
-        size_until_now = size_until_now + cur_size
-        return string.format("%x\r\n%s\r\n", cur_size, metric)
+        return string.format("%x\r\n%s\r\n", #metric, metric)
     end
 end
 
 
-local function get_metrics_total_size(metrics_tab)
+local function truncate_metrics(metrics_tab, max_size)
     local size = 0
+    local truncated = false
+    local last_index = 0
+
     for i, metric in ipairs(metrics_tab) do
-        if string.sub(metric, 1, 1) == "#" then
+        last_index = i
+        if truncated then
             metrics_tab[i] = nil
         else
-            size = size + #metric
+            if string.sub(metric, 1, 1) == "#" then
+                metrics_tab[i] = nil
+            else
+                size = size + #metric
+            end
+            if size > max_size then
+                truncated = true
+            end
         end
     end
-    return size
+    return truncated, last_index
 end
 
 
@@ -314,10 +315,9 @@ function _M.upload_metrics(self)
         ["Content-Type"] = "text/plain",
     }
 
-    local size = get_metrics_total_size(metrics_tab)
-    if size > self.telemetry.max_metrics_size then
-        core.log.warn("metrics size is too large, truncating it, size: ", size,
-                      ", after truncated: ", self.telemetry.max_metrics_size)
+    local truncated, last_index = truncate_metrics(metrics_tab, self.telemetry.max_metrics_size)
+    if truncated then
+        core.log.warn("metrics size is too large, truncated it to: ", self.telemetry.max_metrics_size)
         metrics_headers["X-Is-Truncated"] = true
     end
 
@@ -328,7 +328,7 @@ function _M.upload_metrics(self)
     self.ongoing_metrics_uploading = true
     local res, err = http_cli:request_uri(self.metrics_url, {
         method =  "POST",
-        body = iterator(metrics_tab, self.telemetry.max_metrics_size),
+        body = iterator(metrics_tab, last_index),
         headers = metrics_headers,
         keepalive = true,
         ssl_verify = false,
