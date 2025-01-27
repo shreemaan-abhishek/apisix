@@ -8,6 +8,9 @@ jobs:
   stress-test:
     if: |
       contains(github.event.pull_request.labels.*.name, 'ci-stress-testing')
+    strategy:
+      matrix:
+        target: [current, main, release]
     runs-on: ubuntu-latest
     steps:
       - name: Check out code
@@ -28,7 +31,7 @@ jobs:
           username: ${{ secrets.PRIVATE_DOCKER_USERNAME }}
           password: ${{ secrets.PRIVATE_DOCKER_PASSWORD }}
 
-      - name: Install wrk2 
+      - name: Install wrk2
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential libssl-dev git zlib1g-dev
@@ -42,23 +45,40 @@ jobs:
           sudo apt install -y sysstat curl
           yq --version
           pwd
+
+      - name: Prepare environment for branch
+        if: matrix.target == 'main'
+        run: |
+          git fetch origin main
+          git checkout main
+          rm -rf ./workbench
+          make init_apisix
+          make patch_apisix
+
+      - name: Prepare environment for release tag
+        if: matrix.target == 'release'
+        run: |
+          git fetch --tags
+          RELEASE_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          git checkout $RELEASE_TAG
+          rm -rf ./workbench
+          make init_apisix
+          make patch_apisix
+
       - name: Run stress test
         run: |
-          cd ci/stress-testing ; ./stress-testing.sh -t all -f /home/runner/work/output.json
-
-      - name: Upload test report
-        uses: actions/upload-artifact@v4
-        with:
-          name: stress-test-report
-          path: /home/runner/work/output.json
-
+          cd ci/stress-testing
+          ./stress-testing.sh -t all -f /home/runner/work/output.json
+  
       - name: Create markdown table
         run: |
-          echo '```json' > /home/runner/work/output.md
+          echo '# Results for target: ${{ matrix.target }}' > /home/runner/work/output.md
+          echo '```json' >> /home/runner/work/output.md
           cat /home/runner/work/output.json >> /home/runner/work/output.md
           echo '```' >> /home/runner/work/output.md
 
       - uses: mshick/add-pr-comment@v2
         with:
-         message-path: |
-           /home/runner/work/output.md
+          message-id: '${{ matrix.target }}'
+          message-path: |
+            /home/runner/work/output.md
