@@ -347,6 +347,13 @@ services:
     image: swaggerapi/petstore3:1.0.19
     ports:
       - '6969:8080'
+    
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib
+    volumes:
+    - ./ci/pod/otelcol-contrib:/etc/otelcol-contrib:rw
+    ports:
+      - '4318:4318'
 
 networks:
   apisix_net:

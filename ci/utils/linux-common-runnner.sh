@@ -74,6 +74,7 @@ install_module() {
     rm -f "${VAR_APISIX_HOME}/t/core/etcd-grpc-mtls.t"
     rm -f "${VAR_APISIX_HOME}/t/core/grpc.t"
     rm -f "${VAR_APISIX_HOME}/t/plugin/hmac-auth-custom.t"
+    rm -f "${VAR_APISIX_HOME}/t/plugin/opentelemetry-bugfix-pb-state.t"
     eval rm -f "${VAR_APISIX_HOME}/t/cli/test_etcd_grpc*"
     rm -f "${VAR_APISIX_HOME}/apisix/core/grpc.lua"
     cp -av "${VAR_CUR_HOME}/conf" "${VAR_APISIX_HOME}"
@@ -169,6 +170,9 @@ sed -i '/\.PHONY: stop/,/@\$(call func_echo_success_status, "\$@ -> \[ Done \]")
     rm -f "${VAR_APISIX_HOME}/t/deployment/conf_server.t"
     rm -f "${VAR_APISIX_HOME}/t/deployment/conf_server2.t"
     rm -f "${VAR_APISIX_HOME}/t/deployment/mtls.t"
+
+    touch "${VAR_APISIX_HOME}/ci/pod/otelcol-contrib/data-otlp.json"
+    chmod 777 "${VAR_APISIX_HOME}/ci/pod/otelcol-contrib/data-otlp.json"
 }
 
 start_sse_server_example() {

@@ -16,50 +16,23 @@
 #
 
 use t::APISIX 'no_plan';
-
 add_block_preprocessor(sub {
     my ($block) = @_;
 
     if (!$block->extra_yaml_config) {
         my $extra_yaml_config = <<_EOC_;
 plugins:
-    - example-plugin
-    - key-auth
     - opentelemetry
 _EOC_
         $block->set_value("extra_yaml_config", $extra_yaml_config);
     }
 
-
-    if (!$block->extra_init_by_lua) {
-        my $extra_init_by_lua = <<_EOC_;
--- mock exporter http client
-local client = require("opentelemetry.trace.exporter.http_client")
-client.do_request = function()
-    ngx.log(ngx.INFO, "opentelemetry export span")
-    return "ok"
-end
-local ctx_new = require("opentelemetry.context").new
-require("opentelemetry.context").new = function (...)
-    local ctx = ctx_new(...)
-    local current = ctx.current
-    ctx.current = function (...)
-        ngx.log(ngx.INFO, "opentelemetry context current")
-        return current(...)
-    end
-    return ctx
-end
-_EOC_
-
-        $block->set_value("extra_init_by_lua", $extra_init_by_lua);
-    }
-
-    if (!$block->request) {
-        $block->set_value("request", "GET /t");
-    }
-
     $block;
 });
+repeat_each(1);
+no_long_string();
+no_root_location();
+log_level("debug");
 
 run_tests;
 
@@ -76,16 +49,27 @@ __DATA__
                     "batch_span_processor": {
                         "max_export_batch_size": 1,
                         "inactive_timeout": 0.5
+                    },
+                    "trace_id_source": "x-request-id",
+                    "collector": {
+                        "address": "127.0.0.1:4318",
+                        "request_timeout": 3,
+                        "request_headers": {
+                            "foo": "bar"
+                        }
                     }
                 }]]
                 )
-
             if code >= 300 then
                 ngx.status = code
             end
             ngx.say(body)
         }
     }
+--- request
+GET /t
+--- response_body
+passed
 
 
 
@@ -124,6 +108,8 @@ __DATA__
             ngx.say(body)
         }
     }
+--- request
+GET /t
 --- response_body
 passed
 
@@ -143,10 +129,6 @@ passed
         local attributes = {}
         local span = spans[1]
         for _, attribute in ipairs(span.attributes) do
-            if attribute.key == "hostname" then
-                -- remove any randomness
-                goto skip
-            end
             table.insert(attributes_names, attribute.key)
             attributes[attribute.key] = attribute.value.string_value or ""
             ::skip::
@@ -198,14 +180,16 @@ passed
             ngx.status = res.status
         }
     }
+--- request
+GET /t
 --- wait: 1
 --- error_code: 200
 --- no_error_log
 type 'opentelemetry.proto.trace.v1.TracesData' does not exists
 --- grep_error_log eval
-qr/attribute .+?:.[^,]*/
+qr/attribute (apisix|x-my).+?:.[^,]*/
 --- grep_error_log_out
-attribute route: "route_name"
-attribute service: ""
+attribute apisix.route_id: "1"
+attribute apisix.route_name: "route_name"
 attribute x-my-header-name: "william"
 attribute x-my-header-nick: "bill"
