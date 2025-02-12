@@ -40,14 +40,8 @@ function _M.init_worker()
                 if not plugin_pkg then
                     plugin_pkg = require("apisix.plugin")
                 end
-
                 if item.value and item.value.name then
-                    local content = ngx_decode_base64(item.value.content)
-                    if not content then
-                        content = item.value.content
-                    end
-                    local plugin_func = load(content, item.value.name)
-                    plugin_pkg.refresh_plugin(item.value.name, nil, plugin_func and plugin_func(), true)
+                    plugin_pkg.refresh_plugin(item.value.name, nil, nil, true)
                 end
             end
         })
