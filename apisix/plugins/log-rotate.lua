@@ -315,7 +315,10 @@ end
 
 
 function _M.init()
-    timers.register_timer("plugin#log-rotate", rotate, true)
+    local attr = plugin.plugin_attr(plugin_name)
+    if attr and attr.enable then
+        timers.register_timer("plugin#log-rotate", rotate, true)
+    end
 end
 
 

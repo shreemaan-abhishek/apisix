@@ -31,6 +31,7 @@ plugins:                          # plugin list
 
 plugin_attr:
   log-rotate:
+    enable: true
     interval: 1
     max_kept: 3
 _EOC_

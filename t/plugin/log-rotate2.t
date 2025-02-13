@@ -31,6 +31,7 @@ plugins:
   - log-rotate
 plugin_attr:
   log-rotate:
+    enable: true
     interval: 1
     max_kept: 3
     enable_compression: true
@@ -144,6 +145,7 @@ plugins:
   - log-rotate
 plugin_attr:
   log-rotate:
+    enable: true
     interval: 3600
     max_kept: 1
 --- config
@@ -181,6 +183,7 @@ plugins:
   - log-rotate
 plugin_attr:
   log-rotate:
+    enable: true
     interval: 1
     max_kept: 1
     enable_compression: true
