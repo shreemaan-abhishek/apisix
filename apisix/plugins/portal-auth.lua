@@ -6,6 +6,7 @@ local ipairs = ipairs
 
 local plugin = require("apisix.plugin")
 local key_auth = require("apisix.plugins.key-auth")
+local basic_auth = require("apisix.plugins.basic-auth")
 
 local schema = {
     type = "object",
@@ -20,12 +21,17 @@ local schema = {
             type = "array",
             minItems = 1,
             items = {
-                type = "object",
-                properties = {
-                    ["key-auth"] = key_auth.schema
-                },
                 oneOf = {
-                    { required = { "key-auth" } }
+                    {
+                        type = "object",
+                        properties = { ["key-auth"] = key_auth.schema },
+                        required = { "key-auth" }
+                    },
+                    {
+                        type = "object",
+                        properties = { ["basic-auth"] = basic_auth.schema },
+                        required = { "basic-auth" }
+                    }
                 }
             },
             uniqueItems = true,
