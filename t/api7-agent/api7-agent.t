@@ -6,15 +6,18 @@ no_root_location();
 
 add_block_preprocessor(sub {
     my ($block) = @_;
-    my $extra_init_by_lua_start = <<_EOC_;
+
+    if (!defined $block->extra_init_by_lua_start) {
+        my $extra_init_by_lua_start = <<_EOC_;
 require "agent.hook";
 _EOC_
-
-    $block->set_value("extra_init_by_lua_start", $extra_init_by_lua_start);
+        $block->set_value("extra_init_by_lua_start", $extra_init_by_lua_start);
+    }
 
     my $extra_init_by_lua = <<_EOC_;
     local server = require("lib.server")
     server.api_dataplane_heartbeat = function()
+        local core = require("apisix.core")
         ngx.req.read_body()
         local data = ngx.req.get_body_data()
         ngx.log(ngx.NOTICE, "receive data plane heartbeat: ", data)
@@ -47,6 +50,14 @@ _EOC_
             return ngx.exit(400)
         end
 
+        if payload.version == "3.1.1" then
+            ngx.status = 403
+            ngx.say(core.json.encode({
+                error = "gateway version not supported",
+            }))
+            return ngx.exit(403)
+        end
+
         local resp_payload = {
             config = {
                 config_version = 1,
@@ -59,8 +70,6 @@ _EOC_
                 }
             }
         }
-
-        local core = require("apisix.core")
         ngx.say(core.json.encode(resp_payload))
     end
 
@@ -420,3 +429,39 @@ api7ee:
 --- log_level: info
 --- error_log
 conf for etcd updated, the extra header Gateway-Instance-ID: ba5fe070
+
+
+
+=== TEST 12: request etcd with Gateway-Version header
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("ok")
+        }
+    }
+--- log_level: info
+--- error_log
+"Gateway-Version":"3.2.2"
+
+
+
+=== TEST 13: incompatible with the control plane version
+--- extra_init_by_lua_start
+    require("apisix.core.version").VERSION = "3.1.1"
+    require "agent.hook";
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("ok")
+        }
+    }
+--- error_log
+gateway version not supported

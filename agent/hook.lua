@@ -25,9 +25,11 @@ end
 local AUTH_HEADER = "Control-Plane-Token"
 local GATEWAY_INSTANCE_ID_HEADER = "Gateway-Instance-ID"
 local RUN_ID_HEADER = "Gateway-Run-ID"
+local GATEWAY_VERSION_HEADER = "Gateway-Version"
 
 local id = require("apisix.core.id")
 local run_id
+local gateway_version = require("apisix.core.version").VERSION
 
 local function update_conf_for_etcd(etcd_conf)
     if not etcd_conf then
@@ -57,6 +59,7 @@ local function update_conf_for_etcd(etcd_conf)
     if run_id then
         etcd_conf.extra_headers[RUN_ID_HEADER] = run_id
     end
+    etcd_conf.extra_headers[GATEWAY_VERSION_HEADER] = gateway_version
 
     return etcd_conf
 end
