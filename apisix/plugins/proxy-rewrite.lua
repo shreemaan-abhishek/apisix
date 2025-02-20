@@ -135,6 +135,11 @@ local schema = {
             },
 
         },
+        set_ngx_uri = {
+            description = "set the value of ngx.var.uri to the new uri",
+            type        = "boolean",
+            default     = false,
+        },
         use_real_request_uri_unsafe = {
             description = "use real_request_uri instead, THIS IS VERY UNSAFE.",
             type        = "boolean",
@@ -340,7 +345,9 @@ function _M.rewrite(conf, ctx)
             upstream_uri = core.utils.uri_safe_encode(upstream_uri)
         end
 
-        req_set_uri(upstream_uri)
+        if conf.set_ngx_uri then
+            req_set_uri(upstream_uri)
+        end
 
         if ctx.var.is_args == "?" then
             if index then

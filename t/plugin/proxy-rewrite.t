@@ -1000,7 +1000,7 @@ q: apisix)
 --- request
 GET /t
 --- response_body
-{"proxy-rewrite":{"headers":{"X-Api":"v2"},"uri":"/uri/plugin_proxy_rewrite","use_real_request_uri_unsafe":false}}
+{"proxy-rewrite":{"headers":{"X-Api":"v2"},"set_ngx_uri":false,"uri":"/uri/plugin_proxy_rewrite","use_real_request_uri_unsafe":false}}
 
 
 
@@ -1192,7 +1192,8 @@ done
                         "plugins": {
                             "proxy-rewrite": {
                                 "uri": "/uri",
-                                "host": "test.com:6443"
+                                "host": "test.com:6443",
+                                "set_ngx_uri": true
                             },
                             "serverless-post-function": {
                                 "phase": "access",
@@ -1225,6 +1226,60 @@ passed
 
 
 === TEST 44: rewrite host with port
+--- request
+GET /hello
+--- response_body
+uri: /uri
+host: test.com:6443
+x-real-ip: 127.0.0.1
+
+
+
+=== TEST 45: set route(rewrite host with port)
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "methods": ["GET"],
+                        "plugins": {
+                            "proxy-rewrite": {
+                                "uri": "/uri",
+                                "host": "test.com:6443"
+                            },
+                            "serverless-post-function": {
+                                "phase": "access",
+                                "functions" : ["return function(conf, ctx)
+                                    assert(ngx.var.uri == \"/hello\", \"proxy-rewrite do not call ngx.req.set_uri\")
+                                end"]
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/hello"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 46: rewrite host with port
 --- request
 GET /hello
 --- response_body
