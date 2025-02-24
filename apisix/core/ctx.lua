@@ -192,6 +192,7 @@ do
         request_line               = true,
         apisix_request_id          = true,
 
+        upstream_mirror_host       = true,
         upstream_mirror_uri        = true,
 
         upstream_cache_zone        = true,
