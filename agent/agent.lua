@@ -178,7 +178,7 @@ function _M.heartbeat(self, first)
 
     if res.status ~= 200 then
         if res.status == 403 then
-            local resp_body = core.json.decode(res.body)
+            local resp_body = utils.parse_resp(res.body)
             local resp_err_msg = resp_body and resp_body.error_msg or res.body
             local err_msg = "control plane access denied, error mssage: " .. resp_err_msg
             if first then
