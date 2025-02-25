@@ -53,7 +53,7 @@ _EOC_
         if payload.version == "3.1.1" then
             ngx.status = 403
             ngx.say(core.json.encode({
-                error = "gateway version not supported",
+                error_msg = "gateway version not supported",
             }))
             return ngx.exit(403)
         end
@@ -464,4 +464,4 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
         }
     }
 --- error_log
-gateway version not supported
+heartbeat(): control plane access denied, error mssage: gateway version not supported
