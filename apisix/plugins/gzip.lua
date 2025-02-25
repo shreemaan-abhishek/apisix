@@ -89,7 +89,7 @@ local plugin_name = "gzip"
 
 local _M = {
     version = 0.1,
-    priority = 995,
+    priority = 994,
     name = plugin_name,
     schema = schema,
 }

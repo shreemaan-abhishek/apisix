@@ -484,8 +484,8 @@ plugins:                          # plugin list (sorted by priority)
   - limit-req                      # priority: 999
   #- node-status                   # priority: 998
   - "ai-proxy"                     # priority: 997
-  - traffic-label                  # priority: 996
-  - gzip                           # priority: 995
+  - traffic-label                  # priority: 995
+  - gzip                           # priority: 994
   - server-info                    # priority: 990
   - api7-traffic-split             # priority: 966
   - traffic-split                  # priority: 966
