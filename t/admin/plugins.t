@@ -111,6 +111,7 @@ limit-count
 limit-count-advanced
 limit-req
 ai-proxy
+ai-proxy-multi
 traffic-label
 gzip
 server-info
