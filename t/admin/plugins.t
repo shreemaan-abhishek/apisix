@@ -99,6 +99,7 @@ proxy-cache
 body-transformer
 ai-prompt-template
 ai-prompt-decorator
+ai-rag
 proxy-mirror
 graphql-proxy-cache
 proxy-rewrite
