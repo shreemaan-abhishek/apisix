@@ -80,7 +80,7 @@ dependencies = {
     "lua-resty-mediador = 0.1.2-1",
     "lua-resty-ldap = 0.1.0-0",
     "jsonpath = 1.0-1",
-    "api7-lua-resty-aws == 2.0.1-1",
+    "api7-lua-resty-aws == 2.0.2-1",
     "lua-ffi-zlib = 0.6-0",
     "multipart = 0.5.9-1",
 }

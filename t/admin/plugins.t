@@ -100,6 +100,7 @@ body-transformer
 ai-prompt-template
 ai-prompt-decorator
 ai-rag
+ai-content-moderation
 proxy-mirror
 graphql-proxy-cache
 proxy-rewrite
