@@ -72,6 +72,7 @@ add_block_preprocessor(sub {
                 }
             }
 
+
             location /test/params/in/overridden/endpoint {
                 content_by_lua_block {
                     local json = require("cjson.safe")
@@ -116,18 +117,16 @@ __DATA__
                     "uri": "/anything",
                     "plugins": {
                         "ai-proxy": {
+                            "provider": "openai",
                             "auth": {
                                 "query": {
                                     "api_key": "wrong_key"
                                 }
                             },
-                            "model": {
-                                "provider": "openai",
-                                "name": "gpt-35-turbo-instruct",
-                                "options": {
-                                    "max_tokens": 512,
-                                    "temperature": 1.0
-                                }
+                            "options": {
+                                "model": "gpt-35-turbo-instruct",
+                                "max_tokens": 512,
+                                "temperature": 1.0
                             },
                             "override": {
                                 "endpoint": "http://localhost:6724"
@@ -176,18 +175,16 @@ Unauthorized
                     "uri": "/anything",
                     "plugins": {
                         "ai-proxy": {
+                            "provider": "openai",
                             "auth": {
                                 "query": {
                                     "api_key": "apikey"
                                 }
                             },
-                            "model": {
-                                "provider": "openai",
-                                "name": "gpt-35-turbo-instruct",
-                                "options": {
-                                    "max_tokens": 512,
-                                    "temperature": 1.0
-                                }
+                            "options": {
+                                "model": "gpt-35-turbo-instruct",
+                                "max_tokens": 512,
+                                "temperature": 1.0
                             },
                             "override": {
                                 "endpoint": "http://localhost:6724"
@@ -225,29 +222,7 @@ passed
 
 
 
-=== TEST 5: control api schema GET
---- config
-location /t {
-    content_by_lua_block {
-        local t = require("lib.test_admin")
-        local json = require("apisix.core.json")
-
-        local code, body, res = t.test('/v1/schema',
-            ngx.HTTP_GET)
-        local res_tab = json.decode(res)
-        ngx.say(res_tab.plugins["ai-proxy"].schema ~= nil)
-        ngx.say(res_tab.plugins["ai-proxy"].plugin_schema == nil)
-    }
-}
---- request
-GET /t
---- response_body
-true
-true
-
-
-
-=== TEST 6: set route without overriding the endpoint_url
+=== TEST 5: set route without overriding the endpoint_url
 --- config
     location /t {
         content_by_lua_block {
@@ -258,18 +233,16 @@ true
                     "uri": "/anything",
                     "plugins": {
                         "ai-proxy": {
+                            "provider": "openai",
                             "auth": {
                                 "header": {
                                     "Authorization": "some-key"
                                 }
                             },
-                            "model": {
-                                "provider": "openai",
-                                "name": "gpt-4",
-                                "options": {
-                                    "max_tokens": 512,
-                                    "temperature": 1.0
-                                }
+                            "options": {
+                                "model": "gpt-4",
+                                "max_tokens": 512,
+                                "temperature": 1.0
                             }
                         }
                     },
@@ -281,6 +254,7 @@ true
                     }
                 }]]
             )
+
             if code >= 300 then
                 ngx.status = code
             end
@@ -292,7 +266,7 @@ passed
 
 
 
-=== TEST 7: send request
+=== TEST 6: send request
 --- custom_trusted_cert: /etc/ssl/certs/ca-certificates.crt
 --- request
 POST /anything
@@ -301,7 +275,7 @@ POST /anything
 
 
 
-=== TEST 8: query params in override.endpoint should be sent to LLM
+=== TEST 7: query params in override.endpoint should be sent to LLM
 --- config
     location /t {
         content_by_lua_block {
@@ -312,18 +286,15 @@ POST /anything
                     "uri": "/anything",
                     "plugins": {
                         "ai-proxy": {
+                            "provider": "openai",
                             "auth": {
                                 "query": {
                                     "api_key": "apikey"
                                 }
                             },
-                            "model": {
-                                "provider": "openai",
-                                "name": "gpt-35-turbo-instruct",
-                                "options": {
-                                    "max_tokens": 512,
-                                    "temperature": 1.0
-                                }
+                            "options": {
+                                "max_tokens": 512,
+                                "temperature": 1.0
                             },
                             "override": {
                                 "endpoint": "http://localhost:6724/test/params/in/overridden/endpoint?some_query=yes"
@@ -351,7 +322,7 @@ passed
 
 
 
-=== TEST 9: send request
+=== TEST 8: send request
 --- request
 POST /anything
 { "messages": [ { "role": "system", "content": "You are a mathematician" }, { "role": "user", "content": "What is 1+1?"} ] }

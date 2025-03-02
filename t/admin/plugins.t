@@ -101,6 +101,8 @@ ai-prompt-template
 ai-prompt-decorator
 ai-rag
 ai-content-moderation
+ai-proxy-multi
+ai-proxy
 proxy-mirror
 graphql-proxy-cache
 proxy-rewrite
@@ -111,8 +113,6 @@ limit-conn
 limit-count
 limit-count-advanced
 limit-req
-ai-proxy
-ai-proxy-multi
 traffic-label
 gzip
 server-info

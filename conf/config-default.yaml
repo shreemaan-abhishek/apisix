@@ -472,8 +472,10 @@ plugins:                          # plugin list (sorted by priority)
   - body-transformer               # priority: 1080
   - ai-prompt-template             # priority: 1071
   - ai-prompt-decorator            # priority: 1070
-  - ai-content-moderation          # priority: 1040
   - ai-rag                         # priority: 1060
+  - ai-content-moderation          # priority: 1050
+  - ai-proxy-multi                 # priority: 1041
+  - ai-proxy                       # priority: 1040
   - proxy-mirror                   # priority: 1010
   - graphql-proxy-cache            # priority: 1009
   - proxy-rewrite                  # priority: 1008
@@ -485,8 +487,6 @@ plugins:                          # plugin list (sorted by priority)
   - limit-count-advanced           # priority: 1001
   - limit-req                      # priority: 999
   #- node-status                   # priority: 998
-  - "ai-proxy"                     # priority: 997
-  - "ai-proxy-multi"               # priority: 996
   - traffic-label                  # priority: 995
   - gzip                           # priority: 994
   - server-info                    # priority: 990

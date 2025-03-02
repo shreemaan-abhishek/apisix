@@ -14,11 +14,31 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
+local _M = {}
 
-return require("apisix.plugins.ai-drivers.openai-base").new(
-    {
-        host = "api.deepseek.com",
-        path = "/chat/completions",
-        port = 443
-    }
-)
+_M.chat_request_schema = {
+    type = "object",
+    properties = {
+        messages = {
+            type = "array",
+            minItems = 1,
+            items = {
+                properties = {
+                    role = {
+                        type = "string",
+                        enum = {"system", "user", "assistant"}
+                    },
+                    content = {
+                        type = "string",
+                        minLength = "1",
+                    },
+                },
+                additionalProperties = false,
+                required = {"role", "content"},
+            },
+        }
+    },
+    required = {"messages"}
+}
+
+return  _M

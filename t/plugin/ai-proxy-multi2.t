@@ -123,10 +123,10 @@ __DATA__
                     "uri": "/anything",
                     "plugins": {
                         "ai-proxy-multi": {
-                            "providers": [
+                            "instances": [
                                 {
-                                    "name": "openai",
-                                    "model": "gpt-35-turbo-instruct",
+                                    "name": "openai-official",
+                                    "provider": "openai",
                                     "weight": 1,
                                     "auth": {
                                         "query": {
@@ -134,6 +134,7 @@ __DATA__
                                         }
                                     },
                                     "options": {
+                                        "model": "gpt-35-turbo-instruct",
                                         "max_tokens": 512,
                                         "temperature": 1.0
                                     },
@@ -186,10 +187,10 @@ Unauthorized
                     "uri": "/anything",
                     "plugins": {
                         "ai-proxy-multi": {
-                            "providers": [
+                            "instances": [
                                 {
-                                    "name": "openai",
-                                    "model": "gpt-35-turbo-instruct",
+                                    "name": "openai-official",
+                                    "provider": "openai",
                                     "weight": 1,
                                     "auth": {
                                         "query": {
@@ -197,6 +198,7 @@ Unauthorized
                                         }
                                     },
                                     "options": {
+                                        "model": "gpt-35-turbo-instruct",
                                         "max_tokens": 512,
                                         "temperature": 1.0
                                     },
@@ -249,10 +251,10 @@ passed
                     "uri": "/anything",
                     "plugins": {
                         "ai-proxy-multi": {
-                            "providers": [
+                            "instances": [
                                 {
-                                    "name": "openai",
-                                    "model": "gpt-35-turbo-instruct",
+                                    "name": "openai-official",
+                                    "provider": "openai",
                                     "weight": 1,
                                     "auth": {
                                         "header": {
@@ -260,6 +262,7 @@ passed
                                         }
                                     },
                                     "options": {
+                                        "model": "gpt-35-turbo-instruct",
                                         "max_tokens": 512,
                                         "temperature": 1.0
                                     }
@@ -308,10 +311,10 @@ POST /anything
                     "uri": "/anything",
                     "plugins": {
                         "ai-proxy-multi": {
-                            "providers": [
+                            "instances": [
                                 {
-                                    "name": "openai",
-                                    "model": "gpt-35-turbo-instruct",
+                                    "name": "openai-official",
+                                    "provider": "openai",
                                     "weight": 1,
                                     "auth": {
                                         "query": {
@@ -319,6 +322,7 @@ POST /anything
                                         }
                                     },
                                     "options": {
+                                        "model": "gpt-35-turbo-instruct",
                                         "max_tokens": 512,
                                         "temperature": 1.0
                                     },

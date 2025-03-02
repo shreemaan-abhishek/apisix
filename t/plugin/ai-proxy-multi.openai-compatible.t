@@ -64,6 +64,18 @@ _EOC_
                     local body, err = ngx.req.get_body_data()
                     body, err = json.decode(body)
 
+                    local test_type = ngx.req.get_headers()["test-type"]
+                    if test_type == "options" then
+                        if body.foo == "bar" then
+                            ngx.status = 200
+                            ngx.say("options works")
+                        else
+                            ngx.status = 500
+                            ngx.say("model options feature doesn't work")
+                        end
+                        return
+                    end
+
                     local header_auth = ngx.req.get_headers()["authorization"]
                     local query_auth = ngx.req.get_uri_args()["apikey"]
 
@@ -84,8 +96,13 @@ _EOC_
                             return
                         end
 
+                        if body.messages[1].content == "write an SQL query to get all rows from student table" then
+                            ngx.print("SELECT * FROM STUDENTS")
+                            return
+                        end
+
                         ngx.status = 200
-                        ngx.print("openai")
+                        ngx.say([[$resp]])
                         return
                     end
 
@@ -95,46 +112,9 @@ _EOC_
                 }
             }
 
-            location /chat/completions {
+            location /random {
                 content_by_lua_block {
-                    local json = require("cjson.safe")
-
-                    if ngx.req.get_method() ~= "POST" then
-                        ngx.status = 400
-                        ngx.say("Unsupported request method: ", ngx.req.get_method())
-                    end
-                    ngx.req.read_body()
-                    local body, err = ngx.req.get_body_data()
-                    body, err = json.decode(body)
-
-                    local header_auth = ngx.req.get_headers()["authorization"]
-                    local query_auth = ngx.req.get_uri_args()["apikey"]
-
-                    if header_auth ~= "Bearer token" and query_auth ~= "apikey" then
-                        ngx.status = 401
-                        ngx.say("Unauthorized")
-                        return
-                    end
-
-                    if header_auth == "Bearer token" or query_auth == "apikey" then
-                        ngx.req.read_body()
-                        local body, err = ngx.req.get_body_data()
-                        body, err = json.decode(body)
-
-                        if not body.messages or #body.messages < 1 then
-                            ngx.status = 400
-                            ngx.say([[{ "error": "bad request"}]])
-                            return
-                        end
-
-                        ngx.status = 200
-                        ngx.print("deepseek")
-                        return
-                    end
-
-
-                    ngx.status = 503
-                    ngx.say("reached the end of the test suite")
+                    ngx.say("path override works")
                 }
             }
         }
@@ -147,7 +127,7 @@ run_tests();
 
 __DATA__
 
-=== TEST 1: set route with roundrobin balancer, weight 4 and 1
+=== TEST 1: set route with right auth header
 --- config
     location /t {
         content_by_lua_block {
@@ -160,26 +140,8 @@ __DATA__
                         "ai-proxy-multi": {
                             "instances": [
                                 {
-                                    "name": "openai",
-                                    "provider": "openai",
-                                    "weight": 4,
-                                    "auth": {
-                                        "header": {
-                                            "Authorization": "Bearer token"
-                                        }
-                                    },
-                                    "options": {
-                                        "model": "gpt-4",
-                                        "max_tokens": 512,
-                                        "temperature": 1.0
-                                    },
-                                    "override": {
-                                        "endpoint": "http://localhost:6724"
-                                    }
-                                },
-                                {
-                                    "name": "deepseek",
-                                    "provider": "deepseek",
+                                    "name": "self-hosted",
+                                    "provider": "openai-compatible",
                                     "weight": 1,
                                     "auth": {
                                         "header": {
@@ -187,12 +149,12 @@ __DATA__
                                         }
                                     },
                                     "options": {
-                                        "model": "deepseek-chat",
+                                        "model": "custom",
                                         "max_tokens": 512,
                                         "temperature": 1.0
                                     },
                                     "override": {
-                                        "endpoint": "http://localhost:6724/chat/completions"
+                                        "endpoint": "http://localhost:6724/v1/chat/completions"
                                     }
                                 }
                             ],
@@ -219,40 +181,19 @@ passed
 
 
 
-=== TEST 2: test
---- config
-    location /t {
-        content_by_lua_block {
-            local http = require "resty.http"
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port
-                        .. "/anything"
-
-            local restab = {}
-
-            local body = [[{ "messages": [ { "role": "system", "content": "You are a mathematician" }, { "role": "user", "content": "What is 1+1?"} ] }]]
-            for i = 1, 10 do
-                local httpc = http.new()
-                local res, err = httpc:request_uri(uri, {method = "POST", body = body})
-                if not res then
-                    ngx.say(err)
-                    return
-                end
-                table.insert(restab, res.body)
-            end
-
-            table.sort(restab)
-            ngx.log(ngx.WARN, "test picked instances: ", table.concat(restab, "."))
-
-        }
-    }
+=== TEST 2: send request
 --- request
-GET /t
---- error_log
-deepseek.deepseek.openai.openai.openai.openai.openai.openai.openai.openai
+POST /anything
+{ "messages": [ { "role": "system", "content": "You are a mathematician" }, { "role": "user", "content": "What is 1+1?"} ] }
+--- more_headers
+Authorization: Bearer token
+--- error_code: 200
+--- response_body eval
+qr/\{ "content": "1 \+ 1 = 2\.", "role": "assistant" \}/
 
 
 
-=== TEST 3: set route with chash balancer, weight 4 and 1
+=== TEST 3: set route with stream = true (SSE)
 --- config
     location /t {
         content_by_lua_block {
@@ -263,33 +204,10 @@ deepseek.deepseek.openai.openai.openai.openai.openai.openai.openai.openai
                     "uri": "/anything",
                     "plugins": {
                         "ai-proxy-multi": {
-                            "balancer": {
-                                "algorithm": "chash",
-                                "hash_on": "vars",
-                                "key": "query_string"
-                            },
                             "instances": [
                                 {
-                                    "name": "openai",
-                                    "provider": "openai",
-                                    "weight": 4,
-                                    "auth": {
-                                        "header": {
-                                            "Authorization": "Bearer token"
-                                        }
-                                    },
-                                    "options": {
-                                        "model": "gpt-4",
-                                        "max_tokens": 512,
-                                        "temperature": 1.0
-                                    },
-                                    "override": {
-                                        "endpoint": "http://localhost:6724"
-                                    }
-                                },
-                                {
-                                    "name": "deepseek",
-                                    "provider": "deepseek",
+                                    "name": "self-hosted",
+                                    "provider": "openai-compatible",
                                     "weight": 1,
                                     "auth": {
                                         "header": {
@@ -297,12 +215,13 @@ deepseek.deepseek.openai.openai.openai.openai.openai.openai.openai.openai
                                         }
                                     },
                                     "options": {
-                                        "model": "deepseek-chat",
+                                        "model": "custom-instruct",
                                         "max_tokens": 512,
-                                        "temperature": 1.0
+                                        "temperature": 1.0,
+                                        "stream": true
                                     },
                                     "override": {
-                                        "endpoint": "http://localhost:6724/chat/completions"
+                                        "endpoint": "http://localhost:7737/v1/chat/completions"
                                     }
                                 }
                             ],
@@ -315,7 +234,7 @@ deepseek.deepseek.openai.openai.openai.openai.openai.openai.openai.openai
                             "canbeanything.com": 1
                         }
                     }
-                }]]
+                 }]]
             )
 
             if code >= 300 then
@@ -329,44 +248,61 @@ passed
 
 
 
-=== TEST 4: test
+=== TEST 4: test is SSE works as expected
 --- config
     location /t {
         content_by_lua_block {
-            local http = require "resty.http"
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port
-                        .. "/anything"
+            local http = require("resty.http")
+            local httpc = http.new()
+            local core = require("apisix.core")
 
-            local restab = {}
+            local ok, err = httpc:connect({
+                scheme = "http",
+                host = "localhost",
+                port = ngx.var.server_port,
+            })
 
-            local body = [[{ "messages": [ { "role": "system", "content": "You are a mathematician" }, { "role": "user", "content": "What is 1+1?"} ] }]]
-            for i = 1, 10 do
-                local httpc = http.new()
-                local query = {
-                    index = i
-                }
-                local res, err = httpc:request_uri(uri, {method = "POST", body = body, query = query})
-                if not res then
-                    ngx.say(err)
-                    return
+            if not ok then
+                ngx.status = 500
+                ngx.say(err)
+                return
+            end
+
+            local params = {
+                method = "POST",
+                headers = {
+                    ["Content-Type"] = "application/json",
+                },
+                path = "/anything",
+                body = [[{
+                    "messages": [
+                        { "role": "system", "content": "some content" }
+                    ]
+                }]],
+            }
+
+            local res, err = httpc:request(params)
+            if not res then
+                ngx.status = 500
+                ngx.say(err)
+                return
+            end
+
+            local final_res = {}
+            while true do
+                local chunk, err = res.body_reader() -- will read chunk by chunk
+                if err then
+                    core.log.error("failed to read response chunk: ", err)
+                    break
                 end
-                table.insert(restab, res.body)
+                if not chunk then
+                    break
+                end
+                core.table.insert_tail(final_res, chunk)
             end
 
-            local count = {}
-            for _, value in ipairs(restab) do
-                count[value] = (count[value] or 0) + 1
-            end
-
-            for p, num in pairs(count) do
-                ngx.log(ngx.WARN, "distribution: ", p, ": ", num)
-            end
-
+            ngx.print(#final_res .. final_res[6])
         }
     }
---- request
-GET /t
---- timeout: 10
---- error_log
-distribution: deepseek: 2
-distribution: openai: 8
+--- response_body_like eval
+qr/6data: \[DONE\]\n\n/

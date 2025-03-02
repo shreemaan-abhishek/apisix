@@ -90,7 +90,7 @@ local schema = {
 
 local _M = {
     version  = 0.1,
-    priority = 1040, -- TODO: might change
+    priority = 1050,
     name     = "ai-content-moderation",
     schema   = schema,
 }
