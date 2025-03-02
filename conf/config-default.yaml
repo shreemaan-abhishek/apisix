@@ -244,6 +244,8 @@ nginx_config:                     # config for render the template to generate n
       plugin-limit-conn: 10m
       plugin-graphql-limit-count: 10m
       plugin-graphql-limit-count-reset-header: 10m
+      plugin-ai-rate-limiting: 10m
+      plugin-ai-rate-limiting-reset-header: 10m
       upstream-healthcheck: 10m
       worker-events: 10m
       lrucache-lock: 10m
@@ -476,6 +478,7 @@ plugins:                          # plugin list (sorted by priority)
   - ai-content-moderation          # priority: 1050
   - ai-proxy-multi                 # priority: 1041
   - ai-proxy                       # priority: 1040
+  - ai-rate-limiting               # priority: 1030
   - proxy-mirror                   # priority: 1010
   - graphql-proxy-cache            # priority: 1009
   - proxy-rewrite                  # priority: 1008

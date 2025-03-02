@@ -103,6 +103,7 @@ ai-rag
 ai-content-moderation
 ai-proxy-multi
 ai-proxy
+ai-rate-limiting
 proxy-mirror
 graphql-proxy-cache
 proxy-rewrite

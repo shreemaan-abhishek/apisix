@@ -367,6 +367,18 @@ http {
     lua_shared_dict plugin-limit-count 10m;
     {% end %}
 
+    {% if http.lua_shared_dict["plugin-ai-rate-limiting"] then %}
+    lua_shared_dict plugin-ai-rate-limiting {* http.lua_shared_dict["plugin-ai-rate-limiting"] *};
+    {% else %}
+    lua_shared_dict plugin-ai-rate-limiting 10m;
+    {% end %}
+
+    {% if http.lua_shared_dict["plugin-ai-rate-limiting"] then %}
+    lua_shared_dict plugin-ai-rate-limiting-reset-header {* http.lua_shared_dict["plugin-ai-rate-limiting-reset-header"] *};
+    {% else %}
+    lua_shared_dict plugin-ai-rate-limiting-reset-header 10m;
+    {% end %}
+
     {% if http.lua_shared_dict["plugin-limit-count-redis-cluster-slot-lock"] then %}
     lua_shared_dict plugin-limit-count-redis-cluster-slot-lock {* http.lua_shared_dict["plugin-limit-count-redis-cluster-slot-lock"] *};
     {% else %}

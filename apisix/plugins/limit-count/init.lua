@@ -20,6 +20,7 @@ local tab_insert = table.insert
 local tab_concat = table.concat
 local pairs = pairs
 local select = select
+local get_phase = ngx.get_phase
 
 local NO_DELAYED_SYNC = -1
 
@@ -323,8 +324,9 @@ local function gen_limit_obj(conf, ctx, plugin_name)
     return core.lrucache.plugin_ctx(lrucache, ctx, key, create_limit_obj, conf, plugin_name)
 end
 
-function _M.rate_limit(conf, ctx, name, cost)
+function _M.rate_limit(conf, ctx, name, cost, dry_run)
     core.log.info("ver: ", ctx.conf_version)
+    core.log.info("conf: ", core.json.delay_encode(conf, true))
 
     local lim, err = gen_limit_obj(conf, ctx, name)
 
@@ -366,7 +368,7 @@ function _M.rate_limit(conf, ctx, name, cost)
 
     local delay, remaining, reset
     if not conf.policy or conf.policy == "local" then
-        delay, remaining, reset = lim:incoming(key, true, conf, cost)
+        delay, remaining, reset = lim:incoming(key, not dry_run, conf, cost)
     else
         local enable_delayed_sync = (conf.sync_interval ~= NO_DELAYED_SYNC)
         if enable_delayed_sync then
@@ -391,14 +393,22 @@ function _M.rate_limit(conf, ctx, name, cost)
     end
     core.log.debug("metadata: ", core.json.delay_encode(metadata))
 
+    local set_limit_headers = {
+        limit_header = conf.limit_header or metadata.limit_header,
+        remaining_header = conf.remaining_header or metadata.remaining_header,
+        reset_header = conf.reset_header or metadata.reset_header,
+    }
+    local phase = get_phase()
+    local set_header = phase ~= "log"
+
     if not delay then
         local err = remaining
         if err == "rejected" then
             -- show count limit header when rejected
-            if conf.show_limit_quota_header then
-                core.response.set_header(metadata.limit_header, conf.count,
-                    metadata.remaining_header, 0,
-                    metadata.reset_header, reset)
+            if conf.show_limit_quota_header and set_header then
+                core.response.set_header(set_limit_headers.limit_header, conf.count,
+                set_limit_headers.remaining_header, 0,
+                set_limit_headers.reset_header, reset)
             end
 
             if conf.rejected_msg then
@@ -414,10 +424,10 @@ function _M.rate_limit(conf, ctx, name, cost)
         return 500, {error_msg = "failed to limit count"}
     end
 
-    if conf.show_limit_quota_header then
-        core.response.set_header(metadata.limit_header, conf.count,
-            metadata.remaining_header, remaining,
-            metadata.reset_header, reset)
+    if conf.show_limit_quota_header and set_header then
+        core.response.set_header(set_limit_headers.limit_header, conf.count,
+            set_limit_headers.remaining_header, remaining,
+            set_limit_headers.reset_header, reset)
     end
 end
 
