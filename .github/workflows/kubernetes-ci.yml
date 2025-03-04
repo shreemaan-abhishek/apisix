@@ -67,6 +67,11 @@ jobs:
           sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/' ci/linux_apisix_current_luarocks_runner.sh
           sed -i 's/luarocks show apisix/luarocks show api7/' ci/linux_apisix_current_luarocks_runner.sh
 
+      - name: Linux launch common services
+        run: |
+          cd workbench
+          make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
+
       - name: Setup kubernetes cluster
         working-directory: workbench
         run: |
