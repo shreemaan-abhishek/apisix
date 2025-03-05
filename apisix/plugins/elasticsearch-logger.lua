@@ -21,8 +21,10 @@ local log_util        = require("apisix.utils.log-util")
 local bp_manager_mod  = require("apisix.utils.batch-processor-manager")
 
 local ngx             = ngx
+local ngx_re          = ngx.re
 local str_format      = core.string.format
 local math_random     = math.random
+local os_date         = os.date
 
 local plugin_name = "elasticsearch-logger"
 local batch_processor_manager = bp_manager_mod.new(plugin_name)
@@ -47,7 +49,12 @@ local schema = {
         field = {
             type = "object",
             properties = {
-                index = { type = "string"},
+                index = {
+                    type = "string",
+                    description = "Supports APISIX variables and a lua time format inside braces.\
+                    lua time format: https://www.lua.org/pil/22.1.html",
+                    -- example: service-$host-{"%Y-%m-%d"}
+                },
                 type = { type = "string"}
             },
             required = {"index"}
@@ -196,7 +203,33 @@ function _M.body_filter(conf, ctx)
 end
 
 
+local function resolve_index_vars(index, var)
+    local function replace_time(m)
+        local time_format = m[1]
+        local time = os_date(time_format)
+        if not time then
+            core.log.error("failed to parse time format: ", time_format)
+            return ""
+        end
+        return time
+    end
+
+    local new_index, _, err = ngx_re.sub(index, "{(.*)}", replace_time, "jo")
+    if not new_index then
+        core.log.error("failed to substitute time format: ", err)
+    end
+
+    new_index, err = core.utils.resolve_var(new_index or index, var)
+    if not new_index then
+        core.log.error("failed to resolve APISIX variable from index: ", err)
+    end
+
+    return new_index or index
+end
+
+
 function _M.log(conf, ctx)
+    conf.field.index = resolve_index_vars(conf.field.index, ctx.var)
     local entry = get_logger_entry(conf, ctx)
 
     if batch_processor_manager:add_entry(conf, entry) then
@@ -211,4 +244,5 @@ function _M.log(conf, ctx)
 end
 
 
+_M.__resolve_index_var = resolve_index_vars -- for tests
 return _M

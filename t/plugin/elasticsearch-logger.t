@@ -801,3 +801,188 @@ Action/metadata line [1] contains an unknown parameter [_type]
     }
 --- error_log
 "body":"hello world\n"
+
+
+
+=== TEST 21: sanity in time format parser
+--- config
+    location /t {
+        content_by_lua_block {
+            local ok, err
+            local configs = {
+                ["%Y-%m-%d %H:%M:%S"] = [[\d{4}-\d{2}-\d{2}\s\d{2}:\d{2}:\d{2}]],
+                ["%Y-%m-%d"] = [[\d{4}-\d{2}-\d{2}]],
+                ["%H:%M:%S"] = [[\d{2}:\d{2}:\d{2}]],
+                ["%d-%m-%Y"] = [[\d{2}-\d{2}-\d{4}]],
+                ["%m/%d/%Y"] = [[\d\d\/\d\d\/\d{4}]],
+            }
+
+            local plugin = require("apisix.plugins.elasticsearch-logger")
+
+            for format, regex in pairs(configs) do
+                local new = plugin.__resolve_index_var("prefix{" .. format .. "}suffix")
+                local ok = ngx.re.match(new, regex)
+                if not ok then
+                   ngx.say("error")
+                   return
+                end
+            end
+            ngx.say("ok")
+        }
+    }
+--- repsonse_body
+ok
+
+
+
+=== TEST 22: test $date variable in index
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+
+            local code, body = t('/apisix/admin/routes/1', ngx.HTTP_PUT, {
+                uri = "/hello",
+                upstream = {
+                    type = "roundrobin",
+                    nodes = {
+                        ["127.0.0.1:1980"] = 1
+                    }
+                },
+                plugins = {
+                    ["elasticsearch-logger"] = {
+                        endpoint_addr = "http://127.0.0.1:9201",
+                        field = {
+                            index = "services-{%Y.%m.%d}"
+                        },
+                        batch_max_size = 1,
+                        inactive_timeout = 1,
+                    }
+                }
+            })
+
+            if code >= 300 then
+                ngx.status = code
+            end
+
+            local code, _, body = t("/hello")
+        }
+    }
+--- error_log eval
+qr/body: \{"create":\{"_index":"services-\d\d\d\d\.\d\d\.\d\d"\}\}/
+
+
+
+=== TEST 23: test $host variable in index
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+
+            local code, body = t('/apisix/admin/routes/1', ngx.HTTP_PUT, {
+                uri = "/hello",
+                upstream = {
+                    type = "roundrobin",
+                    nodes = {
+                        ["127.0.0.1:1980"] = 1
+                    }
+                },
+                plugins = {
+                    ["elasticsearch-logger"] = {
+                        endpoint_addr = "http://127.0.0.1:9201",
+                        field = {
+                            index = "services-$host"
+                        },
+                        batch_max_size = 1,
+                        inactive_timeout = 1,
+                    }
+                }
+            })
+
+            if code >= 300 then
+                ngx.status = code
+            end
+
+            local code, _, body = t("/hello")
+        }
+    }
+--- error_log eval
+qr/body: \{"create":\{"_index":"services-127.0.0.1"\}\}/
+
+
+
+=== TEST 24: invalid time format in index
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+
+            local code, body = t('/apisix/admin/routes/1', ngx.HTTP_PUT, {
+                uri = "/hello",
+                upstream = {
+                    type = "roundrobin",
+                    nodes = {
+                        ["127.0.0.1:1980"] = 1
+                    }
+                },
+                plugins = {
+                    ["elasticsearch-logger"] = {
+                        endpoint_addr = "http://127.0.0.1:9201",
+                        field = {
+                            index = "services-{%brr.%lol.%haha}"
+                        },
+                        batch_max_size = 1,
+                        inactive_timeout = 1,
+                    }
+                }
+            })
+
+            if code >= 300 then
+                ngx.status = code
+            end
+
+            local code, _, body = t("/hello")
+        }
+    }
+
+# will yield unexpected output
+--- error_log eval
+qr/body: \{"create":\{"_index":"services-Marrr. \dol.Maraha"\}\}/
+
+
+
+=== TEST 25: test $host variable and time both in index
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+
+            local code, body = t('/apisix/admin/routes/1', ngx.HTTP_PUT, {
+                uri = "/hello",
+                upstream = {
+                    type = "roundrobin",
+                    nodes = {
+                        ["127.0.0.1:1980"] = 1
+                    }
+                },
+                plugins = {
+                    ["elasticsearch-logger"] = {
+                        endpoint_addr = "http://127.0.0.1:9201",
+                        field = {
+                            index = "services-$host-{%Y.%m.%d}"
+                        },
+                        batch_max_size = 1,
+                        inactive_timeout = 1,
+                    }
+                }
+            })
+
+            if code >= 300 then
+                ngx.status = code
+            end
+
+            local code, _, body = t("/hello")
+        }
+    }
+--- error_log eval
+qr/body: \{"create":\{"_index":"services-127.0.0.1-\d\d\d\d\.\d\d\.\d\d"\}\}/
