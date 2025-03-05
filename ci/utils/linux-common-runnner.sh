@@ -136,9 +136,6 @@ install_module() {
     sed -i '310i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
     sed -i '311i __to_replace__	$(ENV_INSTALL) apisix/plugins/jwt-auth/*.lua $(ENV_INST_LUADIR)/apisix/plugins/jwt-auth' "${VAR_APISIX_HOME}/Makefile"
 
-    sed -i '310i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ai' "${VAR_APISIX_HOME}/Makefile"
-    sed -i '311i __to_replace__	$(ENV_INSTALL) apisix/plugins/ai/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ai' "${VAR_APISIX_HOME}/Makefile"
-
     sed -i '308i __to_replace__	$(ENV_INSTALL) -d $(ENV_INST_LUADIR)/apisix/plugins/ai-rag/embeddings' "${VAR_APISIX_HOME}/Makefile"
     sed -i '309i __to_replace__	$(ENV_INSTALL) apisix/plugins/ai-rag/embeddings/*.lua $(ENV_INST_LUADIR)/apisix/plugins/ai-rag/embeddings' "${VAR_APISIX_HOME}/Makefile"
 

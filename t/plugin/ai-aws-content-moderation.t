@@ -107,16 +107,13 @@ __DATA__
                 [[{
                     "uri": "/echo",
                     "plugins": {
-                        "ai-content-moderation": {
-                            "provider": {
-                                "aws_comprehend": {
-                                    "access_key_id": "access",
-                                    "secret_access_key": "ea+secret",
-                                    "region": "us-east-1",
-                                    "endpoint": "http://localhost:2668"
-                                }
-                            },
-                            "llm_provider": "openai"
+                        "ai-aws-content-moderation": {
+                            "comprehend": {
+                                "access_key_id": "access",
+                                "secret_access_key": "ea+secret",
+                                "region": "us-east-1",
+                                "endpoint": "http://localhost:2668"
+                            }
                         }
                     },
                     "upstream": {
@@ -142,7 +139,7 @@ passed
 === TEST 2: toxic request should fail
 --- request
 POST /echo
-{"model":"gpt-4o-mini","messages":[{"role":"user","content":"toxic"}]}
+toxic
 --- error_code: 400
 --- response_body chomp
 request body exceeds toxicity threshold
@@ -152,7 +149,7 @@ request body exceeds toxicity threshold
 === TEST 3: good request should pass
 --- request
 POST /echo
-{"model":"gpt-4o-mini","messages":[{"role":"user","content":"good_request"}]}
+good_request
 --- error_code: 200
 
 
@@ -167,19 +164,16 @@ POST /echo
                 [[{
                     "uri": "/echo",
                     "plugins": {
-                        "ai-content-moderation": {
-                            "provider": {
-                                "aws_comprehend": {
-                                    "access_key_id": "access",
-                                    "secret_access_key": "ea+secret",
-                                    "region": "us-east-1",
-                                    "endpoint": "http://localhost:2668"
-                                }
+                        "ai-aws-content-moderation": {
+                            "comprehend": {
+                                "access_key_id": "access",
+                                "secret_access_key": "ea+secret",
+                                "region": "us-east-1",
+                                "endpoint": "http://localhost:2668"
                             },
                             "moderation_categories": {
                                 "PROFANITY": 0.5
-                            },
-                            "llm_provider": "openai"
+                            }
                         }
                     },
                     "upstream": {
@@ -205,7 +199,7 @@ passed
 === TEST 5: profane request should fail
 --- request
 POST /echo
-{"model":"gpt-4o-mini","messages":[{"role":"user","content":"profane"}]}
+profane
 --- error_code: 400
 --- response_body chomp
 request body exceeds PROFANITY threshold
@@ -215,7 +209,7 @@ request body exceeds PROFANITY threshold
 === TEST 6: very profane request should also fail
 --- request
 POST /echo
-{"model":"gpt-4o-mini","messages":[{"role":"user","content":"very_profane"}]}
+very_profane
 --- error_code: 400
 --- response_body chomp
 request body exceeds PROFANITY threshold
@@ -225,7 +219,7 @@ request body exceeds PROFANITY threshold
 === TEST 7: good_request should pass
 --- request
 POST /echo
-{"model":"gpt-4o-mini","messages":[{"role":"user","content":"good_request"}]}
+good_request
 --- error_code: 200
 
 
@@ -240,19 +234,16 @@ POST /echo
                 [[{
                     "uri": "/echo",
                     "plugins": {
-                        "ai-content-moderation": {
-                            "provider": {
-                                "aws_comprehend": {
-                                    "access_key_id": "access",
-                                    "secret_access_key": "ea+secret",
-                                    "region": "us-east-1",
-                                    "endpoint": "http://localhost:2668"
-                                }
+                        "ai-aws-content-moderation": {
+                            "comprehend": {
+                                "access_key_id": "access",
+                                "secret_access_key": "ea+secret",
+                                "region": "us-east-1",
+                                "endpoint": "http://localhost:2668"
                             },
                             "moderation_categories": {
                                 "PROFANITY": 0.7
-                            },
-                            "llm_provider": "openai"
+                            }
                         }
                     },
                     "upstream": {
@@ -278,7 +269,7 @@ passed
 === TEST 9: profane request should pass profanity check but fail toxicity check
 --- request
 POST /echo
-{"model":"gpt-4o-mini","messages":[{"role":"user","content":"profane"}]}
+profane
 --- error_code: 400
 --- response_body chomp
 request body exceeds toxicity threshold
@@ -288,7 +279,7 @@ request body exceeds toxicity threshold
 === TEST 10: profane_but_not_toxic request should pass
 --- request
 POST /echo
-{"model":"gpt-4o-mini","messages":[{"role":"user","content":"profane_but_not_toxic"}]}
+profane_but_not_toxic
 --- error_code: 200
 
 
@@ -296,7 +287,7 @@ POST /echo
 === TEST 11: but very profane request will fail
 --- request
 POST /echo
-{"model":"gpt-4o-mini","messages":[{"role":"user","content":"very_profane"}]}
+very_profane
 --- error_code: 400
 --- response_body chomp
 request body exceeds PROFANITY threshold
@@ -306,5 +297,5 @@ request body exceeds PROFANITY threshold
 === TEST 12: good_request should pass
 --- request
 POST /echo
-{"model":"gpt-4o-mini","messages":[{"role":"user","content":"good_request"}]}
+good_request
 --- error_code: 200

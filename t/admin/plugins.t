@@ -100,7 +100,7 @@ body-transformer
 ai-prompt-template
 ai-prompt-decorator
 ai-rag
-ai-content-moderation
+ai-aws-content-moderation
 ai-proxy-multi
 ai-proxy
 ai-rate-limiting
