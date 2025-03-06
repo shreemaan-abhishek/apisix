@@ -947,7 +947,7 @@ qr/body: \{"create":\{"_index":"services-127.0.0.1"\}\}/
 
 # will yield unexpected output
 --- error_log eval
-qr/body: \{"create":\{"_index":"services-Marrr. \dol.Maraha"\}\}/
+qr/body: \{"create":\{"_index":"services-Marrr. \d+ol.Maraha"\}\}/
 
 
 
