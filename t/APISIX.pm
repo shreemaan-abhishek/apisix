@@ -573,6 +573,7 @@ _EOC_
     lua_shared_dict xds-config-version 1m;
     lua_shared_dict cas_sessions 10m;
     lua_shared_dict config 5m;
+    lua_shared_dict test 5m;
 
     proxy_ssl_name \$upstream_host;
     proxy_ssl_server_name on;

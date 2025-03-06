@@ -30,6 +30,8 @@ local function filter(service)
         return
     end
 
+    plugin.set_plugins_meta_parent(service.value.plugins, service)
+
     apisix_upstream.filter_upstream(service.value.upstream, service)
 
     core.log.info("filter service: ", core.json.delay_encode(service, true))
