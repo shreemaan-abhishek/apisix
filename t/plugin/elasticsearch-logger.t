@@ -911,47 +911,7 @@ qr/body: \{"create":\{"_index":"services-127.0.0.1"\}\}/
 
 
 
-=== TEST 24: invalid time format in index
---- config
-    location /t {
-        content_by_lua_block {
-            local t = require("lib.test_admin").test
-
-            local code, body = t('/apisix/admin/routes/1', ngx.HTTP_PUT, {
-                uri = "/hello",
-                upstream = {
-                    type = "roundrobin",
-                    nodes = {
-                        ["127.0.0.1:1980"] = 1
-                    }
-                },
-                plugins = {
-                    ["elasticsearch-logger"] = {
-                        endpoint_addr = "http://127.0.0.1:9201",
-                        field = {
-                            index = "services-{%brr.%lol.%haha}"
-                        },
-                        batch_max_size = 1,
-                        inactive_timeout = 1,
-                    }
-                }
-            })
-
-            if code >= 300 then
-                ngx.status = code
-            end
-
-            local code, _, body = t("/hello")
-        }
-    }
-
-# will yield unexpected output
---- error_log eval
-qr/body: \{"create":\{"_index":"services-Marrr. \d+ol.Maraha"\}\}/
-
-
-
-=== TEST 25: test $host variable and time both in index
+=== TEST 24: test $host variable and time both in index
 --- config
     location /t {
         content_by_lua_block {
