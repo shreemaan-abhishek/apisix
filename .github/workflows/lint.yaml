@@ -88,7 +88,7 @@ jobs:
           sed -i 's/luarocks show apisix/luarocks show api7/' ci/linux_apisix_current_luarocks_runner.sh
 
       - name: Setup Nodejs env
-        uses: actions/setup-node@v4.0.1
+        uses: actions/setup-node@v4.2.0
         with:
             node-version: '12'
 
