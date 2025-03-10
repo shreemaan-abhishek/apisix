@@ -82,7 +82,7 @@ jobs:
           sed -i 's/luarocks show apisix/luarocks show api7/' ci/linux_apisix_current_luarocks_runner.sh
 
       - name: Cache deps
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         env:
           cache-name: cache-deps
         with:
