@@ -113,7 +113,6 @@ _M.ai_proxy_schema = {
         timeout = {
             type = "integer",
             minimum = 1,
-            maximum = 60000,
             default = 30000,
             description = "timeout in milliseconds",
         },
