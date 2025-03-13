@@ -23,6 +23,7 @@ local mt = {
 local CONTENT_TYPE_JSON = "application/json"
 
 local core = require("apisix.core")
+local plugin = require("apisix.plugin")
 local http = require("resty.http")
 local url  = require("socket.url")
 local ngx_re = require("ngx.re")
@@ -30,6 +31,7 @@ local ngx_re = require("ngx.re")
 local ngx_print = ngx.print
 local ngx_flush = ngx.flush
 
+local table = table
 local pairs = pairs
 local type  = type
 local ipairs = ipairs
@@ -221,6 +223,17 @@ function _M.read_response(ctx, res)
             completion_tokens = res_body.usage and res_body.usage.completion_tokens or 0,
             total_tokens = res_body.usage and res_body.usage.total_tokens or 0,
         }
+
+        if res_body.choices and #res_body.choices > 0 then
+            local contents = {}
+            for _, choice in ipairs(res_body.choices) do
+                if choice and choice.message and choice.message.content then
+                    core.table.insert(contents, choice.message.content)
+                end
+            end
+            local content_to_check = table.concat(contents, " ")
+            plugin.lua_body_filter(content_to_check, ctx)
+        end
     end
     return res.status, raw_res_body
 end
