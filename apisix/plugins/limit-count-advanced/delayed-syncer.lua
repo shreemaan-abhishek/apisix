@@ -148,10 +148,13 @@ end
 
 
 function _M._delayed_sync(self, key, cost, syncer_id)
-    local _, remaining, reset, local_delta, remote_quota_json, err
-    local_delta, err  = shd:get(self:key_local_delta(key))
+    local _, reset, remote_quota_json
+    local local_delta, err  = shd:get(self:key_local_delta(key))
     if err then
         return nil, nil, err
+    end
+    if not local_delta then
+        local_delta = 0
     end
 
     remote_quota_json, err = shd:get(self:key_remote_quota(key))
@@ -176,7 +179,6 @@ function _M._delayed_sync(self, key, cost, syncer_id)
     end
 
     if not remote_quota_json or 0 == reset then
-        local_delta = 0
         remote_remaining = 0
         remote_reset = 0
         local remaining_or_err
@@ -236,7 +238,7 @@ function _M._delayed_sync(self, key, cost, syncer_id)
         end
     end
 
-    remaining = remote_remaining - local_delta - cost
+    local remaining = remote_remaining - local_delta - cost
     if 0 <= remaining then
         _, err = shd:incr(self:key_local_delta(key), cost, 0, 2 * self.window)
         if err then
