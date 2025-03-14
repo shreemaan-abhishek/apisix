@@ -575,7 +575,7 @@ Please modify "admin_key" in conf/config.yaml .
         control_server_addr = control_server_addr,
         prometheus_server_addr = prometheus_server_addr,
         proxy_mirror_timeouts = proxy_mirror_timeouts,
-        zipkin_set_ngx_var = zipkin_set_ngx_var
+        zipkin_set_ngx_var = zipkin_set_ngx_var,
     }
 
     if not yaml_conf.apisix then

@@ -887,6 +887,9 @@ http {
             lua_error_log_request_id $apisix_request_id;
             {% end %}
 
+            set $ai_token_usage             '-';
+            set $ai_ttfb                   '-';
+
             access_by_lua_block {
                 apisix.http_access_phase()
             }

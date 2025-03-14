@@ -191,6 +191,8 @@ do
         upstream_uri               = true,
         request_line               = true,
         apisix_request_id          = true,
+        ai_token_usage             = true,
+        ai_ttfb                    = true,
 
         upstream_mirror_host       = true,
         upstream_mirror_uri        = true,

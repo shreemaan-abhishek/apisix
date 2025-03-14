@@ -30,6 +30,9 @@ local ngx_re = require("ngx.re")
 
 local ngx_print = ngx.print
 local ngx_flush = ngx.flush
+local ngx_var = ngx.var
+local ngx_now = ngx.now
+local ngx_req = ngx.req
 
 local table = table
 local pairs = pairs
@@ -143,6 +146,7 @@ function _M.read_response(ctx, res)
     local content_type = res.headers["Content-Type"]
     core.response.set_header("Content-Type", content_type)
 
+    local time_to_first_byte
     if content_type and core.string.find(content_type, "text/event-stream") then
         while true do
             local chunk, err = body_reader() -- will read chunk by chunk
@@ -157,6 +161,9 @@ function _M.read_response(ctx, res)
                 return
             end
 
+            if not time_to_first_byte then
+                time_to_first_byte = ngx_now() - ngx_req.start_time()
+            end
             ngx_print(chunk)
             ngx_flush(true)
 
@@ -198,6 +205,8 @@ function _M.read_response(ctx, res)
                         total_tokens = data.usage.total_tokens or 0,
                     }
                 end
+                ngx_var.ai_token_usage = core.json.encode(ctx.ai_token_usage)
+                ngx_var.ai_ttfb = time_to_first_byte
             end
 
             ::CONTINUE::
@@ -212,6 +221,7 @@ function _M.read_response(ctx, res)
         end
         return 500
     end
+    time_to_first_byte = ngx_now() - ngx_req.start_time()
     local res_body, err = core.json.decode(raw_res_body)
     if err then
         core.log.warn("invalid response body from ai service: ", raw_res_body, " err: ", err,
@@ -235,6 +245,9 @@ function _M.read_response(ctx, res)
             plugin.lua_body_filter(content_to_check, ctx)
         end
     end
+
+    ngx_var.ai_token_usage = core.json.encode(ctx.ai_token_usage)
+    ngx_var.ai_ttfb = time_to_first_byte
     return res.status, raw_res_body
 end
 
