@@ -72,7 +72,7 @@ jobs:
           sed -i 's/API7\//APISIX\//' apisix/init.lua
 
       - name: Setup Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: "1.17"
 
@@ -199,7 +199,7 @@ jobs:
           ./ci/${{ matrix.os_name }}_runner.sh do_install
 
       - name: Setup Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: "1.22.6"
 
