@@ -29,6 +29,8 @@ local tablepool    = require("tablepool")
 local get_var      = require("resty.ngxvar").fetch
 local get_request  = require("resty.ngxvar").request
 local ck           = require "resty.cookie"
+local util         = require("apisix.cli.util")
+local multipart    = require("multipart")
 local gq_parse     = require("graphql").parse
 local setmetatable = setmetatable
 local sub_str      = string.sub
@@ -166,6 +168,45 @@ local function get_parsed_graphql()
     return ctx._graphql
 end
 
+local CONTENT_TYPE_JSON = "application/json"
+local CONTENT_TYPE_FORM_URLENCODED = "application/x-www-form-urlencoded"
+local CONTENT_TYPE_MULTIPART_FORM = "multipart/form-data"
+
+local function get_parsed_request_body(ctx)
+    local ct_header = request.header(ctx, "Content-Type") or ""
+
+    if core_str.find(ct_header, CONTENT_TYPE_JSON) then
+        local request_table, err = request.get_json_request_body_table()
+        if not request_table then
+            return nil, "failed to parse JSON body: " .. err
+        end
+        return request_table
+    end
+
+    if core_str.find(ct_header, CONTENT_TYPE_FORM_URLENCODED) then
+        local args, err = request.get_post_args()
+        if not args then
+            return nil, "failed to parse form data: " .. (err or "unknown error")
+        end
+        return args
+    end
+
+    if core_str.find(ct_header, CONTENT_TYPE_MULTIPART_FORM) then
+        local body = request.get_body()
+        local res = multipart(body, ct_header)
+        if not res then
+            return nil, "failed to parse multipart form data"
+        end
+        return res:get_all()
+    end
+
+    local err = "unsupported content-type in header: " .. ct_header ..
+                ", supported types are: " ..
+                CONTENT_TYPE_JSON .. ", " ..
+                CONTENT_TYPE_FORM_URLENCODED .. ", " ..
+                CONTENT_TYPE_MULTIPART_FORM
+    return nil, err
+end
 
 do
     local var_methods = {
@@ -285,7 +326,25 @@ do
                 -- trim the "graphql_" prefix
                 key = sub_str(key, 9)
                 val = get_parsed_graphql()[key]
+            elseif core_str.has_prefix(key, "post_args.") then
+                -- trim the "post_args." prefix (11 characters)
+                key = sub_str(key, 11)
+                local parsed_body, err = get_parsed_request_body(t._ctx)
+                if not parsed_body then
+                    log.warn("failed to fetch post args value by key: ", key, " error: ", err)
+                    return nil
+                end
 
+                local parts = util.split(key, "(.)")
+                local current = parsed_body
+                for _, part in ipairs(parts) do
+                    if type(current) ~= "table" then
+                        current = nil
+                        break
+                    end
+                    current = current[part]
+                end
+                val = current
             else
                 local getter = apisix_var_names[key]
                 if getter then
@@ -384,6 +443,5 @@ end -- do
 function _M.get_api_ctx()
     return ngx.ctx.api_ctx
 end
-
 
 return _M
