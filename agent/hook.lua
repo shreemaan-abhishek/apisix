@@ -2,6 +2,7 @@ local require = require
 
 local getenv = os.getenv
 local log = require("apisix.core.log")
+local ngx = ngx
 
 -- set the JIT options before any code, to prevent error "changing jit stack size is not
 -- allowed when some regexs have already been compiled and cached"
@@ -327,10 +328,16 @@ apisix.http_init_worker = function(...)
 end
 
 local old_http_log_phase = apisix.http_log_phase
+local status_counts_dict = ngx.shared["api-calls-by-status"]
+if ngx.config.subsystem == "http" and not status_counts_dict then
+    error('shared dict "api-calls-by-status" not defined')
+end
+
 apisix.http_log_phase = function (...)
-    local _, err = config_dict:incr("api_calls_counter", 1, 0)
-    if err ~= nil then
-        core.log.error("failed to increase api_calls_counter in dict, error: ", err)
+    local status = ngx.status
+    local _, err = status_counts_dict:incr(status, 1, 0)
+    if err then
+        core.log.error("failed to increase ", status, " in dict, error: ", err)
     end
     old_http_log_phase(...)
 end

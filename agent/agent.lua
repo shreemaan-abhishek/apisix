@@ -20,7 +20,8 @@ local setmetatable  = setmetatable
 local ngx_time      = ngx.time
 local str_format    = string.format
 local get_phase     = ngx.get_phase
-local getenv = os.getenv
+local getenv        = os.getenv
+local tab_isempty   = require "table.isempty"
 
 local shdict_name = "config"
 if ngx.config.subsystem == "stream" then
@@ -120,6 +121,31 @@ local function send_request(url, opts)
     return res, err
 end
 
+local status_counts_dict = ngx.shared["api-calls-by-status"]
+local is_http = ngx.config.subsystem == "http"
+if is_http and not status_counts_dict then
+    error('shared dict "api-calls-by-status" not defined')
+end
+
+local function get_api_calls_by_status_code(last_counter)
+    local last_value = last_counter or {}
+    local api_calls_per_code = {}
+    local api_calls_per_code_delta = {}
+    local api_calls_delta = 0
+    -- we don't record api calls for stream subsystem
+    if is_http then
+        local status_arr = status_counts_dict:get_keys()
+        for _, status in ipairs(status_arr) do
+            local count = status_counts_dict:get(status)
+            local delta = count - (last_value[status] or 0)
+            api_calls_per_code[status] = count
+            api_calls_per_code_delta[status] = delta
+            api_calls_delta = api_calls_delta + delta
+        end
+    end
+    return api_calls_per_code, api_calls_per_code_delta, api_calls_delta
+end
+
 function _M.heartbeat(self, first)
     local current_time = ngx_time()
     if self.last_heartbeat_time and
@@ -131,15 +157,12 @@ function _M.heartbeat(self, first)
         return
     end
     payload.run_id = self.run_id
-    payload.api_calls = 0
-    local api_calls, err = config_dict:get("api_calls_counter")
-    if api_calls ~= nil then
-        payload.api_calls = api_calls - self.api_calls_counter_last_value
-    end
-
-    if err ~= nil then
-        core.log.error("failed get api_calls_counter from dict, error: ", err)
-    end
+    local api_calls_per_code,
+          api_calls_per_code_delta,
+          api_calls_delta =
+        get_api_calls_by_status_code(self.api_calls_per_code_last_value)
+    payload.api_calls_per_code = api_calls_per_code_delta
+    payload.api_calls = api_calls_delta
 
     local uid = core.id.get()
     payload.control_plane_revision = utils.get_control_plane_revision()
@@ -192,8 +215,8 @@ function _M.heartbeat(self, first)
     end
 
     -- Reset counter only when heartbeat success.
-    if api_calls ~= nil then
-        self.api_calls_counter_last_value = api_calls
+    if tab_isempty(api_calls_per_code) then
+        self.api_calls_per_code_last_value = api_calls_per_code
     end
 
     local resp_body, err = utils.parse_resp(res.body)
@@ -639,14 +662,6 @@ function _M.new(agent_conf)
         return agents[agent_name]
     end
 
-    local init_api_calls, err = config_dict:get("api_calls_counter")
-    if init_api_calls == nil then
-        init_api_calls = 0
-    end
-    if err ~= nil then
-        core.log.error("failed get api_calls_counter from dict, error: ", err)
-        return nil
-    end
     local http_timeout = 30 * 1000
     if agent_conf.http_timeout then
         http_timeout = tonumber(agent_conf.http_timeout:match("%d+")) * 1000
@@ -676,7 +691,8 @@ function _M.new(agent_conf)
         config_version = 0,
         consumer_config_version = 0,
         developer_config_version = 0,
-        api_calls_counter_last_value = init_api_calls,
+        -- Init from the data stored in the shared dict (defaults to {}).
+        api_calls_per_code_last_value = get_api_calls_by_status_code(),
         consumer_version = 0,
         consumer_proxy = agent_conf.consumer_proxy,
         developer_proxy = agent_conf.developer_proxy,

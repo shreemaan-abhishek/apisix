@@ -22,12 +22,21 @@ _EOC_
         local json_decode = require("toolkit.json").decode
         local payload = json_decode(data)
 
-        if not payload.api_calls then
-            ngx.log(ngx.ERR, "missing api_calls")
+        if not payload.api_calls_per_code then
+            ngx.log(ngx.ERR, "missing api_calls_per_code")
             return ngx.exit(400)
         end
 
-        ngx.log(ngx.NOTICE,"the payload.api_calls is: ", payload.api_calls)
+        if next(payload.api_calls_per_code) == nil then
+            ngx.log(ngx.NOTICE, "api_calls_per_code is empty")
+        end
+
+        for k,v in pairs(payload.api_calls_per_code) do
+            ngx.log(ngx.NOTICE, "the payload.api_calls_per_code[", k, "] is: ", v)
+        end
+
+        ngx.log(ngx.NOTICE, "the payload.api_calls is: ", payload.api_calls)
+
         local resp_payload = {
             config = {
                 config_version = 1,
@@ -98,7 +107,7 @@ plugin_attr:
                     "methods": ["GET"],
                     "upstream": {
                         "nodes": {
-                            "httpbin.org:80": 1
+                            "127.0.0.1:1980": 1
                         },
                         "type": "roundrobin"
                     },
@@ -120,19 +129,84 @@ passed
 
 
 
-=== TEST 2: verify
+=== TEST 2: should record api calls with 200 and 404 route
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
---- request
-GET /headers
+--- pipelined_requests eval
+["GET /headers", "PUT /not_exist_route"]
 --- wait: 11
 --- timeout: 11
+--- error_code eval
+[200, 404]
 --- no_error_log
 missing api_calls
---- grep_error_log eval
-qr/the payload.api_calls is: \d+/
---- grep_error_log_out
-the payload.api_calls is: 0
-the payload.api_calls is: 1
+--- error_log eval
+qr/api_calls_per_code is empty/ and
+qr/the payload\.api_calls_per_code\[200\] is: 1/ and
+qr/the payload\.api_calls_per_code\[404\] is: 1/ and
+qr/the payload\.api_calls is: 2/
+
+
+
+=== TEST 3: should record api calls with any status code
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- yaml_config
+plugin_attr:
+  prometheus:
+    export_addr:
+      port: 1980
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t("/apisix/admin/routes/1",
+                 ngx.HTTP_PUT,
+                 [[{
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "uri": "/status/*",
+                    "plugins": {
+                            "serverless-pre-function": {
+                                "phase": "rewrite",
+                                "functions": ["
+                                    return function(conf, ctx)
+                                        local core = require(\"apisix.core\")
+                                        local uri = ctx.var.uri
+                                        local status = tonumber(string.sub(uri, -3))
+                                        return core.response.exit(status)
+                                    end
+                                "]
+                            }
+                        }
+                }]]
+            )
+            ngx.status = code
+            ngx.say(body)
+        }
+    }
+--- wait: 11
+--- timeout: 11
+--- pipelined_requests eval
+["GET /t", "GET /status/301", "GET /status/401",
+"GET /status/401",  "GET /status/200", "GET /status/503",
+"GET /status/200", "GET /status/503", "GET /status/500"]
+--- no_error_log
+missing api_calls
+--- error_code eval
+[200, 301, 401, 401, 200, 503, 200, 503, 500]
+--- error_log eval
+qr/the payload\.api_calls_per_code\[200\] is: 2/ and
+qr/the payload\.api_calls_per_code\[401\] is: 2/ and
+qr/the payload\.api_calls_per_code\[301\] is: 1/ and
+qr/the payload\.api_calls_per_code\[500\] is: 1/ and
+qr/the payload\.api_calls_per_code\[503\] is: 2/ and 
+qr/the payload\.api_calls is: 8/
