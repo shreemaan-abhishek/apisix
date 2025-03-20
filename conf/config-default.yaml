@@ -480,11 +480,11 @@ plugins:                          # plugin list (sorted by priority)
   - ai-prompt-template             # priority: 1071
   - ai-prompt-decorator            # priority: 1070
   - ai-rag                         # priority: 1060
-  - ai-aliyun-content-moderation   # priority: 1051
   - ai-aws-content-moderation      # priority: 1050
   - ai-proxy-multi                 # priority: 1041
   - ai-proxy                       # priority: 1040
   - ai-rate-limiting               # priority: 1030
+  - ai-aliyun-content-moderation   # priority: 1029
   - proxy-mirror                   # priority: 1010
   - graphql-proxy-cache            # priority: 1009
   - proxy-rewrite                  # priority: 1008

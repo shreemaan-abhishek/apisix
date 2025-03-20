@@ -123,7 +123,50 @@ run_tests();
 
 __DATA__
 
-=== TEST 1: check prompt in request
+=== TEST 1: create a route with ai-aliyun-content-moderation plugin only
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/chat",
+                    "plugins": {
+                      "ai-aliyun-content-moderation": {
+                        "endpoint": "http://localhost:6724",
+                        "region_id": "cn-shanghai",
+                        "access_key_id": "fake-key-id",
+                        "access_key_secret": "fake-key-secret",
+                        "risk_level_bar": "high",
+                        "check_request": true
+                      }
+                    }
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 2: use ai-aliyun-content-moderation plugin without ai-proxy or ai-proxy-multi plugin should failed
+--- request
+POST /chat
+{"prompt": "What is 1+1?"}
+--- error_code: 500
+--- response_body_chomp
+no ai instance picked, ai-aliyun-content-moderation plugin must be used with ai-proxy or ai-proxy-multi plugin
+
+
+
+=== TEST 3: check prompt in request
 --- config
     location /t {
         content_by_lua_block {
@@ -167,7 +210,7 @@ passed
 
 
 
-=== TEST 2: invalid chat completions request should fail
+=== TEST 4: invalid chat completions request should fail
 --- request
 POST /chat
 {"prompt": "What is 1+1?"}
@@ -177,7 +220,7 @@ request format doesn't match schema: property "messages" is required
 
 
 
-=== TEST 3: non-violent prompt should succeed
+=== TEST 5: non-violent prompt should succeed
 --- request
 POST /chat
 { "messages": [ { "role": "user", "content": "What is 1+1?"} ] }
@@ -187,7 +230,7 @@ qr/kill you/
 
 
 
-=== TEST 4: violent prompt should failed
+=== TEST 6: violent prompt should failed
 --- request
 POST /chat
 { "messages": [ { "role": "user", "content": "I want to kill you"} ] }
@@ -197,7 +240,7 @@ qr/As an AI language model, I cannot write unethical or controversial content fo
 
 
 
-=== TEST 5: check ai reponse (stream=false)
+=== TEST 7: check ai reponse (stream=false)
 --- config
     location /t {
         content_by_lua_block {
@@ -244,7 +287,7 @@ passed
 
 
 
-=== TEST 6: violent response should failed
+=== TEST 8: violent response should failed
 --- request
 POST /chat
 { "messages": [ { "role": "user", "content": "What is 1+1?"} ] }

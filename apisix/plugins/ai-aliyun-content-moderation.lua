@@ -31,7 +31,6 @@ local ai_schema = require("apisix.plugins.ai-drivers.schema")
 local schema = {
     type = "object",
     properties = {
-        provider = {type = "string", enum = {"openai"}, default = "openai"},
         endpoint = {type = "string", minLength = 1},
         region_id = {type ="string", minLength = 1},
         access_key_id = {type = "string", minLength = 1},
@@ -63,7 +62,7 @@ local schema = {
 
 local _M = {
     version  = 0.1,
-    priority = 1051,
+    priority = 1029,
     name     = "ai-aliyun-content-moderation",
     schema   = schema,
 }
@@ -249,12 +248,12 @@ local function deny_message(provider, message, stream)
 end
 
 
-local function content_moderation(conf, content, length_limit, stream)
+local function content_moderation(conf, provider, content, length_limit, stream)
     local session_id = uuid.generate_v4()
     if #content <= length_limit then
         local hit, err = check_single_content(conf, session_id, content)
         if hit then
-            return conf.deny_code, deny_message(conf.provider, conf.deny_message or err, stream)
+            return conf.deny_code, deny_message(provider, conf.deny_message or err, stream)
         end
         if err then
             core.log.warn("failed to check content: ", err)
@@ -271,7 +270,7 @@ local function content_moderation(conf, content, length_limit, stream)
                                                 utf8.sub(content, index, index + length_limit - 1))
         index = index + length_limit
         if hit then
-            return conf.deny_code, deny_message(conf.provider, conf.deny_message or err, stream)
+            return conf.deny_code, deny_message(provider, conf.deny_message or err, stream)
         end
         if err then
             core.log.warn("failed to check content: ", err)
@@ -280,7 +279,13 @@ local function content_moderation(conf, content, length_limit, stream)
 end
 
 
-function _M.rewrite(conf, ctx)
+function _M.access(conf, ctx)
+    if not ctx.picked_ai_instance then
+        return 500, "no ai instance picked, " ..
+                "ai-aliyun-content-moderation plugin must be used with " ..
+                "ai-proxy or ai-proxy-multi plugin"
+    end
+    local provider = ctx.picked_ai_instance.provider
     if not conf.check_request then
         return
     end
@@ -292,12 +297,12 @@ function _M.rewrite(conf, ctx)
     if not request_tab then
         return 400, err
     end
-    local ok, err = core.schema.check(ai_schema.chat_request_schema[conf.provider], request_tab)
+    local ok, err = core.schema.check(ai_schema.chat_request_schema[provider], request_tab)
     if not ok then
         return 400, "request format doesn't match schema: " .. err
     end
 
-    if conf.provider == "openai" then
+    if provider == "openai" then
         local contents = {}
         for _, message in ipairs(request_tab.messages) do
             if message.content then
@@ -305,7 +310,7 @@ function _M.rewrite(conf, ctx)
             end
         end
         local content_to_check = table.concat(contents, " ")
-        local code, message = content_moderation(conf, content_to_check,
+        local code, message = content_moderation(conf, provider, content_to_check,
                                         conf.request_check_length_limit, request_tab.stream)
         if code then
             if request_tab.stream then
@@ -325,7 +330,8 @@ function _M.lua_body_filter(conf, ctx, data)
     if not conf.check_response then
         return
     end
-    return content_moderation(conf, data, conf.response_check_length_limit)
+    local provider = ctx.picked_ai_instance.provider
+    return content_moderation(conf, provider, data, conf.response_check_length_limit)
 end
 
 
