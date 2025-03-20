@@ -28,15 +28,15 @@ local http = require("resty.http")
 local url  = require("socket.url")
 local ngx_re = require("ngx.re")
 
+local ngx = ngx
 local ngx_print = ngx.print
 local ngx_flush = ngx.flush
-local ngx_var = ngx.var
 local ngx_now = ngx.now
-local ngx_req = ngx.req
 
 local table = table
 local pairs = pairs
 local type  = type
+local math  = math
 local ipairs = ipairs
 local setmetatable = setmetatable
 
@@ -146,7 +146,6 @@ function _M.read_response(ctx, res)
     local content_type = res.headers["Content-Type"]
     core.response.set_header("Content-Type", content_type)
 
-    local time_to_first_byte
     if content_type and core.string.find(content_type, "text/event-stream") then
         while true do
             local chunk, err = body_reader() -- will read chunk by chunk
@@ -161,8 +160,9 @@ function _M.read_response(ctx, res)
                 return
             end
 
-            if not time_to_first_byte then
-                time_to_first_byte = ngx_now() - ngx_req.start_time()
+            if ctx.var.llm_time_to_first_token == "" then
+                ctx.var.llm_time_to_first_token = math.floor(
+                                                (ngx_now() - ctx.llm_request_start_time) * 1000)
             end
             ngx_print(chunk)
             ngx_flush(true)
@@ -204,9 +204,9 @@ function _M.read_response(ctx, res)
                         completion_tokens = data.usage.completion_tokens or 0,
                         total_tokens = data.usage.total_tokens or 0,
                     }
+                    ctx.var.llm_prompt_tokens = ctx.ai_token_usage.prompt_tokens
+                    ctx.var.llm_completion_tokens = ctx.ai_token_usage.completion_tokens
                 end
-                ngx_var.ai_token_usage = core.json.encode(ctx.ai_token_usage)
-                ngx_var.ai_ttfb = time_to_first_byte
             end
 
             ::CONTINUE::
@@ -221,7 +221,7 @@ function _M.read_response(ctx, res)
         end
         return 500
     end
-    time_to_first_byte = ngx_now() - ngx_req.start_time()
+    ctx.var.llm_time_to_first_token = math.floor((ngx_now() - ctx.llm_request_start_time) * 1000)
     local res_body, err = core.json.decode(raw_res_body)
     if err then
         core.log.warn("invalid response body from ai service: ", raw_res_body, " err: ", err,
@@ -233,6 +233,8 @@ function _M.read_response(ctx, res)
             completion_tokens = res_body.usage and res_body.usage.completion_tokens or 0,
             total_tokens = res_body.usage and res_body.usage.total_tokens or 0,
         }
+        ctx.var.llm_prompt_tokens = ctx.ai_token_usage.prompt_tokens
+        ctx.var.llm_completion_tokens = ctx.ai_token_usage.completion_tokens
 
         if res_body.choices and #res_body.choices > 0 then
             local contents = {}
@@ -246,8 +248,6 @@ function _M.read_response(ctx, res)
         end
     end
 
-    ngx_var.ai_token_usage = core.json.encode(ctx.ai_token_usage)
-    ngx_var.ai_ttfb = time_to_first_byte
     return res.status, raw_res_body
 end
 

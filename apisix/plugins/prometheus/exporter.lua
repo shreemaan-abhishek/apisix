@@ -15,6 +15,7 @@
 -- limitations under the License.
 --
 local base_prometheus = require("prometheus")
+local tonumber        = tonumber
 local core      = require("apisix.core")
 local plugin    = require("apisix.plugin")
 local ipairs    = ipairs
@@ -120,12 +121,37 @@ local metric_label_map = {
     shared_dict_capacity_bytes = {"name", "gateway_group_id", "instance_id"},
     shared_dict_free_space_bytes = {"name", "gateway_group_id", "instance_id"},
     status = {"code", "route", "route_id", "matched_uri", "matched_host",
-              "service", "service_id", "consumer", "node",
-              "gateway_group_id", "instance_id", "api_product_id"},
+          "service", "service_id", "consumer", "node",
+          "gateway_group_id", "instance_id", "api_product_id",
+          "request_type", "llm_model",
+         },
     latency = {"type", "route", "route_id", "service", "service_id", "consumer",
-               "node", "gateway_group_id", "instance_id", "api_product_id"},
+           "node", "gateway_group_id", "instance_id", "api_product_id",
+           "request_type", "llm_model",
+          },
     bandwidth = {"type", "route", "route_id", "service", "service_id", "consumer",
-                 "node", "gateway_group_id", "instance_id", "api_product_id"},
+            "node", "gateway_group_id", "instance_id", "api_product_id",
+            "request_type", "llm_model",
+          },
+    llm_latency = {"route", "route_id", "service", "service_id", "consumer",
+             "node", "gateway_group_id", "instance_id", "api_product_id",
+             "request_type", "llm_model",
+            },
+    llm_prompt_tokens = {"route", "route_id", "matched_uri", "matched_host",
+              "service", "service_id", "consumer", "node",
+              "gateway_group_id", "instance_id", "api_product_id",
+              "request_type", "llm_model",
+              },
+    llm_completion_tokens = {"route", "route_id", "matched_uri", "matched_host",
+              "service", "service_id", "consumer", "node",
+              "gateway_group_id", "instance_id", "api_product_id",
+              "request_type", "llm_model",
+          },
+    llm_active_connections = {"route", "route_id", "matched_uri", "matched_host",
+              "service", "service_id", "consumer", "node",
+              "gateway_group_id", "instance_id", "api_product_id",
+              "request_type", "llm_model",
+          },
 }
 
 
@@ -169,6 +195,13 @@ function _M.http_init(prometheus_enabled_in_stream)
     local status_exptime = core.table.try_read_attr(attr, "metrics", "http_status", "expire")
     local latency_exptime = core.table.try_read_attr(attr, "metrics", "http_latency", "expire")
     local bandwidth_exptime = core.table.try_read_attr(attr, "metrics", "bandwidth", "expire")
+    local llm_latency_exptime = core.table.try_read_attr(attr, "metrics", "llm_latency", "expire")
+    local llm_prompt_tokens_exptime = core.table.try_read_attr(attr, "metrics",
+                                                            "llm_prompt_tokens", "expire")
+    local llm_completion_tokens_exptime = core.table.try_read_attr(attr, "metrics",
+                                                            "llm_completion_tokens", "expire")
+    local llm_active_connections_exptime = core.table.try_read_attr(attr, "metrics",
+                                                            "llm_active_connections", "expire")
 
     prometheus = base_prometheus.init("prometheus-metrics", metric_prefix)
 
@@ -225,6 +258,31 @@ function _M.http_init(prometheus_enabled_in_stream)
             "Total bandwidth in bytes consumed per service in APISIX",
             append_tables(metric_label_map.bandwidth,
             extra_labels("bandwidth")), bandwidth_exptime)
+
+    local llm_latency_buckets = DEFAULT_BUCKETS
+    if attr and attr.llm_latency_buckets then
+        llm_latency_buckets = attr.llm_latency_buckets
+    end
+    metrics.llm_latency = prometheus:histogram("llm_latency",
+        "LLM request latency in milliseconds",
+        append_tables(metric_label_map.llm_latency,
+        extra_labels("llm_latency")),
+        llm_latency_buckets, llm_latency_exptime)
+
+    metrics.llm_prompt_tokens = prometheus:counter("llm_prompt_tokens",
+            "LLM service consumed prompt tokens",
+            append_tables(metric_label_map.llm_prompt_tokens,
+            extra_labels("llm_prompt_tokens")), llm_prompt_tokens_exptime)
+
+    metrics.llm_completion_tokens = prometheus:counter("llm_completion_tokens",
+            "LLM service consumed completion tokens",
+            append_tables(metric_label_map.llm_completion_tokens,
+            extra_labels("llm_completion_tokens")), llm_completion_tokens_exptime)
+
+    metrics.llm_active_connections = prometheus:gauge("llm_active_connections",
+            "Number of active connections to LLM service",
+            append_tables(metric_label_map.llm_active_connections,
+            extra_labels("llm_active_connections")), llm_active_connections_exptime)
 
     if prometheus_enabled_in_stream then
         init_stream_metrics()
@@ -289,7 +347,7 @@ local function get_enabled_label_values_for_metric(metric_name, disabled_label_m
 end
 
 
-function _M.http_log(conf, ctx)
+local function get_disabled_label_metric_map()
     local metadata = plugin.plugin_metadata(plugin_name)
     core.log.info("metadata: ", core.json.delay_encode(metadata))
     local disabled_labels = (metadata and metadata.value and metadata.value.disabled_labels) or {}
@@ -300,6 +358,12 @@ function _M.http_log(conf, ctx)
             disabled_label_metric_map[metric_name][label] = true
         end
     end
+    return disabled_label_metric_map
+end
+
+
+function _M.http_log(conf, ctx)
+    local disabled_label_metric_map = get_disabled_label_metric_map()
 
     local vars = ctx.var
 
@@ -339,39 +403,80 @@ function _M.http_log(conf, ctx)
         append_tables(get_enabled_label_values_for_metric("status", disabled_label_metric_map,
         vars.status, route, route_id, matched_uri, matched_host,
         service, service_id, consumer_name, balancer_ip, gateway_group_id,
-        instance_id, api_product_id), extra_labels("http_status", ctx)))
+        instance_id, api_product_id, vars.request_type, vars.llm_model),
+        extra_labels("http_status", ctx)))
 
     local latency, upstream_latency, apisix_latency = latency_details(ctx)
     local latency_extra_label_values = extra_labels("http_latency", ctx)
 
     metrics.latency:observe(latency,
         append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
-        "request", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, api_product_id), latency_extra_label_values))
+        "request", route, route_id, service, service_id, consumer_name,
+        balancer_ip, gateway_group_id, instance_id, api_product_id,
+        vars.request_type, vars.llm_model),
+        latency_extra_label_values))
 
     if upstream_latency then
         metrics.latency:observe(upstream_latency,
             append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
-            "upstream", route, route_id, service, service_id, consumer_name, balancer_ip,
-            gateway_group_id, instance_id, api_product_id), latency_extra_label_values))
+            "upstream", route, route_id, service, service_id, consumer_name,
+            balancer_ip, gateway_group_id, instance_id, api_product_id,
+            vars.request_type, vars.llm_model),
+            latency_extra_label_values))
     end
 
     metrics.latency:observe(apisix_latency,
         append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
-        "apisix", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, api_product_id), latency_extra_label_values))
+        "apisix", route, route_id, service, service_id, consumer_name,
+        balancer_ip, gateway_group_id, instance_id, api_product_id,
+        vars.request_type, vars.llm_model),
+        latency_extra_label_values))
 
     local bandwidth_extra_label_values = extra_labels("bandwidth", ctx)
 
     metrics.bandwidth:inc(vars.request_length,
         append_tables(get_enabled_label_values_for_metric("bandwidth", disabled_label_metric_map,
-        "ingress", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, api_product_id), bandwidth_extra_label_values))
+        "ingress", route, route_id, service, service_id, consumer_name,
+        balancer_ip, gateway_group_id, instance_id, api_product_id,
+        vars.request_type, vars.llm_model),
+        bandwidth_extra_label_values))
 
     metrics.bandwidth:inc(vars.bytes_sent,
         append_tables(get_enabled_label_values_for_metric("bandwidth", disabled_label_metric_map,
-        "egress", route, route_id, service, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, api_product_id), bandwidth_extra_label_values))
+        "egress", route, route_id, service, service_id, consumer_name,
+        balancer_ip, gateway_group_id, instance_id, api_product_id,
+        vars.request_type, vars.llm_model),
+        bandwidth_extra_label_values))
+
+    local llm_time_to_first_token = vars.llm_time_to_first_token
+    if llm_time_to_first_token ~= "" then
+        metrics.llm_latency:observe(tonumber(llm_time_to_first_token),
+            append_tables(get_enabled_label_values_for_metric("llm_latency",
+                disabled_label_metric_map,
+            route, route_id, service, service_id, consumer_name,
+            balancer_ip, gateway_group_id, instance_id, api_product_id,
+            vars.request_type, vars.llm_model),
+            extra_labels("llm_latency", ctx)))
+    end
+
+    if vars.llm_prompt_tokens ~= "" then
+        metrics.llm_prompt_tokens:inc(tonumber(vars.llm_prompt_tokens),
+            append_tables(get_enabled_label_values_for_metric("llm_prompt_tokens",
+            disabled_label_metric_map, route, route_id, matched_uri,
+            matched_host, service, service_id, consumer_name, balancer_ip,
+            gateway_group_id, instance_id, api_product_id,
+            vars.request_type, vars.llm_model),
+            extra_labels("llm_prompt_tokens", ctx)))
+    end
+    if vars.llm_completion_tokens ~= "" then
+        metrics.llm_completion_tokens:inc(tonumber(vars.llm_completion_tokens),
+            append_tables(get_enabled_label_values_for_metric("llm_completion_tokens",
+            disabled_label_metric_map, route, route_id, matched_uri,
+            matched_host, service, service_id, consumer_name, balancer_ip,
+            gateway_group_id, instance_id, api_product_id,
+            vars.request_type, vars.llm_model),
+            extra_labels("llm_completion_tokens", ctx)))
+    end
 end
 
 
@@ -640,6 +745,60 @@ end
 function _M.metric_data()
     return prometheus:metric_data()
 end
+
+
+local function inc_llm_active_connections(ctx, value)
+    local disabled_label_metric_map = get_disabled_label_metric_map()
+
+    local vars = ctx.var
+
+    local route_id = ""
+    local route_name = ""
+    local balancer_ip = ctx.balancer_ip or ""
+    local service_id = ""
+    local service_name = ""
+    local consumer_name = ctx.consumer_name or ""
+    local gateway_group_id = get_gateway_group_id()
+    local instance_id = core.id.get()
+    local api_product_id = ctx.api_product_id or ""
+
+    local matched_route = ctx.matched_route and ctx.matched_route.value
+    if matched_route then
+        route_id = matched_route.id
+        route_name = matched_route.name or ""
+        service_id = matched_route.service_id or ""
+        if service_id ~= "" then
+            local fetched_service = service_fetch(service_id)
+            service_name = fetched_service and fetched_service.value.name or ""
+        end
+    end
+
+    local matched_uri = ""
+    local matched_host = ""
+    if ctx.curr_req_matched then
+        matched_uri = ctx.curr_req_matched._path or ""
+        matched_host = ctx.curr_req_matched._host or ""
+    end
+
+    metrics.llm_active_connections:inc(value,
+        append_tables(get_enabled_label_values_for_metric("llm_active_connections",
+        disabled_label_metric_map, route_name, route_id, matched_uri,
+        matched_host, service_name, service_id, consumer_name, balancer_ip,
+        gateway_group_id, instance_id, api_product_id,
+        vars.request_type, vars.llm_model),
+        extra_labels("llm_active_connections", ctx)))
+end
+
+
+function _M.inc_llm_active_connections(ctx)
+    inc_llm_active_connections(ctx, 1)
+end
+
+
+function _M.dec_llm_active_connections(ctx)
+    inc_llm_active_connections(ctx, -1)
+end
+
 
 function _M.get_prometheus()
     return prometheus

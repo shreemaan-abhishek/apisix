@@ -15,8 +15,11 @@
 -- limitations under the License.
 --
 
+local ngx = ngx
 local core = require("apisix.core")
 local require = require
+local pcall   = pcall
+local exporter = require("apisix.plugins.prometheus.exporter")
 
 
 local _M = {}
@@ -42,18 +45,37 @@ function _M.before_proxy(conf, ctx)
         request_body.stream_options = {
             include_usage = true
         }
+        ctx.var.request_type = "ai_stream"
+    else
+        ctx.var.request_type = "ai_chat"
+    end
+    local model = ai_instance.options and ai_instance.options.model or request_body.model
+    if model then
+        ctx.var.llm_model = model
     end
 
-    local res, err = ai_driver:request(conf, request_body, extra_opts)
-    if not res then
-        core.log.warn("failed to send request to AI service: ", err)
-        if core.string.find(err, "timeout") then
-            return 504
+    local do_request = function()
+        ctx.llm_request_start_time = ngx.now()
+        local res, err = ai_driver:request(conf, request_body, extra_opts)
+        if not res then
+            core.log.warn("failed to send request to AI service: ", err)
+            if core.string.find(err, "timeout") then
+                return 504
+            end
+            return 500
         end
+        return ai_driver.read_response(ctx, res)
+    end
+
+    exporter.inc_llm_active_connections(ctx)
+    local ok, code_or_err, body = pcall(do_request)
+    exporter.dec_llm_active_connections(ctx)
+    if not ok then
+        core.log.error("failed to send request to AI service: ", code_or_err)
         return 500
     end
 
-    return ai_driver.read_response(ctx, res)
+    return code_or_err, body
 end
 
 

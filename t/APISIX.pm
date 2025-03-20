@@ -630,7 +630,7 @@ _EOC_
         require("apisix").http_exit_worker()
     }
 
-    log_format main escape=default '\$remote_addr - \$remote_user [\$time_local] \$http_host "\$request_line" \$status \$body_bytes_sent \$request_time "\$http_referer" "\$http_user_agent" \$upstream_addr \$upstream_status \$upstream_response_time "\$upstream_scheme://\$upstream_host\$upstream_uri" \$ai_token_usage \$ai_ttfb';
+    log_format main escape=default '\$remote_addr - \$remote_user [\$time_local] \$http_host "\$request_line" \$status \$body_bytes_sent \$request_time "\$http_referer" "\$http_user_agent" \$upstream_addr \$upstream_status \$upstream_response_time "\$upstream_scheme://\$upstream_host\$upstream_uri" \$llm_model \$llm_time_to_first_token \$llm_prompt_tokens \$llm_completion_tokens';
     # fake server, only for test
     server {
         listen 1980;
@@ -779,8 +779,12 @@ _EOC_
             set \$apisix_request_id \$request_id;
             lua_error_log_request_id \$apisix_request_id;
 
-            set \$ai_token_usage '-';
-            set \$ai_ttfb '-';
+            set \$request_type               'traditional_http';
+
+            set \$llm_time_to_first_token        '';
+            set \$llm_model                      '';
+            set \$llm_prompt_tokens              '';
+            set \$llm_completion_tokens          '';
 
             access_log $apisix_home/t/servroot/logs/access.log main;
 

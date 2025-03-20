@@ -120,6 +120,7 @@ __DATA__
                                 }
                             },
                             "options": {
+                                "model": "gpt-3.5-turbo",
                                 "max_tokens": 512,
                                 "temperature": 1.0
                             },
@@ -148,7 +149,7 @@ passed
 POST /anything
 { "messages": [ { "role": "system", "content": "You are a mathematician" }, { "role": "user", "content": "What is 1+1?"} ] }
 --- error_code: 200
---- response_body_eval
+--- response_body eval
 qr/.*completion_tokens.*/
---- access_log
-completion_tokens\x22:20
+--- access_log eval
+qr/.*gpt-3.5-turbo \d+ 10 20.*/

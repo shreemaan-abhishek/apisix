@@ -586,7 +586,7 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- error_code eval
 [401, 401, 200]
 --- response_body_like eval
-[".*Authorization Failed.*", ".*Authorization Failed.*", ".*apisix_http_status\{code=\"401\",route=\"1\",route_id=\"1\",matched_uri=\"\/log_request\",matched_host=\"\",service=\"1\",service_id=\"1\",consumer=\"\",.*api_product_id=\"5c7d2ccf-08e3-43b9-956f-6e0f58de6142\"\} 2.*"]
+[".*Authorization Failed.*", ".*Authorization Failed.*", ".*apisix_http_status\{code=\"401\",route=\"1\",route_id=\"1\",matched_uri=\"\/log_request\",matched_host=\"\",service=\"1\",service_id=\"1\",consumer=\"\",.*api_product_id=\"5c7d2ccf-08e3-43b9-956f-6e0f58de6142\".*\} 2.*"]
 
 
 
@@ -602,4 +602,4 @@ authkey: auth-one
 --- error_code eval
 [200, 200, 200]
 --- response_body_like eval
-[".*", ".*", ".*apisix_http_status\{code=\"200\",route=\"1\",route_id=\"1\",matched_uri=\"\/log_request\",matched_host=\"\",service=\"1\",service_id=\"1\",consumer=\"developer_test\",.*api_product_id=\"5c7d2ccf-08e3-43b9-956f-6e0f58de6142\"\} 2.*"]
+[".*", ".*", ".*apisix_http_status\{code=\"200\",route=\"1\",route_id=\"1\",matched_uri=\"\/log_request\",matched_host=\"\",service=\"1\",service_id=\"1\",consumer=\"developer_test\",.*api_product_id=\"5c7d2ccf-08e3-43b9-956f-6e0f58de6142\".*\} 2.*"]
