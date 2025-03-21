@@ -215,9 +215,7 @@ function _M.heartbeat(self, first)
     end
 
     -- Reset counter only when heartbeat success.
-    if tab_isempty(api_calls_per_code) then
-        self.api_calls_per_code_last_value = api_calls_per_code
-    end
+    self.api_calls_per_code_last_value = api_calls_per_code
 
     local resp_body, err = utils.parse_resp(res.body)
     if not resp_body then

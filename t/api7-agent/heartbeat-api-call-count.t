@@ -129,17 +129,33 @@ passed
 
 
 
-=== TEST 2: should record api calls with 200 and 404 route
+=== TEST 2: send multiple requests to test the api call count
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
 env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
---- pipelined_requests eval
-["GET /headers", "PUT /not_exist_route"]
---- wait: 11
---- timeout: 11
---- error_code eval
-[200, 404]
+--- yaml_config
+plugin_attr:
+  prometheus:
+    export_addr:
+      port: 1980
+--- timeout: 15
+--- config
+    location /t {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            for _, uri in ipairs({"/headers", "/not_exist_route"}) do
+                local resp = httpc:request_uri("http://127.0.0.1:" .. ngx.var.server_port .. uri)
+                if not resp then
+                    ngx.say("failed to request test server")
+                    return
+                end
+            end
+            ngx.sleep(11)
+            ngx.say("pass")
+        }
+    }
 --- no_error_log
 missing api_calls
 --- error_log eval
@@ -150,7 +166,7 @@ qr/the payload\.api_calls is: 2/
 
 
 
-=== TEST 3: should record api calls with any status code
+=== TEST 3: create a route that return any status code
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
@@ -189,24 +205,63 @@ plugin_attr:
                         }
                 }]]
             )
-            ngx.status = code
             ngx.say(body)
         }
     }
---- wait: 11
---- timeout: 11
---- pipelined_requests eval
-["GET /t", "GET /status/301", "GET /status/401",
-"GET /status/401",  "GET /status/200", "GET /status/503",
-"GET /status/200", "GET /status/503", "GET /status/500"]
---- no_error_log
-missing api_calls
---- error_code eval
-[200, 301, 401, 401, 200, 503, 200, 503, 500]
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 4: send multiple requests to test the api call count
+--- main_config
+env API7_CONTROL_PLANE_TOKEN=a7ee-token;
+env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
+--- yaml_config
+plugin_attr:
+  prometheus:
+    export_addr:
+      port: 1980
+--- timeout: 30
+--- config
+    location /t {
+        content_by_lua_block {
+            local http = require "resty.http"
+            local httpc = http.new()
+            for _, code in ipairs({301, 401, 401, 200, 503, 200, 503, 500}) do
+                local resp = httpc:request_uri("http://127.0.0.1:" .. ngx.var.server_port .. "/status/" .. tostring(code))
+                if resp.status ~= code then
+                    ngx.say("failed to request /status/" .. tostring(code))
+                    return
+                end
+            end
+            ngx.sleep(11)
+            for _, code in ipairs({301, 401, 401, 200, 503, 200, 503, 500}) do
+                local resp = httpc:request_uri("http://127.0.0.1:" .. ngx.var.server_port .. "/status/" .. tostring(code))
+                if resp.status ~= code then
+                    ngx.say("failed to request /status/" .. tostring(code))
+                    return
+                end
+            end
+            ngx.sleep(11)
+            ngx.say("pass")
+        }
+    }
+--- no_error_log eval
+qr/missing api_calls/ and
+qr/the payload\.api_calls_per_code\[200\] is: 4/ and
+qr/the payload\.api_calls_per_code\[401\] is: 4/ and
+qr/the payload\.api_calls_per_code\[301\] is: 2/ and
+qr/the payload\.api_calls_per_code\[500\] is: 2/ and
+qr/the payload\.api_calls_per_code\[503\] is: 4/ and
+qr/the payload\.api_calls is: 16/
 --- error_log eval
 qr/the payload\.api_calls_per_code\[200\] is: 2/ and
 qr/the payload\.api_calls_per_code\[401\] is: 2/ and
 qr/the payload\.api_calls_per_code\[301\] is: 1/ and
 qr/the payload\.api_calls_per_code\[500\] is: 1/ and
-qr/the payload\.api_calls_per_code\[503\] is: 2/ and 
+qr/the payload\.api_calls_per_code\[503\] is: 2/ and
 qr/the payload\.api_calls is: 8/
