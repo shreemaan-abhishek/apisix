@@ -147,6 +147,7 @@ function _M.read_response(ctx, res)
     core.response.set_header("Content-Type", content_type)
 
     if content_type and core.string.find(content_type, "text/event-stream") then
+        local contents = {}
         while true do
             local chunk, err = body_reader() -- will read chunk by chunk
             if err then
@@ -167,7 +168,7 @@ function _M.read_response(ctx, res)
             ngx_print(chunk)
             ngx_flush(true)
 
-            local events, err = ngx_re.split(chunk, "\n")
+            local events, err = ngx_re.split(chunk, "\n\n")
             if err then
                 core.log.warn("failed to split response chunk [", chunk, "] to events: ", err)
                 goto CONTINUE
@@ -188,12 +189,21 @@ function _M.read_response(ctx, res)
                     core.log.warn("malformed data event: ", event)
                     goto CONTINUE
                 end
-
                 local data, err = core.json.decode(parts[2])
                 if err then
                     core.log.warn("failed to decode data event [", parts[2], "] to json: ", err)
                     goto CONTINUE
                 end
+            -- https://platform.openai.com/docs/api-reference/chat/create#chat-create-stream
+
+                if data and data.choices then
+                    for _, choice in ipairs(data.choices) do
+                        if choice and choice.delta and choice.delta.content then
+                            core.table.insert(contents, choice.delta.content)
+                        end
+                    end
+                end
+
 
                 -- usage field is null for non-last events, null is parsed as userdata type
                 if data and data.usage and type(data.usage) ~= "userdata" then
@@ -206,6 +216,7 @@ function _M.read_response(ctx, res)
                     }
                     ctx.var.llm_prompt_tokens = ctx.ai_token_usage.prompt_tokens
                     ctx.var.llm_completion_tokens = ctx.ai_token_usage.completion_tokens
+                    ctx.var.llm_response_text = table.concat(contents, "")
                 end
             end
 
@@ -244,10 +255,10 @@ function _M.read_response(ctx, res)
                 end
             end
             local content_to_check = table.concat(contents, " ")
+            ctx.var.llm_response_text = content_to_check
             plugin.lua_body_filter(content_to_check, ctx)
         end
     end
-
     return res.status, raw_res_body
 end
 

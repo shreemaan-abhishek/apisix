@@ -24,6 +24,26 @@ local exporter = require("apisix.plugins.prometheus.exporter")
 
 local _M = {}
 
+function _M.set_logging(ctx, summaries, payloads)
+    if summaries then
+        ctx.llm_summary = {
+            model = ctx.var.llm_model,
+            duration = ctx.var.llm_time_to_first_token,
+            prompt_tokens = ctx.var.llm_prompt_tokens,
+            completion_tokens = ctx.var.llm_completion_tokens,
+        }
+    end
+    if payloads then
+        ctx.llm_request = {
+            messages = ctx.var.llm_request_body and ctx.var.llm_request_body.messages,
+            stream = ctx.var.request_type == "ai_stream"
+        }
+        ctx.llm_response_text = {
+            content = ctx.var.llm_response_text
+        }
+    end
+end
+
 
 function _M.before_proxy(conf, ctx)
     local ai_instance = ctx.picked_ai_instance
@@ -56,6 +76,7 @@ function _M.before_proxy(conf, ctx)
 
     local do_request = function()
         ctx.llm_request_start_time = ngx.now()
+        ctx.var.llm_request_body = request_body
         local res, err = ai_driver:request(conf, request_body, extra_opts)
         if not res then
             core.log.warn("failed to send request to AI service: ", err)

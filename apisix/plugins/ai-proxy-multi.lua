@@ -402,7 +402,6 @@ local function pick_ai_instance(ctx, conf, ups_tab)
     return instance_name, instance_conf, err
 end
 
-
 function _M.access(conf, ctx)
     local ups_tab = {}
     local algo = core.table.try_read_attr(conf, "balancer", "algorithm")
@@ -426,5 +425,10 @@ end
 
 _M.before_proxy = base.before_proxy
 
+function _M.log(conf, ctx)
+    if conf.logging then
+        base.set_logging(ctx, conf.logging.summaries, conf.logging.payloads)
+    end
+end
 
 return _M
