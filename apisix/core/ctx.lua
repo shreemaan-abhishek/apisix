@@ -330,9 +330,9 @@ do
                 -- trim the "graphql_" prefix
                 key = sub_str(key, 9)
                 val = get_parsed_graphql()[key]
-            elseif core_str.has_prefix(key, "post_args.") then
-                -- trim the "post_args." prefix (11 characters)
-                key = sub_str(key, 11)
+            elseif core_str.has_prefix(key, "post_arg.") then
+                -- trim the "post_arg." prefix (10 characters)
+                key = sub_str(key, 10)
                 local parsed_body, err = get_parsed_request_body(t._ctx)
                 if not parsed_body then
                     log.warn("failed to fetch post args value by key: ", key, " error: ", err)

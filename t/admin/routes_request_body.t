@@ -44,7 +44,7 @@ __DATA__
                     "uri": "/hello",
                     "vars": [
                         [
-                            ["post_args.model","==","deepseek"]
+                            ["post_arg.model","==","deepseek"]
                         ]
                     ],
                     "upstream": {
@@ -65,7 +65,7 @@ __DATA__
                     "uri": "/hello",
                     "vars": [
                         [
-                            ["post_args.model","==","openai"]
+                            ["post_arg.model","==","openai"]
                         ]
                     ],
                     "upstream": {
