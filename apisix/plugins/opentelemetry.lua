@@ -337,6 +337,8 @@ function _M.rewrite(conf, api_ctx)
         table.insert(attributes, attr.string("apisix.route_name", api_ctx.route_name))
         table.insert(attributes, attr.string("http.route", api_ctx.curr_req_matched._path))
         span_name = span_name .. " " .. api_ctx.curr_req_matched._path
+    else
+        span_name = span_name .. " route not found"
     end
 
     if api_ctx.service_id then

@@ -207,3 +207,55 @@ qr/\{"key":"apisix.route_id","value":\{"stringValue":"1"\}\}/
 tail -n 1 ci/pod/otelcol-contrib/data-otlp.json
 --- response_body eval
 qr/\{"key":"apisix.route_name","value":\{"stringValue":"route-name"\}\}/
+
+
+
+=== TEST 14: enable opentelemetry in global rule
+--- config
+    location /t {
+        content_by_lua_block {
+            local json = require("toolkit.json")
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/global_rules/1',
+                 ngx.HTTP_PUT,
+                [[{
+                    "plugins": {
+                        "opentelemetry": {
+                            "sampler": {
+                                "name": "always_on"
+                            }
+                        }
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+                ngx.say(body)
+                return
+            end
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 15: send a 404 request
+--- request
+GET /not-found
+--- wait: 2
+--- error_code: 404
+--- response_body
+{"error_msg":"404 Route Not Found"}
+
+
+
+=== TEST 16: (span) check name
+--- exec
+tail -n 1 ci/pod/otelcol-contrib/data-otlp.json
+--- response_body eval
+qr/"name":"GET route not found"/
