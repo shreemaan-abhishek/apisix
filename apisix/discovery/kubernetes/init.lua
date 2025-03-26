@@ -1,3 +1,20 @@
+--
+-- Licensed to the Apache Software Foundation (ASF) under one or more
+-- contributor license agreements.  See the NOTICE file distributed with
+-- this work for additional information regarding copyright ownership.
+-- The ASF licenses this file to You under the Apache License, Version 2.0
+-- (the "License"); you may not use this file except in compliance with
+-- the License.  You may obtain a copy of the License at
+--
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+--
+
 local ngx = ngx
 local ipairs = ipairs
 local pairs = pairs
@@ -5,17 +22,18 @@ local string = string
 local tonumber = tonumber
 local tostring = tostring
 local os = os
+local error = error
 local pcall = pcall
 local setmetatable = setmetatable
 local is_http = ngx.config.subsystem == "http"
-local support_process, process = pcall(require, "ngx.process")
+local process = require("ngx.process")
 local core = require("apisix.core")
 local util = require("apisix.cli.util")
 local local_conf = require("apisix.core.config_local").local_conf()
-local informer_factory = require("agent.discovery.kubernetes.informer_factory")
+local informer_factory = require("apisix.discovery.kubernetes.informer_factory")
 
 
-local ctx = {}
+local ctx
 
 local endpoint_lrucache = core.lrucache.new({
     ttl = 300,
@@ -32,6 +50,69 @@ local function sort_nodes_cmp(left, right)
     return left.port < right.port
 end
 
+local function on_endpoint_slices_modified(handle, endpoint)
+    if handle.namespace_selector and
+            not handle:namespace_selector(endpoint.metadata.namespace) then
+        return
+    end
+
+    core.log.debug(core.json.delay_encode(endpoint))
+    core.table.clear(endpoint_buffer)
+
+    local endpointslices = endpoint.endpoints
+    for _, endpointslice in ipairs(endpointslices or {}) do
+        if endpointslice.addresses then
+            local addresses = endpointslices.addresses
+            for _, port in ipairs(endpoint.ports or {}) do
+                local port_name
+                if port.name then
+                    port_name = port.name
+                elseif port.targetPort then
+                    port_name = tostring(port.targetPort)
+                else
+                    port_name = tostring(port.port)
+                end
+
+                if endpointslice.conditions and endpointslice.condition.ready then
+                    local nodes = endpoint_buffer[port_name]
+                    if nodes == nil then
+                        nodes = core.table.new(0, #endpointslices * #addresses)
+                        endpoint_buffer[port_name] = nodes
+                    end
+
+                    for _, address in ipairs(endpointslices.addresses) do
+                        core.table.insert(nodes, {
+                            host = address.ip,
+                            port = port.port,
+                            weight = handle.default_weight
+                        })
+                    end
+                end
+            end
+        end
+    end
+
+    for _, ports in pairs(endpoint_buffer) do
+        for _, nodes in pairs(ports) do
+            core.table.sort(nodes, sort_nodes_cmp)
+        end
+    end
+    local endpoint_key = endpoint.metadata.namespace .. "/" .. endpoint.metadata.name
+    local endpoint_content = core.json.encode(endpoint_buffer, true)
+    local endpoint_version = ngx.crc32_long(endpoint_content)
+
+    local _, err
+    _, err = handle.endpoint_dict:safe_set(endpoint_key .. "#version", endpoint_version)
+    if err then
+        core.log.error("set endpoint version into discovery DICT failed, ", err)
+        return
+    end
+    _, err = handle.endpoint_dict:safe_set(endpoint_key, endpoint_content)
+    if err then
+        core.log.error("set endpoint into discovery DICT failed, ", err)
+        handle.endpoint_dict:delete(endpoint_key .. "#version")
+    end
+end
 
 local function on_endpoint_modified(handle, endpoint)
     if handle.namespace_selector and
@@ -69,9 +150,6 @@ local function on_endpoint_modified(handle, endpoint)
                         weight = handle.default_weight
                     })
                 end
-
-                -- Different from Apache APISIX, we both set nodes to port_name and port.port
-                endpoint_buffer[tostring(port.port)] = core.table.deepcopy(nodes)
             end
         end
     end
@@ -82,8 +160,7 @@ local function on_endpoint_modified(handle, endpoint)
         end
     end
 
-    --- Different from Apache APISIX, we add registry_id to endpoint_key
-    local endpoint_key = handle.registry_id .. "/" .. endpoint.metadata.namespace .. "/" .. endpoint.metadata.name
+    local endpoint_key = endpoint.metadata.namespace .. "/" .. endpoint.metadata.name
     local endpoint_content = core.json.encode(endpoint_buffer, true)
     local endpoint_version = ngx.crc32_long(endpoint_content)
 
@@ -108,8 +185,7 @@ local function on_endpoint_deleted(handle, endpoint)
     end
 
     core.log.debug(core.json.delay_encode(endpoint))
-    --- Different from Apache APISIX, we add registry_id to endpoint_key
-    local endpoint_key = handle.registry_id .. "/" .. endpoint.metadata.namespace .. "/" .. endpoint.metadata.name
+    local endpoint_key = endpoint.metadata.namespace .. "/" .. endpoint.metadata.name
     handle.endpoint_dict:delete(endpoint_key .. "#version")
     handle.endpoint_dict:delete(endpoint_key)
 end
@@ -247,7 +323,7 @@ local function get_apiserver(conf)
 
     apiserver.port = tonumber(port)
     if not apiserver.port or apiserver.port <= 0 or apiserver.port > 65535 then
-        return nil, "invalid port value: " .. (apiserver.port or "nil")
+        return nil, "invalid port value: " .. apiserver.port
     end
 
     if conf.client.token then
@@ -289,7 +365,7 @@ local function get_apiserver(conf)
     return apiserver
 end
 
-local function create_endpoint_lrucache(endpoint_dict, endpoint_key)
+local function create_endpoint_lrucache(endpoint_dict, endpoint_key, endpoint_port)
     local endpoint_content = endpoint_dict:get_stale(endpoint_key)
     if not endpoint_content then
         core.log.error("get empty endpoint content from discovery DIC, this should not happen ",
@@ -304,7 +380,7 @@ local function create_endpoint_lrucache(endpoint_dict, endpoint_key)
         return nil
     end
 
-    return endpoint
+    return endpoint[endpoint_port]
 end
 
 
@@ -314,18 +390,9 @@ local _M = {
 
 
 local function start_fetch(handle)
-    if handle.checker ~= nil then
-        handle.checker:start()
-    end
-
     local timer_runner
     timer_runner = function(premature)
         if premature then
-            return
-        end
-
-        if handle.stop then
-            core.log.info("stop fetching, kind: ", handle.kind)
             return
         end
 
@@ -346,108 +413,181 @@ local function start_fetch(handle)
 end
 
 local function get_endpoint_dict(id)
-    return ngx.shared.kubernetes
+    local shm = "kubernetes"
+
+    if id and #id > 0 then
+        shm = shm .. "-" .. id
+    end
+
+    if not is_http then
+        shm = shm .. "-stream"
+    end
+
+    return ngx.shared[shm]
+end
+
+
+local function single_mode_init(conf)
+    local endpoint_dict = get_endpoint_dict()
+
+    if not endpoint_dict then
+        error("failed to get lua_shared_dict: ngx.shared.kubernetes, " ..
+                "please check your APISIX version")
+    end
+
+    if process.type() ~= "privileged agent" then
+        ctx = endpoint_dict
+        return
+    end
+
+    local apiserver, err = get_apiserver(conf)
+    if err then
+        error(err)
+        return
+    end
+
+    local default_weight = conf.default_weight
+    local endpoints_informer, err
+    if conf.watch_endpoint_slices_schema then
+        endpoints_informer, err = informer_factory.new("discovery.k8s.io", "v1",
+                                                       "EndpointSlice", "endpointslices", "")
+    else
+        endpoints_informer, err = informer_factory.new("", "v1", "Endpoints", "endpoints", "")
+    end
+    if err then
+        error(err)
+        return
+    end
+
+    setup_namespace_selector(conf, endpoints_informer)
+    setup_label_selector(conf, endpoints_informer)
+
+    if conf.watch_endpoint_slices_schema then
+        endpoints_informer.on_added = on_endpoint_slices_modified
+        endpoints_informer.on_modified = on_endpoint_slices_modified
+    else
+        endpoints_informer.on_added = on_endpoint_modified
+        endpoints_informer.on_modified = on_endpoint_modified
+    end
+    endpoints_informer.on_deleted = on_endpoint_deleted
+    endpoints_informer.pre_list = pre_list
+    endpoints_informer.post_list = post_list
+
+    ctx = setmetatable({
+        endpoint_dict = endpoint_dict,
+        apiserver = apiserver,
+        default_weight = default_weight
+    }, { __index = endpoints_informer })
+
+    start_fetch(ctx)
+end
+
+
+local function single_mode_nodes(service_name)
+    local pattern = "^(.*):(.*)$" -- namespace/name:port_name
+    local match = ngx.re.match(service_name, pattern, "jo")
+    if not match then
+        core.log.error("get unexpected upstream service_name:　", service_name)
+        return nil
+    end
+
+    local endpoint_dict = ctx
+    local endpoint_key = match[1]
+    local endpoint_port = match[2]
+    local endpoint_version = endpoint_dict:get_stale(endpoint_key .. "#version")
+    if not endpoint_version then
+        core.log.info("get empty endpoint version from discovery DICT ", endpoint_key)
+        return nil
+    end
+
+    return endpoint_lrucache(service_name, endpoint_version,
+            create_endpoint_lrucache, endpoint_dict, endpoint_key, endpoint_port)
+end
+
+
+local function multiple_mode_worker_init(confs)
+    for _, conf in ipairs(confs) do
+
+        local id = conf.id
+        if ctx[id] then
+            error("duplicate id value")
+        end
+
+        local endpoint_dict = get_endpoint_dict(id)
+        if not endpoint_dict then
+            error(string.format("failed to get lua_shared_dict: ngx.shared.kubernetes-%s, ", id) ..
+                    "please check your APISIX version")
+        end
+
+        ctx[id] = endpoint_dict
+    end
 end
 
 
 local function multiple_mode_init(confs)
+    ctx = core.table.new(#confs, 0)
 
     if process.type() ~= "privileged agent" then
+        multiple_mode_worker_init(confs)
         return
-    end
-
-    local tmp = core.table.new(#confs, 0)
-    for _, conf in ipairs(confs) do
-        tmp[conf.id] = true
     end
 
     for _, conf in ipairs(confs) do
         local id = conf.id
-        local version = ngx.md5(core.json.encode(conf, true))
 
         if ctx[id] then
-            local old = ctx[id]
-            if old.version == version then
-                core.log.info("the kubernetes configuration doesn't changed, id: ", id, " conf: ",
-                        core.json.delay_encode(conf))
-                goto CONTINUE
-            end
-
-            --- It means that the configuration has been changed.So we need to stop the previous informer
-            old.informer.stop = true
+            error("duplicate id value")
         end
 
-        local endpoint_dict = get_endpoint_dict()
+        local endpoint_dict = get_endpoint_dict(id)
         if not endpoint_dict then
-            core.log.error(string.format("failed to get lua_shared_dict: ngx.shared.kubernetes, ") ..
+            error(string.format("failed to get lua_shared_dict: ngx.shared.kubernetes-%s, ", id) ..
                     "please check your APISIX version")
         end
 
         local apiserver, err = get_apiserver(conf)
         if err then
-            core.log.error(err)
-            goto CONTINUE
+            error(err)
+            return
         end
 
-        local default_weight = conf.default_weight or 50
+        local default_weight = conf.default_weight
 
-        local endpoints_informer, err = informer_factory.new("", "v1", "Endpoints", "endpoints", "")
+        local endpoints_informer, err
+        if conf.watch_endpoint_slices_schema then
+            endpoints_informer, err = informer_factory.new("discovery.k8s.io", "v1",
+                                                           "EndpointSlice", "endpointslices", "")
+        else
+            endpoints_informer, err = informer_factory.new("", "v1", "Endpoints", "endpoints", "")
+        end
         if err then
-            core.log.error(err)
+            error(err)
             return
         end
 
         setup_namespace_selector(conf, endpoints_informer)
         setup_label_selector(conf, endpoints_informer)
 
-        endpoints_informer.on_added = on_endpoint_modified
-        endpoints_informer.on_modified = on_endpoint_modified
+        if conf.watch_endpoint_slices_schema then
+            endpoints_informer.on_added = on_endpoint_slices_modified
+            endpoints_informer.on_modified = on_endpoint_slices_modified
+        else
+            endpoints_informer.on_added = on_endpoint_modified
+            endpoints_informer.on_modified = on_endpoint_modified
+        end
         endpoints_informer.on_deleted = on_endpoint_deleted
         endpoints_informer.pre_list = pre_list
         endpoints_informer.post_list = post_list
-        endpoints_informer.registry_id = id
-
-        local checker
-        if conf.check then
-            local health_check = require("resty.healthcheck")
-            checker = health_check.new({
-                name = conf.id,
-                shm_name = "kubernetes",
-                checks = conf.check,
-            })
-
-            local ok, err = checker:add_target(conf.check.active.host, conf.check.active.port, nil, false)
-            if not ok then
-                core.log.error("failed to add health check target", core.json.encode(conf))
-                goto CONTINUE
-            end
-
-            core.log.info("success to add health checker, conf.id ", conf.id, " host ", conf.check.active.host, " port ", conf.check.active.port)
-        end
 
         ctx[id] = setmetatable({
             endpoint_dict = endpoint_dict,
             apiserver = apiserver,
-            default_weight = default_weight,
-            version = version,
-            informer = endpoints_informer,
-            checker = checker,
+            default_weight = default_weight
         }, { __index = endpoints_informer })
-
-        ::CONTINUE::
     end
 
-    for id, item in pairs(ctx) do
-        if tmp[id] then
-          start_fetch(item)
-        else
-          --- This item is not in the new configuration, it means that it has been deleted from the control plane
-          --- So we should stop the informer
-          local old = ctx[id]
-          old.informer.stop = true
-          old.checker:clear()
-          ctx[id] = nil
-        end
+    for _, item in pairs(ctx) do
+        start_fetch(item)
     end
 end
 
@@ -461,14 +601,13 @@ local function multiple_mode_nodes(service_name)
     end
 
     local id = match[1]
-    local endpoint_dict = ngx.shared.kubernetes
+    local endpoint_dict = ctx[id]
     if not endpoint_dict then
-        core.log.error("id not exist: ", id)
+        core.log.error("id not exist")
         return nil
     end
 
-    --- Different from Apache APISIX, we add the registry_id to the key
-    local endpoint_key = id .. "/" .. match[2]
+    local endpoint_key = match[2]
     local endpoint_port = match[3]
     local endpoint_version = endpoint_dict:get_stale(endpoint_key .. "#version")
     if not endpoint_version then
@@ -476,101 +615,63 @@ local function multiple_mode_nodes(service_name)
         return nil
     end
 
-    local endpoint = endpoint_lrucache(service_name, endpoint_version,
-            create_endpoint_lrucache, endpoint_dict, endpoint_key)
-    if not endpoint then
-        return nil
-    end
-
-    return endpoint[endpoint_port]
-end
-
-function _M.list_all_services()
-    local endpoint_dict = get_endpoint_dict()
-    local keys = endpoint_dict:get_keys()
-    if not keys then
-        return {}
-    end
-
-    local result = {}
-    for _, key in ipairs(keys) do
-        if not core.string.find(key, "#version") then
-            goto CONTINUE
-        end
-
-        local pattern = "^(.*)/(.*)/(.*)#version$" -- id/namespace/name#version
-        local match = ngx.re.match(key, pattern, "jo")
-        if not match then
-            core.log.error("get unexpected upstream service_name:　", service_name)
-            goto CONTINUE
-        end
-
-        local service_registry_id = match[1]
-        local namespace = match[2]
-        local service_name = match[3]
-        local endpoint_key = service_registry_id .. "/" .. namespace .. "/" .. service_name
-        if result[service_registry_id] == nil then
-            result[service_registry_id] = {}
-        end
-
-        if result[service_registry_id][namespace] == nil then
-            result[service_registry_id][namespace] = {}
-        end
-
-        local endpoint_version = endpoint_dict:get_stale(endpoint_key)
-        if not endpoint_version then
-            core.log.info("get empty endpoint version from discovery DICT ", endpoint_key)
-            goto CONTINUE
-        end
-
-        local content = endpoint_lrucache(service_name, endpoint_version, create_endpoint_lrucache, endpoint_dict, endpoint_key)
-        for port in pairs(content) do
-            if tonumber(port) then
-                local len = #result[service_registry_id][namespace]
-                result[service_registry_id][namespace][len + 1] = service_name .. ":" .. port
-            end
-        end
-
-        ::CONTINUE::
-
-    end
-
-    return result
+    return endpoint_lrucache(service_name, endpoint_version,
+            create_endpoint_lrucache, endpoint_dict, endpoint_key, endpoint_port)
 end
 
 
 function _M.init_worker()
-    if not support_process then
-        core.log.error("kubernetes discovery not support in subsystem: ", ngx.config.subsystem,
-                       ", please check if your openresty version >= 1.19.9.1 or not")
-        return
-    end
-
-    local local_conf = require("apisix.core.config_local").local_conf(true)
-    local discovery_conf = local_conf.api7_discovery and local_conf.api7_discovery.kubernetes or {}
-
+    local discovery_conf = local_conf.discovery.kubernetes
     core.log.info("kubernetes discovery conf: ", core.json.delay_encode(discovery_conf))
-
-    _M.nodes = multiple_mode_nodes
-    multiple_mode_init(discovery_conf)
+    if #discovery_conf == 0 then
+        _M.nodes = single_mode_nodes
+        single_mode_init(discovery_conf)
+    else
+        _M.nodes = multiple_mode_nodes
+        multiple_mode_init(discovery_conf)
+    end
 end
 
 
-function _M.get_health_checkers()
-    local result = core.table.new(0, 4)
-    if ctx == nil then
-        return result
-    end
+function _M.dump_data()
 
-    for id in pairs(ctx) do
-        local health_check = require("resty.healthcheck")
-        local list = health_check.get_target_list(id, "kubernetes")
-        if list then
-            result[id] = list
+    local eps = {}
+    for _, conf in ipairs(local_conf.discovery.kubernetes) do
+
+        local id = conf.id
+        local endpoint_dict = get_endpoint_dict(id)
+        local keys, err = endpoint_dict:get_keys()
+        if err then
+            error(err)
+            break
+        end
+
+        if keys then
+            local k8s = {}
+            for i = 1, #keys do
+
+                local key = keys[i]
+                --skip key with suffix #version
+                if key:sub(-#"#version") ~= "#version" then
+                    local value = endpoint_dict:get(key)
+
+                    core.table.insert(k8s, {
+                        name = key,
+                        value = value
+                    })
+                end
+            end
+
+            core.table.insert(eps, {
+                id = conf.id,
+                endpoints = k8s
+            })
+
         end
     end
 
-    return result
+    return {config = local_conf.discovery.kubernetes, endpoints = eps}
 end
+
 
 return _M
