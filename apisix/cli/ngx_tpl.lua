@@ -890,6 +890,7 @@ http {
             {% end %}
 
             set $request_type               'traditional_http';
+            set $request_llm_model              '';
 
             set $llm_time_to_first_token        '';
             set $llm_model                      '';
