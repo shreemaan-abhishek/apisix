@@ -97,6 +97,7 @@ authz-keycloak
 data-mask
 proxy-cache
 body-transformer
+ai-prompt-guard
 ai-prompt-template
 ai-prompt-decorator
 ai-rag
