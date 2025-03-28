@@ -129,6 +129,7 @@ _M.ai_proxy_schema = {
         timeout = {
             type = "integer",
             minimum = 1,
+            maximum = 600000,
             default = 30000,
             description = "timeout in milliseconds",
         },
@@ -186,7 +187,7 @@ _M.ai_proxy_multi_schema = {
         timeout = {
             type = "integer",
             minimum = 1,
-            maximum = 60000,
+            maximum = 600000,
             default = 30000,
             description = "timeout in milliseconds",
         },
