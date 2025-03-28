@@ -16,8 +16,7 @@
 --
 local _M = {}
 
-_M.chat_request_schema = {
-    openai = {
+local openai_compatible_chat_schema = {
         type = "object",
         properties = {
             messages = {
@@ -41,6 +40,11 @@ _M.chat_request_schema = {
         },
         required = {"messages"}
     }
+
+_M.chat_request_schema = {
+    ["openai"] = openai_compatible_chat_schema,
+    ["deepseek"] = openai_compatible_chat_schema,
+    ["openai-compatible"] = openai_compatible_chat_schema,
 }
 
 return  _M

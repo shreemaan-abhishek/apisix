@@ -245,41 +245,44 @@ qr/As an AI language model, I cannot write unethical or controversial content fo
     location /t {
         content_by_lua_block {
             local t = require("lib.test_admin").test
-            local code, body = t('/apisix/admin/routes/1',
-                ngx.HTTP_PUT,
-                [[{
-                    "uri": "/chat",
-                    "plugins": {
-                      "ai-proxy": {
-                          "provider": "openai",
-                          "auth": {
-                              "header": {
-                                  "Authorization": "Bearer wrongtoken"
+            for _, provider in ipairs({"openai", "deepseek", "openai-compatible"}) do
+                local code, body = t('/apisix/admin/routes/' .. provider,
+                    ngx.HTTP_PUT,
+                    string.format([[{
+                        "uri": "/chat-%s",
+                        "plugins": {
+                          "ai-proxy": {
+                              "provider": "%s",
+                              "auth": {
+                                  "header": {
+                                      "Authorization": "Bearer wrongtoken"
+                                  }
+                              },
+                              "override": {
+                                  "endpoint": "http://localhost:6724/v1/chat/completions"
                               }
                           },
-                          "override": {
-                              "endpoint": "http://localhost:6724"
+                          "ai-aliyun-content-moderation": {
+                            "endpoint": "http://localhost:6724",
+                            "region_id": "cn-shanghai",
+                            "access_key_id": "fake-key-id",
+                            "access_key_secret": "fake-key-secret",
+                            "risk_level_bar": "high",
+                            "check_request": true,
+                            "check_response": true,
+                            "deny_code": 400,
+                            "deny_message": "your request is rejected"
                           }
-                      },
-                      "ai-aliyun-content-moderation": {
-                        "endpoint": "http://localhost:6724",
-                        "region_id": "cn-shanghai",
-                        "access_key_id": "fake-key-id",
-                        "access_key_secret": "fake-key-secret",
-                        "risk_level_bar": "high",
-                        "check_request": true,
-                        "check_response": true,
-                        "deny_code": 400,
-                        "deny_message": "your request is rejected"
-                      }
-                    }
-                }]]
-            )
-
-            if code >= 300 then
-                ngx.status = code
+                        }
+                    }]], provider, provider)
+                )
+                if code >= 300 then
+                    ngx.status = code
+                    return
+                end
             end
-            ngx.say(body)
+
+            ngx.say("passed")
         }
     }
 --- response_body
@@ -287,9 +290,29 @@ passed
 
 
 
-=== TEST 8: violent response should failed
+=== TEST 8: violent response should failed for openai provider
 --- request
-POST /chat
+POST /chat-openai
+{ "messages": [ { "role": "user", "content": "What is 1+1?"} ] }
+--- error_code: 400
+--- response_body_like eval
+qr/your request is rejected/
+
+
+
+=== TEST 9: violent response should failed for deepseek provider
+--- request
+POST /chat-deepseek
+{ "messages": [ { "role": "user", "content": "What is 1+1?"} ] }
+--- error_code: 400
+--- response_body_like eval
+qr/your request is rejected/
+
+
+
+=== TEST 10: violent response should failed for openai-compatible provider
+--- request
+POST /chat-openai-compatible
 { "messages": [ { "role": "user", "content": "What is 1+1?"} ] }
 --- error_code: 400
 --- response_body_like eval
