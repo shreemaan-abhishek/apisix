@@ -671,3 +671,50 @@ POST /embeddings
 --- error_code: 200
 --- response_body_like eval
 qr/.*text-embedding-ada-002*/
+
+
+
+=== TEST 17: proxy to a http endpoint without explicit port
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/post",
+                    "plugins": {
+                        "ai-proxy": {
+                            "provider": "openai",
+                            "auth": {
+                                "header": {
+                                    "Authorization": "Bearer token"
+                                }
+                            },
+                            "override": {
+                                "endpoint": "http://httpbin.org/post"
+                            }
+                        }
+                    }
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+                ngx.say(body)
+                return
+            end
+
+            ngx.say("passed")
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 18: send request to /post api should work
+--- request
+POST /post
+{}
+--- error_code: 200

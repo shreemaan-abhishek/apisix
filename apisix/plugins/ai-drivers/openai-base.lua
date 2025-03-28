@@ -79,10 +79,20 @@ function _M.request(self, conf, request_table, extra_opts)
         parsed_url = url.parse(endpoint)
     end
 
+    local scheme = parsed_url and parsed_url.scheme or "https"
+    local host = parsed_url and parsed_url.host or self.host
+    local port = parsed_url and parsed_url.port
+    if not port then
+        if scheme == "https" then
+            port = 443
+        else
+            port = 80
+        end
+    end
     local ok, err = httpc:connect({
-        scheme = parsed_url and parsed_url.scheme or "https",
-        host = parsed_url and parsed_url.host or self.host,
-        port = parsed_url and parsed_url.port or self.port,
+        scheme = scheme,
+        host = host,
+        port = port,
         ssl_verify = conf.ssl_verify,
         ssl_server_name = parsed_url and parsed_url.host or self.host,
         pool_size = conf.keepalive and conf.keepalive_pool,
