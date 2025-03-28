@@ -81,15 +81,7 @@ function _M.before_proxy(conf, ctx)
     local do_request = function()
         ctx.llm_request_start_time = ngx.now()
         ctx.var.llm_request_body = request_body
-        local res, err = ai_driver:request(conf, request_body, extra_opts)
-        if not res then
-            core.log.warn("failed to send request to AI service: ", err)
-            if core.string.find(err, "timeout") then
-                return 504
-            end
-            return 500
-        end
-        return ai_driver.read_response(ctx, res)
+        return ai_driver:request(ctx, conf, request_body, extra_opts)
     end
 
     exporter.inc_llm_active_connections(ctx)
