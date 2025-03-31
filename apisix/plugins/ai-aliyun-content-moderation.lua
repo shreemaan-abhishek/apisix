@@ -197,7 +197,7 @@ end
 -- we need to return a provider compatible response without broken the ai client
 local function deny_message(provider, message, stream)
     local content = message or "Your request violate our content policy."
-    if provider == "openai" then
+    if ai_schema.is_openai_compatible_provider(provider) then
         if stream then
             local data = {
                 id = uuid.generate_v4(),
@@ -243,7 +243,7 @@ local function deny_message(provider, message, stream)
             }
         end
     end
-
+    core.log.error("unsupported provider: ", provider)
     return content
 end
 
@@ -256,7 +256,7 @@ local function content_moderation(conf, provider, content, length_limit, stream)
             return conf.deny_code, deny_message(provider, conf.deny_message or err, stream)
         end
         if err then
-            core.log.warn("failed to check content: ", err)
+            core.log.error("failed to check content: ", err)
         end
         return
     end
@@ -273,7 +273,7 @@ local function content_moderation(conf, provider, content, length_limit, stream)
             return conf.deny_code, deny_message(provider, conf.deny_message or err, stream)
         end
         if err then
-            core.log.warn("failed to check content: ", err)
+            core.log.error("failed to check content: ", err)
         end
     end
 end
@@ -287,6 +287,7 @@ function _M.access(conf, ctx)
     end
     local provider = ctx.picked_ai_instance.provider
     if not conf.check_request then
+        core.log.info("skip request check for this request")
         return
     end
     local ct = core.request.header(ctx, "Content-Type")
@@ -302,7 +303,9 @@ function _M.access(conf, ctx)
         return 400, "request format doesn't match schema: " .. err
     end
 
-    if provider == "openai" then
+    core.log.info("current ai provider: ", provider)
+
+    if ai_schema.is_openai_compatible_provider(provider) then
         local contents = {}
         for _, message in ipairs(request_tab.messages) do
             if message.content then
@@ -323,11 +326,13 @@ function _M.access(conf, ctx)
         end
         return
     end
+    return 500, "unsupported provider: " .. provider
 end
 
 
 function _M.lua_body_filter(conf, ctx, data)
     if not conf.check_response then
+        core.log.info("skip response check for this request")
         return
     end
     local provider = ctx.picked_ai_instance.provider

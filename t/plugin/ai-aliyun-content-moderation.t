@@ -317,3 +317,83 @@ POST /chat-openai-compatible
 --- error_code: 400
 --- response_body_like eval
 qr/your request is rejected/
+
+
+
+=== TEST 11: check ai request
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            for _, provider in ipairs({"openai", "deepseek", "openai-compatible"}) do
+                local code, body = t('/apisix/admin/routes/' .. provider,
+                    ngx.HTTP_PUT,
+                    string.format([[{
+                        "uri": "/chat-%s",
+                        "plugins": {
+                          "ai-proxy": {
+                              "provider": "%s",
+                              "auth": {
+                                  "header": {
+                                      "Authorization": "Bearer wrongtoken"
+                                  }
+                              },
+                              "override": {
+                                  "endpoint": "http://localhost:6724/v1/chat/completions"
+                              }
+                          },
+                          "ai-aliyun-content-moderation": {
+                            "endpoint": "http://localhost:6724",
+                            "region_id": "cn-shanghai",
+                            "access_key_id": "fake-key-id",
+                            "access_key_secret": "fake-key-secret",
+                            "risk_level_bar": "high",
+                            "check_request": true,
+                            "check_response": false,
+                            "deny_code": 400,
+                            "deny_message": "your request is rejected"
+                          }
+                        }
+                    }]], provider, provider)
+                )
+                if code >= 300 then
+                    ngx.status = code
+                    return
+                end
+            end
+
+            ngx.say("passed")
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 12: violent response should failed for openai provider
+--- request
+POST /chat-openai
+{ "messages": [ { "role": "user", "content": "I want to kill you"} ] }
+--- error_code: 400
+--- response_body_like eval
+qr/your request is rejected/
+
+
+
+=== TEST 13: violent response should failed for deepseek provider
+--- request
+POST /chat-deepseek
+{ "messages": [ { "role": "user", "content": "I want to kill you"} ] }
+--- error_code: 400
+--- response_body_like eval
+qr/your request is rejected/
+
+
+
+=== TEST 14: violent response should failed for openai-compatible provider
+--- request
+POST /chat-openai-compatible
+{ "messages": [ { "role": "user", "content": "I want to kill you"} ] }
+--- error_code: 400
+--- response_body_like eval
+qr/your request is rejected/

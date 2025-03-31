@@ -47,4 +47,13 @@ _M.chat_request_schema = {
     ["openai-compatible"] = openai_compatible_chat_schema,
 }
 
+function _M.is_openai_compatible_provider(provider)
+    if provider == "openai" or
+       provider == "deepseek" or
+       provider == "openai-compatible" then
+        return true
+    end
+    return false
+end
+
 return  _M
