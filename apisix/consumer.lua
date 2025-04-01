@@ -212,8 +212,19 @@ end
 
 
 function _M.consumers_kv(plugin_name, consumer_conf, key_attr)
-    local consumers = lrucache("consumers_key#" .. plugin_name, consumer_conf.conf_version,
-        create_consume_cache, consumer_conf, key_attr)
+    local _, secret_config_latest_ver = secret.secrets()
+    if not secret_config_latest_ver then
+        -- this will not happen, but just in case
+        core.log.error("failed to get secret config latest version")
+        secret_config_latest_ver = ''
+    end
+    local consumers = lrucache(
+        "consumers_key#" .. plugin_name,
+        consumer_conf.conf_version .. "&" .. secret_config_latest_ver,
+        create_consume_cache,
+        consumer_conf,
+        key_attr
+    )
 
     return consumers
 end
