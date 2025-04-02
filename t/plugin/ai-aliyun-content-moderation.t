@@ -397,3 +397,23 @@ POST /chat-openai-compatible
 --- error_code: 400
 --- response_body_like eval
 qr/your request is rejected/
+
+
+
+=== TEST 15: content moderation should keep usage data in response
+--- request
+POST /chat-openai
+{"messages":[{"role":"user","content":"I want to kill you"}]}
+--- error_code: 400
+--- response_body_like eval
+qr/completion_tokens/
+
+
+
+=== TEST 16: content moderation should keep real llm model in response
+--- request
+POST /chat-openai
+{"model": "gpt-3.5-turbo","messages":[{"role":"user","content":"I want to kill you"}]}
+--- error_code: 400
+--- response_body_like eval
+qr/gpt-3.5-turbo/

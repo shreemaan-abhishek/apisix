@@ -195,14 +195,14 @@ end
 
 
 -- we need to return a provider compatible response without broken the ai client
-local function deny_message(provider, message, stream)
+local function deny_message(provider, message, model, stream, usage)
     local content = message or "Your request violate our content policy."
     if ai_schema.is_openai_compatible_provider(provider) then
         if stream then
             local data = {
                 id = uuid.generate_v4(),
                 object = "chat.completion.chunk",
-                model = "from-security-guard",
+                model = model,
                 choices = {
                     {
                         index = 0,
@@ -212,11 +212,7 @@ local function deny_message(provider, message, stream)
                         finish_reason = "stop"
                     }
                 },
-                usage = {
-                    prompt_tokens = 0,
-                    completion_tokens = 0,
-                    total_tokens = 0
-                }
+                usage = usage,
             }
 
             return "data: " .. core.json.encode(data) .. "\n\n" .. "data: [DONE]"
@@ -224,7 +220,7 @@ local function deny_message(provider, message, stream)
             return {
               id = uuid.generate_v4(),
               object = "chat.completion",
-              model = "from-security-guard",
+              model = model,
               choices = {
                 {
                   index = 0,
@@ -235,11 +231,7 @@ local function deny_message(provider, message, stream)
                   finish_reason = "stop"
                 }
               },
-              usage = {
-                prompt_tokens = 0,
-                completion_tokens = 0,
-                total_tokens = 0
-              }
+              usage = usage,
             }
         end
     end
@@ -248,12 +240,13 @@ local function deny_message(provider, message, stream)
 end
 
 
-local function content_moderation(conf, provider, content, length_limit, stream)
+local function content_moderation(conf, provider, model, content, length_limit, stream, usage)
     local session_id = uuid.generate_v4()
     if #content <= length_limit then
         local hit, err = check_single_content(conf, session_id, content)
         if hit then
-            return conf.deny_code, deny_message(provider, conf.deny_message or err, stream)
+            return conf.deny_code, deny_message(provider, conf.deny_message or err,
+                                                    model, stream, usage)
         end
         if err then
             core.log.error("failed to check content: ", err)
@@ -270,7 +263,8 @@ local function content_moderation(conf, provider, content, length_limit, stream)
                                                 utf8.sub(content, index, index + length_limit - 1))
         index = index + length_limit
         if hit then
-            return conf.deny_code, deny_message(provider, conf.deny_message or err, stream)
+            return conf.deny_code, deny_message(provider, conf.deny_message or err,
+                                                    model, stream, usage)
         end
         if err then
             core.log.error("failed to check content: ", err)
@@ -313,8 +307,13 @@ function _M.access(conf, ctx)
             end
         end
         local content_to_check = table.concat(contents, " ")
-        local code, message = content_moderation(conf, provider, content_to_check,
-                                        conf.request_check_length_limit, request_tab.stream)
+        local code, message = content_moderation(conf, provider, request_tab.model,
+                                        content_to_check, conf.request_check_length_limit,
+                                        request_tab.stream, {
+                                            prompt_tokens = 0,
+                                            completion_tokens = 0,
+                                            total_tokens = 0
+                                        })
         if code then
             if request_tab.stream then
                 core.response.set_header("Content-Type", "text/event-stream")
@@ -330,13 +329,17 @@ function _M.access(conf, ctx)
 end
 
 
-function _M.lua_body_filter(conf, ctx, data)
+function _M.lua_body_filter(conf, ctx, headers, body)
     if not conf.check_response then
         core.log.info("skip response check for this request")
         return
     end
     local provider = ctx.picked_ai_instance.provider
-    return content_moderation(conf, provider, data, conf.response_check_length_limit)
+    local content = ctx.var.llm_response_text
+    local stream = ctx.var.request_type == "ai_stream"
+    local model = ctx.var.llm_model
+    return content_moderation(conf, provider, model, content, conf.response_check_length_limit,
+                                    stream, body.usage)
 end
 
 

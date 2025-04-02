@@ -193,7 +193,7 @@ local function read_response(ctx, res)
             end
             local content_to_check = table.concat(contents, " ")
             ctx.var.llm_response_text = content_to_check
-            plugin.lua_body_filter(content_to_check, ctx)
+            plugin.lua_response_filter(ctx, res.headers, res_body)
         end
     end
     return res.status, raw_res_body

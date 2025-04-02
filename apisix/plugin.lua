@@ -1392,7 +1392,7 @@ function _M.run_global_rules(api_ctx, global_rules, phase_name)
 end
 
 
-function _M.lua_body_filter(data, api_ctx)
+function _M.lua_response_filter(api_ctx, headers, body)
     local plugins = api_ctx.plugins
     if not plugins or #plugins == 0 then
         return
@@ -1406,7 +1406,7 @@ function _M.lua_body_filter(data, api_ctx)
             end
 
             run_meta_pre_function(conf, api_ctx, plugins[i]["name"])
-            local code, body = phase_func(conf, api_ctx, data)
+            local code, body = phase_func(conf, api_ctx, headers, body)
             if code or body then
                 if code >= 400 then
                     core.log.warn(plugins[i].name, " exits with http status code ", code)
