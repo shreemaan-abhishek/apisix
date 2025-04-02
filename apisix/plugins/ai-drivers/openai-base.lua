@@ -131,9 +131,11 @@ local function read_response(ctx, res)
                 end
             -- https://platform.openai.com/docs/api-reference/chat/create#chat-create-stream
 
-                if data and data.choices then
+                if data and type(data.choices) == "table" and #data.choices > 0 then
                     for _, choice in ipairs(data.choices) do
-                        if choice and choice.delta and choice.delta.content then
+                        if type(choice) == "table"
+                                and type(choice.delta) == "table"
+                                and type(choice.delta.content) == "string" then
                             core.table.insert(contents, choice.delta.content)
                         end
                     end
@@ -141,7 +143,7 @@ local function read_response(ctx, res)
 
 
                 -- usage field is null for non-last events, null is parsed as userdata type
-                if data and data.usage and type(data.usage) ~= "userdata" then
+                if data and type(data.usage) == "table" then
                     core.log.info("got token usage from ai service: ",
                                         core.json.delay_encode(data.usage))
                     ctx.ai_token_usage = {
@@ -171,18 +173,21 @@ local function read_response(ctx, res)
             ", it will cause token usage not available")
     else
         core.log.info("got token usage from ai service: ", core.json.delay_encode(res_body.usage))
-        ctx.ai_token_usage = {
-            prompt_tokens = res_body.usage and res_body.usage.prompt_tokens or 0,
-            completion_tokens = res_body.usage and res_body.usage.completion_tokens or 0,
-            total_tokens = res_body.usage and res_body.usage.total_tokens or 0,
-        }
-        ctx.var.llm_prompt_tokens = ctx.ai_token_usage.prompt_tokens
-        ctx.var.llm_completion_tokens = ctx.ai_token_usage.completion_tokens
+        ctx.ai_token_usage = {}
+        if type(res_body.usage) == "table" then
+            ctx.ai_token_usage.prompt_tokens = res_body.usage.prompt_tokens or 0
+            ctx.ai_token_usage.completion_tokens = res_body.usage.completion_tokens or 0
+            ctx.ai_token_usage.total_tokens = res_body.usage.total_tokens or 0
+        end
+        ctx.var.llm_prompt_tokens = ctx.ai_token_usage.prompt_tokens or 0
+        ctx.var.llm_completion_tokens = ctx.ai_token_usage.completion_tokens or 0
 
-        if res_body.choices and #res_body.choices > 0 then
+        if type(res_body.choices) == "table" and #res_body.choices > 0 then
             local contents = {}
             for _, choice in ipairs(res_body.choices) do
-                if choice and choice.message and choice.message.content then
+                if type(choice) == "table"
+                        and type(choice.message) == "table"
+                        and type(choice.message.content) == "string" then
                     core.table.insert(contents, choice.message.content)
                 end
             end
