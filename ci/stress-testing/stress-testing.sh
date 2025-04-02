@@ -1,8 +1,18 @@
 #!/bin/bash
-
+set -x
 testname=all
 filepath=output.json
-
+echo "starting server"
+cd ../..
+pwd
+ls linux-common-runnner.sh
+./ci/utils/linux-common-runnner.sh start_sse_server_example
+if [[ $(lsof -i :7737 -t) == "" ]]; then
+  echo "Failed to start server"
+  exit 1
+fi
+echo "Server started successfully on port 7737"
+cd ci/stress-testing
 # Parse flags
 while getopts "t:f:" opt; do
   case $opt in
@@ -68,9 +78,17 @@ while getopts ":h" opt; do
   esac
 done
 
+
 if [[ "$testname" == "all" ]]; then
-  # Source all test files
-  for test_file in ./tests/*.sh; do
+  # Source all test files in numerical order
+  # Collect and sort test files using version sort
+  test_files=()
+  while IFS= read -r -d $'\0' file; do
+    test_files+=("$file")
+  done < <(printf '%s\0' ./tests/test*.sh | sort -Vz)
+
+  # Source each sorted test file
+  for test_file in "${test_files[@]}"; do
     source "$test_file"
   done
 else
@@ -80,12 +98,13 @@ else
   if [[ -f "$test_file" ]]; then
     source "$test_file"
   else
-    # If the file doesn't exist, source all test files as a fallback
     echo "Test file '$test_file' not found"
     exit 1
   fi
 fi
 #----------------------------Complete cleanup----------------------------------#
 ./run.sh stop_cp
-rm before_cpu_mem.txt after_cpu_mem.txt wrk.txt before_cpu_mem_1.txt after_cpu_mem_1.txt during_cpu_mem.txt
+kill -9 $(lsof -i :7737 -t)
+# rm before_cpu_mem.txt after_cpu_mem.txt wrk.txt before_cpu_mem_1.txt after_cpu_mem_1.txt during_cpu_mem.txt
 cat "$filepath"
+

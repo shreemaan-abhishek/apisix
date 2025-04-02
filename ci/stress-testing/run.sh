@@ -79,6 +79,7 @@ start_dp)
     create_uuid
   fi
   docker run -d --name api7-ee-gateway-1 --network=stress-testing_api7 \
+    --add-host=host.docker.internal:$(ip route get 1 | awk '{print $7; exit}') \
     -e API7_CONTROL_PLANE_ENDPOINTS='["http://dp-manager:7900"]' \
     -e API7_CONTROL_PLANE_TOKEN=$gateway_token \
     -v $(pwd)/gateway_conf/config.yaml:/usr/local/apisix/conf/config.yaml \

@@ -18,6 +18,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -25,52 +26,111 @@ import (
 	"time"
 )
 
-func sseHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
-
-	f, ok := w.(http.Flusher)
-	if !ok {
-		http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
-		return
+func completionsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Connection", "close")
+	var requestBody struct {
+		Stream bool `json:"stream"`
 	}
 
-	// Initial chunk with assistant role
-	initialChunk := `{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{"role":"assistant","content":""},"logprobs":null,"finish_reason":null}]}`
-	fmt.Fprintf(w, "data: %s\n\n", initialChunk)
-	f.Flush()
-
-	// Content chunks with parts of the generated text
-	contentParts := []string{
-		"Silent circuits hum,\\n",             // First line of haiku
-		"Machine mind learns and evolves—\\n", // Second line
-		"Dreams of silicon.",                  // Third line
+	if r.Body != nil {
+		err := json.NewDecoder(r.Body).Decode(&requestBody)
+		if err != nil {
+			log.Printf("Error parsing request body: %v", err)
+			requestBody.Stream = false
+		}
+		defer r.Body.Close()
 	}
 
-	for _, part := range contentParts {
-		contentChunk := fmt.Sprintf(
-			`{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{"content":"%s"},"logprobs":null,"finish_reason":null}]}`,
-			part,
-		)
-		fmt.Fprintf(w, "data: %s\n\n", contentChunk)
+	if requestBody.Stream {
+		w.Header().Set("Content-Type", "text/event-stream")
+
+		f, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
+			return
+		}
+
+		// Initial chunk with assistant role
+		initialChunk := `{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{"role":"assistant","content":""},"logprobs":null,"finish_reason":null}]}`
+		fmt.Fprintf(w, "data: %s\n\n", initialChunk)
 		f.Flush()
-		time.Sleep(500 * time.Millisecond) // Simulate processing delay
+
+		// Content chunks with parts of the generated text
+		contentParts := []string{
+			"Silent circuits hum,\\n",
+			"Machine mind learns and evolves—\\n",
+			"Dreams of silicon.",
+		}
+
+		for _, part := range contentParts {
+			contentChunk := fmt.Sprintf(
+				`{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{"content":"%s"},"logprobs":null,"finish_reason":null}]}`,
+				part,
+			)
+			fmt.Fprintf(w, "data: %s\n\n", contentChunk)
+			f.Flush()
+		}
+
+		// Final chunk indicating completion
+		finalChunk := `{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}]}`
+		fmt.Fprintf(w, "data: %s\n\n", finalChunk)
+		f.Flush()
+		fmt.Fprintf(w, "data: %s\n\n", "[DONE]")
+		f.Flush()
+	} else {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, `{
+		"id": "chatcmpl-1234567890",
+		"object": "chat.completion",
+		"created": 1677858242,
+		"model": "gpt-3.5-turbo-0301",
+		"usage": {
+			"prompt_tokens": 15,
+			"completion_tokens": 20,
+			"total_tokens": 35
+		},
+		"choices": [
+			{
+				"index": 0,
+				"message": {
+					"role": "assistant",
+					"content": "Hello there! How can I assist you today?"
+				},
+				"finish_reason": "stop"
+			}
+		]
+	}`)
 	}
 
-	// Final chunk indicating completion
-	finalChunk := `{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}]}`
-	fmt.Fprintf(w, "data: %s\n\n", finalChunk)
-	f.Flush()
-	fmt.Fprintf(w, "data: %s\n\n", "[DONE]")
-	f.Flush()
+	counter++
 }
 
+func logRequest(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next(w, r)
+		duration := time.Since(start)
+
+		log.Printf("%s %s - Duration: %s", r.Method, r.URL.Path, duration)
+	}
+}
+
+var counter = 0
+
 func main() {
-	// Create a simple route
-	http.HandleFunc("/v1/chat/completions", sseHandler)
+	http.HandleFunc("/v1/chat/completions", logRequest(completionsHandler))
+	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("OK"))
+	})
+	go func() {
+		for {
+			log.Printf("Processed %d requests", counter)
+			time.Sleep(1 * time.Minute)
+		}
+	}()
 	port := os.Args[1]
-	// Start the server
 	log.Println("Starting server on :", port)
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
