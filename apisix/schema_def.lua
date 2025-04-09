@@ -126,6 +126,15 @@ local timeout_def = {
 }
 
 
+local method_schema = {
+    description = "HTTP method",
+    type = "string",
+    enum = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD",
+        "OPTIONS", "CONNECT", "TRACE", "PURGE"},
+}
+_M.method_schema = method_schema
+
+
 local health_checker_active = {
     type = "object",
     properties = {
@@ -142,7 +151,13 @@ local health_checker_active = {
             minimum = 1,
             maximum = 65535
         },
+        http_method = {
+            type = "string",
+            enum = method_schema.enum,
+            default = "GET"
+        },
         http_path = {type = "string", default = "/"},
+        request_body = {type = "string", default = ""},
         https_verify_certificate = {type = "boolean", default = true},
         healthy = {
             type = "object",
@@ -543,15 +558,6 @@ _M.upstream_hash_header_schema = {
 _M.upstream_hash_vars_combinations_schema = {
     type = "string"
 }
-
-
-local method_schema = {
-    description = "HTTP method",
-    type = "string",
-    enum = {"GET", "POST", "PUT", "DELETE", "PATCH", "HEAD",
-        "OPTIONS", "CONNECT", "TRACE", "PURGE"},
-}
-_M.method_schema = method_schema
 
 
 _M.route = {

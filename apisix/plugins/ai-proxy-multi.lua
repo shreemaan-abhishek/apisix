@@ -29,6 +29,7 @@ local require = require
 local pcall = pcall
 local ipairs = ipairs
 local type = type
+local string = string
 
 local priority_balancer = require("apisix.balancer.priority")
 local healthcheck
@@ -214,6 +215,18 @@ local function create_checkers(conf)
         if ins.checks then
             core.log.info("create new healthcheck instance for ai_instance: ", ins.name,
             " checks: ", core.json.delay_encode(ins.checks, true))
+            if ins.auth.header then
+                if not ins.checks.active.req_headers then
+                    ins.checks.active.req_headers = {}
+                end
+                for k, v in pairs(ins.auth.header) do
+                    core.table.insert(ins.checks.active.req_headers, string.format("%s: %s", k, v))
+                end
+            end
+            if ins.auth.query then
+                ins.checks.active.http_path = string.format("%s?%s",
+                        ins.checks.active.http_path, core.string.encode_args(ins.auth.query))
+            end
             local checker, err = healthcheck.new({
                 name = get_healthchecker_name(conf, ins.name),
                 shm_name = "upstream-healthcheck",
