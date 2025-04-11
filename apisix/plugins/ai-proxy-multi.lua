@@ -386,7 +386,7 @@ local function pick_target(ctx, conf, ups_tab)
             if ai_rate_limiting.check_instance_status(nil, ctx, instance_name) then
                 break
             end
-            core.log.info("ai instance: ", instance_name,
+            core.log.warn("ai instance: ", instance_name,
                              " is not available, try to pick another one")
             server_picker.after_balance(ctx, true)
             instance_name, err = server_picker.get(ctx)
