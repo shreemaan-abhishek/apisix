@@ -41,7 +41,7 @@ local ipairs       = ipairs
 local type         = type
 local error        = error
 local pcall        = pcall
-
+local jp           = require("jsonpath")
 
 local _M = {version = 0.2}
 local GRAPHQL_DEFAULT_MAX_SIZE       = 1048576               -- 1MiB
@@ -339,17 +339,28 @@ do
                     log.warn("failed to fetch post args value by key: ", key, " error: ", err)
                     return nil
                 end
-
-                local parts = util.split(key, "(.)")
-                local current = parsed_body
-                for _, part in ipairs(parts) do
-                    if type(current) ~= "table" then
-                        current = nil
-                        break
+                if key:find("[%[%*]") or key:find("..", 1, true) then
+                    key = "$." .. key
+                    local results = jp.query(parsed_body, key)
+                    if #results == 0 then
+                        val = nil
+                    else
+                        val = results
                     end
-                    current = current[part]
+                else
+                    local parts = util.split(key, "(.)")
+                    local current = parsed_body
+                    for _, part in ipairs(parts) do
+                        if type(current) ~= "table" then
+                            current = nil
+                            break
+                        end
+                        current = current[part]
+                    end
+                    val = current
                 end
-                val = current
+
+                return val
             else
                 local getter = apisix_var_names[key]
                 if getter then
@@ -360,7 +371,6 @@ do
                         -- the getter is registered by ctx.register_var
                         val = getter(ctx)
                     end
-
                 else
                     val = get_var(key, t._request)
                 end

@@ -44,7 +44,7 @@ __DATA__
                     "uri": "/hello",
                     "vars": [
                         [
-                            ["post_arg.model","==","deepseek"]
+                            ["post_arg.model","==", "deepseek"]
                         ]
                     ],
                     "upstream": {
@@ -139,3 +139,136 @@ openai
 --- error_code: 404
 --- error_log
 unsupported content-type in header:
+
+
+
+=== TEST 7: use array in request body vars
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/hello",
+                    "vars": [
+                        [
+                            ["post_arg.messages[*].content[*].type","has","image_url"]
+                        ]
+                    ],
+                    "upstream": {
+                        "type": "roundrobin",
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        }
+                    }
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 8: send request with type not image_url
+--- request
+POST /hello
+{ "model":"deepseek", "messages": [ { "role": "system", "content": [{"text":"You are a mathematician","type":"text"}] }] }
+--- more_headers
+Content-Type: application/json
+--- error_code: 404
+
+
+
+=== TEST 9: send request with type has image_url
+--- request
+POST /hello
+{ "model":"deepseek", "messages": [ { "role": "system", "content": [{"text":"You are a mathematician","type":"text"},{"text":"You are a mathematician","type":"image_url"}] }] }
+--- more_headers
+Content-Type: application/json
+--- error_code: 200
+
+
+
+=== TEST 10: use invalid jsonpath input
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/hello",
+                    "vars": [
+                        [
+                            ["post_arg.messages[.content[*].type","has","image_url"]
+                        ]
+                    ],
+                    "upstream": {
+                        "type": "roundrobin",
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        }
+                    }
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body eval
+qr/.*failed to validate the 'vars' expression: invalid expression.*/
+--- error_code: 400
+
+
+
+=== TEST 11: use non array in request body vars
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/hello",
+                    "vars": [
+                        [
+                            ["post_arg.model.name","==","deepseek"]
+                        ]
+                    ],
+                    "upstream": {
+                        "type": "roundrobin",
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        }
+                    }
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 12: send request
+--- request
+POST /hello
+{ "model":{"name": "deepseek"}, "messages": [ { "role": "system", "content": [{"text":"You are a mathematician","type":"text"},{"text":"You are a mathematician","type":"image_url"}] }] }
+--- more_headers
+Content-Type: application/json
+--- error_code: 200
