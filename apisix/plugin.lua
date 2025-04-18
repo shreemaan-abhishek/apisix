@@ -24,6 +24,8 @@ local apisix_ssl    = require("apisix.ssl")
 local re_split      = require("ngx.re").split
 
 local ngx           = ngx
+local ngx_ok        = ngx.OK
+local ngx_print     = ngx.print
 local crc32         = ngx.crc32_short
 local ngx_exit      = ngx.exit
 local pkg_loaded    = package.loaded
@@ -1395,6 +1397,8 @@ end
 function _M.lua_response_filter(api_ctx, headers, body)
     local plugins = api_ctx.plugins
     if not plugins or #plugins == 0 then
+        -- if there is no any plugin, just print the original body to downstream
+        ngx_print(body)
         return
     end
     for i = 1, #plugins, 2 do
@@ -1406,25 +1410,22 @@ function _M.lua_response_filter(api_ctx, headers, body)
             end
 
             run_meta_pre_function(conf, api_ctx, plugins[i]["name"])
-            local code, body = phase_func(conf, api_ctx, headers, body)
-            if code or body then
-                if code >= 400 then
-                    core.log.warn(plugins[i].name, " exits with http status code ", code)
-
-                    if conf._meta and conf._meta.error_response then
-                        -- Whether or not the original error message is output,
-                        -- always return the configured message
-                        -- so the caller can't guess the real error
-                        body = conf._meta.error_response
-                    end
+            local code, new_body = phase_func(conf, api_ctx, headers, body)
+            if code then
+                if code ~= ngx_ok then
+                    ngx.status = code
                 end
-
-                return core.response.exit(code, body)
+                ngx_print(new_body)
+                ngx_exit(ngx_ok)
+            end
+            if new_body then
+                body = new_body
             end
         end
 
         ::CONTINUE::
     end
+    ngx_print(body)
 end
 
 

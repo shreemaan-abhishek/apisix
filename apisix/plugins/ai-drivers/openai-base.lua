@@ -26,11 +26,8 @@ local core = require("apisix.core")
 local plugin = require("apisix.plugin")
 local http = require("resty.http")
 local url  = require("socket.url")
-local ngx_re = require("ngx.re")
-
+local sse  = require("apisix.plugins.ai-drivers.sse")
 local ngx = ngx
-local ngx_print = ngx.print
-local ngx_flush = ngx.flush
 local ngx_now = ngx.now
 
 local table = table
@@ -73,7 +70,6 @@ local function handle_error(err)
     return 500
 end
 
-
 local function read_response(ctx, res)
     local body_reader = res.body_reader
     if not body_reader then
@@ -100,64 +96,52 @@ local function read_response(ctx, res)
                 ctx.var.llm_time_to_first_token = math.floor(
                                                 (ngx_now() - ctx.llm_request_start_time) * 1000)
             end
-            ngx_print(chunk)
-            ngx_flush(true)
 
-            local events, err = ngx_re.split(chunk, "\n\n")
-            if err then
-                core.log.warn("failed to split response chunk [", chunk, "] to events: ", err)
-                goto CONTINUE
-            end
-
+            local events = sse.decode(chunk)
+            ctx.llm_response_contents_in_chunk = {}
             for _, event in ipairs(events) do
-                if not core.string.find(event, "data:") or core.string.find(event, "[DONE]") then
-                    goto CONTINUE
-                end
+                if event.type == "message" then
+                    local data, err = core.json.decode(event.data)
+                    if not data then
+                        core.log.warn("failed to decode SSE data: ", err)
+                        goto CONTINUE
+                    end
 
-                local parts, err = ngx_re.split(event, ":", nil, nil, 2)
-                if err then
-                    core.log.warn("failed to split data event [", event,  "] to parts: ", err)
-                    goto CONTINUE
-                end
-
-                if #parts ~= 2 then
-                    core.log.warn("malformed data event: ", event)
-                    goto CONTINUE
-                end
-                local data, err = core.json.decode(parts[2])
-                if err then
-                    core.log.warn("failed to decode data event [", parts[2], "] to json: ", err)
-                    goto CONTINUE
-                end
-            -- https://platform.openai.com/docs/api-reference/chat/create#chat-create-stream
-
-                if data and type(data.choices) == "table" and #data.choices > 0 then
-                    for _, choice in ipairs(data.choices) do
-                        if type(choice) == "table"
-                                and type(choice.delta) == "table"
-                                and type(choice.delta.content) == "string" then
-                            core.table.insert(contents, choice.delta.content)
+                    if data and type(data.choices) == "table" and #data.choices > 0 then
+                        for _, choice in ipairs(data.choices) do
+                            if type(choice) == "table"
+                                    and type(choice.delta) == "table"
+                                    and type(choice.delta.content) == "string" then
+                                core.table.insert(contents, choice.delta.content)
+                                core.table.insert(ctx.llm_response_contents_in_chunk,
+                                                        choice.delta.content)
+                            end
                         end
                     end
-                end
 
 
-                -- usage field is null for non-last events, null is parsed as userdata type
-                if data and type(data.usage) == "table" then
-                    core.log.info("got token usage from ai service: ",
-                                        core.json.delay_encode(data.usage))
-                    ctx.ai_token_usage = {
-                        prompt_tokens = data.usage.prompt_tokens or 0,
-                        completion_tokens = data.usage.completion_tokens or 0,
-                        total_tokens = data.usage.total_tokens or 0,
-                    }
-                    ctx.var.llm_prompt_tokens = ctx.ai_token_usage.prompt_tokens
-                    ctx.var.llm_completion_tokens = ctx.ai_token_usage.completion_tokens
-                    ctx.var.llm_response_text = table.concat(contents, "")
+                    -- usage field is null for non-last events, null is parsed as userdata type
+                    if data and type(data.usage) == "table" then
+                        core.log.info("got token usage from ai service: ",
+                                            core.json.delay_encode(data.usage))
+                        ctx.llm_raw_usage = data.usage
+                        ctx.ai_token_usage = {
+                            prompt_tokens = data.usage.prompt_tokens or 0,
+                            completion_tokens = data.usage.completion_tokens or 0,
+                            total_tokens = data.usage.total_tokens or 0,
+                        }
+                        ctx.var.llm_prompt_tokens = ctx.ai_token_usage.prompt_tokens
+                        ctx.var.llm_completion_tokens = ctx.ai_token_usage.completion_tokens
+                        ctx.var.llm_response_text = table.concat(contents, "")
+                    end
+                elseif event.type == "done" then
+                    ctx.var.llm_request_done = true
                 end
+
+                ::CONTINUE::
             end
 
-            ::CONTINUE::
+            plugin.lua_response_filter(ctx, res.headers, chunk)
         end
     end
 
@@ -166,6 +150,7 @@ local function read_response(ctx, res)
         core.log.warn("failed to read response body: ", err)
         return handle_error(err)
     end
+    ngx.status = res.status
     ctx.var.llm_time_to_first_token = math.floor((ngx_now() - ctx.llm_request_start_time) * 1000)
     local res_body, err = core.json.decode(raw_res_body)
     if err then
@@ -175,6 +160,7 @@ local function read_response(ctx, res)
         core.log.info("got token usage from ai service: ", core.json.delay_encode(res_body.usage))
         ctx.ai_token_usage = {}
         if type(res_body.usage) == "table" then
+            ctx.llm_raw_usage = res_body.usage
             ctx.ai_token_usage.prompt_tokens = res_body.usage.prompt_tokens or 0
             ctx.ai_token_usage.completion_tokens = res_body.usage.completion_tokens or 0
             ctx.ai_token_usage.total_tokens = res_body.usage.total_tokens or 0
@@ -193,10 +179,9 @@ local function read_response(ctx, res)
             end
             local content_to_check = table.concat(contents, " ")
             ctx.var.llm_response_text = content_to_check
-            plugin.lua_response_filter(ctx, res.headers, res_body)
         end
     end
-    return res.status, raw_res_body
+    plugin.lua_response_filter(ctx, res.headers, raw_res_body)
 end
 
 

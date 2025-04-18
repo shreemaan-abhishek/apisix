@@ -15,6 +15,7 @@
 -- limitations under the License.
 --
 local ngx       = ngx
+local ngx_ok    = ngx.OK
 local os        = os
 local pairs     = pairs
 local ipairs    = ipairs
@@ -26,11 +27,31 @@ local core      = require("apisix.core")
 local http      = require("resty.http")
 local uuid      = require("resty.jit-uuid")
 local ai_schema = require("apisix.plugins.ai-drivers.schema")
-
+local sse       = require("apisix.plugins.ai-drivers.sse")
 
 local schema = {
     type = "object",
     properties = {
+        stream_check_mode = {
+            type = "string",
+            enum = {"realtime", "final_packet"},
+            default = "final_packet",
+            description = [[
+            realtime: batched checks during streaming | final_packet: append risk_level at end
+            ]]
+        },
+        stream_check_cache_size = {
+            type = "integer",
+            minimum = 1,
+            default = 128,
+            description = "max characters per moderation batch in realtime mode"
+        },
+        stream_check_interval = {
+            type = "number",
+            minimum = 0.1,
+            default = 3,
+            description = "seconds between batch checks in realtime mode"
+        },
         endpoint = {type = "string", minLength = 1},
         region_id = {type ="string", minLength = 1},
         access_key_id = {type = "string", minLength = 1},
@@ -116,7 +137,7 @@ local function calculate_sign(params, secret)
 end
 
 
-local function check_single_content(conf, session_id, content)
+local function check_single_content(ctx, conf, content, service_name)
     local timestamp = os.date("!%Y-%m-%dT%TZ")
     local random_id = uuid.generate_v4()
     local params = {
@@ -124,8 +145,8 @@ local function check_single_content(conf, session_id, content)
         ["Action"] = "TextModerationPlus",
         ["Format"] = "JSON",
         ["RegionId"] = conf.region_id,
-        ["Service"] = conf.request_check_service,
-        ["ServiceParameters"] = core.json.encode({sessionId = session_id, content = content}),
+        ["Service"] = service_name,
+        ["ServiceParameters"] = core.json.encode({sessionId = ctx.session_id, content = content}),
         ["SignatureMethod"] = "HMAC-SHA1",
         ["SignatureNonce"] = random_id,
         ["SignatureVersion"] = "1.0",
@@ -185,6 +206,7 @@ local function check_single_content(conf, session_id, content)
     if not risk_level then
         return nil, "failed to get risk level: " .. raw_res_body
     end
+    ctx.var.llm_content_risk_level = risk_level
     if risk_level_to_int(risk_level) < risk_level_to_int(conf.risk_level_bar) then
         return false
     end
@@ -217,22 +239,22 @@ local function deny_message(provider, message, model, stream, usage)
 
             return "data: " .. core.json.encode(data) .. "\n\n" .. "data: [DONE]"
         else
-            return {
-              id = uuid.generate_v4(),
-              object = "chat.completion",
-              model = model,
-              choices = {
-                {
-                  index = 0,
-                  message = {
-                    role = "assistant",
-                    content = content
-                  },
-                  finish_reason = "stop"
-                }
-              },
-              usage = usage,
-            }
+            return core.json.encode({
+                id = uuid.generate_v4(),
+                object = "chat.completion",
+                model = model,
+                choices = {
+                  {
+                    index = 0,
+                    message = {
+                      role = "assistant",
+                      content = content
+                    },
+                    finish_reason = "stop"
+                  }
+                },
+                usage = usage,
+              })
         end
     end
     core.log.error("unsupported provider: ", provider)
@@ -240,10 +262,14 @@ local function deny_message(provider, message, model, stream, usage)
 end
 
 
-local function content_moderation(conf, provider, model, content, length_limit, stream, usage)
-    local session_id = uuid.generate_v4()
+local function content_moderation(ctx, conf, provider, model, content, length_limit,
+                                  stream, usage, service_name)
+    core.log.debug("execute content moderation, content: ", content)
+    if not ctx.session_id then
+        ctx.session_id = uuid.generate_v4()
+    end
     if #content <= length_limit then
-        local hit, err = check_single_content(conf, session_id, content)
+        local hit, err = check_single_content(ctx, conf, content, service_name)
         if hit then
             return conf.deny_code, deny_message(provider, conf.deny_message or err,
                                                     model, stream, usage)
@@ -259,8 +285,9 @@ local function content_moderation(conf, provider, model, content, length_limit, 
         if index > #content then
             return
         end
-        local hit, err = check_single_content(conf, session_id,
-                                                utf8.sub(content, index, index + length_limit - 1))
+        local hit, err = check_single_content(ctx, conf,
+                                                utf8.sub(content, index, index + length_limit - 1),
+                                                service_name)
         index = index + length_limit
         if hit then
             return conf.deny_code, deny_message(provider, conf.deny_message or err,
@@ -270,6 +297,35 @@ local function content_moderation(conf, provider, model, content, length_limit, 
             core.log.error("failed to check content: ", err)
         end
     end
+end
+
+
+local function request_content_moderation(ctx, conf, content, model)
+    if not content or #content == 0 then
+        return
+    end
+    local provider = ctx.picked_ai_instance.provider
+    local stream = ctx.var.request_type == "ai_stream"
+    return content_moderation(ctx, conf, provider, model, content, conf.request_check_length_limit,
+                                stream, {
+                                    prompt_tokens = 0,
+                                    completion_tokens = 0,
+                                    total_tokens = 0
+                                }, conf.request_check_service)
+end
+
+
+local function response_content_moderation(ctx, conf, content)
+    if not content or #content == 0 then
+        return
+    end
+    local provider = ctx.picked_ai_instance.provider
+    local model = ctx.var.request_llm_model or ctx.var.llm_model
+    local stream = ctx.var.request_type == "ai_stream"
+    local usage = ctx.var.llm_raw_usage
+    return content_moderation(ctx, conf, provider, model, content,
+                                conf.response_check_length_limit,
+                                stream, usage, conf.response_check_service)
 end
 
 
@@ -307,13 +363,8 @@ function _M.access(conf, ctx)
             end
         end
         local content_to_check = table.concat(contents, " ")
-        local code, message = content_moderation(conf, provider, request_tab.model,
-                                        content_to_check, conf.request_check_length_limit,
-                                        request_tab.stream, {
-                                            prompt_tokens = 0,
-                                            completion_tokens = 0,
-                                            total_tokens = 0
-                                        })
+        local code, message = request_content_moderation(ctx, conf,
+                                                        content_to_check, request_tab.model)
         if code then
             if request_tab.stream then
                 core.response.set_header("Content-Type", "text/event-stream")
@@ -328,18 +379,70 @@ function _M.access(conf, ctx)
     return 500, "unsupported provider: " .. provider
 end
 
-
 function _M.lua_body_filter(conf, ctx, headers, body)
     if not conf.check_response then
         core.log.info("skip response check for this request")
         return
     end
-    local provider = ctx.picked_ai_instance.provider
-    local content = ctx.var.llm_response_text
-    local stream = ctx.var.request_type == "ai_stream"
-    local model = ctx.var.llm_model
-    return content_moderation(conf, provider, model, content, conf.response_check_length_limit,
-                                    stream, body.usage)
+
+    local request_type = ctx.var.request_type
+
+    if request_type == "ai_chat" then
+        local content = ctx.var.llm_response_text
+        return response_content_moderation(ctx, conf, content)
+    end
+
+    if conf.stream_check_mode == "final_packet" then
+        if not ctx.var.llm_response_text then
+            return
+        end
+        response_content_moderation(ctx, conf, ctx.var.llm_response_text)
+        local events = sse.decode(body)
+        for _, event in ipairs(events) do
+            if event.type == "message" then
+                local data, err = core.json.decode(event.data)
+                if not data then
+                    core.log.warn("failed to decode SSE data: ", err)
+                    goto CONTINUE
+                end
+                data.risk_level = ctx.var.llm_content_risk_level
+                event.data = core.json.encode(data)
+            end
+            ::CONTINUE::
+        end
+
+        local raw_events = {}
+        local contains_done_event = false
+        for _, event in ipairs(events) do
+            if event.type == "done" then
+                contains_done_event = true
+            end
+            table.insert(raw_events, sse.encode(event))
+        end
+        if not contains_done_event then
+            table.insert(raw_events, "data: [DONE]")
+        end
+        return ngx_ok, table.concat(raw_events, "\n")
+    end
+
+    if conf.stream_check_mode == "realtime" then
+        ctx.content_moderation_cache = ctx.content_moderation_cache or ""
+        local content = table.concat(ctx.llm_response_contents_in_chunk, "")
+        ctx.content_moderation_cache = ctx.content_moderation_cache .. content
+        local now_time = ngx.now()
+        ctx.last_moderate_time = ctx.last_moderate_time or now_time
+        if #ctx.content_moderation_cache < conf.stream_check_cache_size
+                and now_time - ctx.last_moderate_time < conf.stream_check_interval
+                and not ctx.var.llm_request_done then
+            return
+        end
+        ctx.last_moderate_time = now_time
+        local _, message = response_content_moderation(ctx, conf, ctx.content_moderation_cache)
+        if message then
+            return ngx_ok, message
+        end
+        ctx.content_moderation_cache = "" -- reset cache
+    end
 end
 
 

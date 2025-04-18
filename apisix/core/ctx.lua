@@ -239,6 +239,7 @@ do
         llm_model                  = true,
         llm_prompt_tokens          = true,
         llm_completion_tokens      = true,
+        llm_content_risk_level     = true,
 
         upstream_mirror_host       = true,
         upstream_mirror_uri        = true,

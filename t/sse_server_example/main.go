@@ -43,17 +43,25 @@ func completionsHandler(w http.ResponseWriter, r *http.Request) {
 
 	if requestBody.Stream {
 		w.Header().Set("Content-Type", "text/event-stream")
-
+		offensive := r.URL.Query().Get("offensive") == "true"
+		delay := r.URL.Query().Get("delay") == "true"
 		f, ok := w.(http.Flusher)
 		if !ok {
 			http.Error(w, "Streaming unsupported", http.StatusInternalServerError)
 			return
 		}
 
+		send := func(format, args string) {
+			if delay {
+				time.Sleep(200 * time.Millisecond)
+			}
+			fmt.Fprintf(w, format, args)
+			f.Flush()
+		}
+
 		// Initial chunk with assistant role
 		initialChunk := `{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{"role":"assistant","content":""},"logprobs":null,"finish_reason":null}]}`
-		fmt.Fprintf(w, "data: %s\n\n", initialChunk)
-		f.Flush()
+		send("data: %s\n\n", initialChunk)
 
 		// Content chunks with parts of the generated text
 		contentParts := []string{
@@ -61,22 +69,26 @@ func completionsHandler(w http.ResponseWriter, r *http.Request) {
 			"Machine mind learns and evolves—\\n",
 			"Dreams of silicon.",
 		}
+		if offensive {
+			contentParts = []string{
+				"I want to ",
+				"kill you ",
+				"right now!",
+			}
+		}
 
 		for _, part := range contentParts {
 			contentChunk := fmt.Sprintf(
 				`{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{"content":"%s"},"logprobs":null,"finish_reason":null}]}`,
 				part,
 			)
-			fmt.Fprintf(w, "data: %s\n\n", contentChunk)
-			f.Flush()
+			send("data: %s\n\n", contentChunk)
 		}
 
 		// Final chunk indicating completion
-		finalChunk := `{"id":"chatcmpl-123","object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}]}`
-		fmt.Fprintf(w, "data: %s\n\n", finalChunk)
-		f.Flush()
-		fmt.Fprintf(w, "data: %s\n\n", "[DONE]")
-		f.Flush()
+		finalChunk := `{"id":"chatcmpl-123","usage":{},"object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}]}`
+		send("data: %s\n\n", finalChunk)
+		send("data: %s\n\n", "[DONE]")
 	} else {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)

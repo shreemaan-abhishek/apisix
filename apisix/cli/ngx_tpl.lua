@@ -896,6 +896,7 @@ http {
             set $llm_model                      '';
             set $llm_prompt_tokens              '0';
             set $llm_completion_tokens          '0';
+            set $llm_content_risk_level         '';
 
             access_by_lua_block {
                 apisix.http_access_phase()
