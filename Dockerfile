@@ -2,6 +2,8 @@
 # --- refer: https://github.com/apache/apisix-docker/blob/master/debian/Dockerfile
 FROM debian:bullseye-slim AS runtime-builder
 
+ARG RUNTIME_VERSION=1.2.1
+
 RUN apt update && apt install -y wget gnupg ca-certificates
 RUN set -ex; \
     arch=$(dpkg --print-architecture); \
@@ -16,8 +18,8 @@ RUN set -ex; \
     esac; \
     set -ex; \
     arch=$(dpkg --print-architecture); \
-    wget https://github.com/api7/apisix-build-tools/releases/download/api7ee-runtime/1.2.0/api7ee-runtime_1.2.0-0.debianbullseye-slim_${arch}.deb; \
-    dpkg -i ./api7ee-runtime_1.2.0-0.debianbullseye-slim_${arch}.deb
+    wget https://github.com/api7/apisix-build-tools/releases/download/api7ee-runtime/${RUNTIME_VERSION}/api7ee-runtime_${RUNTIME_VERSION}-0.debianbullseye-slim_${arch}.deb; \
+    dpkg -i ./api7ee-runtime_${RUNTIME_VERSION}-0.debianbullseye-slim_${arch}.deb
 RUN rm /usr/local/openresty/bin/etcdctl && rm -rf /usr/local/openresty/openssl3/share
 
 FROM debian:bullseye-slim AS apisix-builder

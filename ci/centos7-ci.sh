@@ -27,7 +27,7 @@ install_dependencies() {
     source scl_source enable devtoolset-9
     set -eu
 
-    export APISIX_RUNTIME=1.1.2
+    export APISIX_RUNTIME=1.2.1
     wget "https://raw.githubusercontent.com/api7/apisix-build-tools/apisix-runtime/${APISIX_RUNTIME}/build-apisix-runtime.sh"
     chmod +x build-apisix-runtime.sh
     ./build-apisix-runtime.sh latest
