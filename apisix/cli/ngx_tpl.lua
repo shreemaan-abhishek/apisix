@@ -148,6 +148,12 @@ stream {
     lua_shared_dict lrucache-lock-stream 10m;
     {% end %}
 
+    {% if stream.lua_shared_dict["upstream-healthcheck-stream"] then %}
+    lua_shared_dict upstream-healthcheck-stream {* stream.lua_shared_dict["upstream-healthcheck-stream"] *};
+    {% else %}
+    lua_shared_dict upstream-healthcheck-stream 10m;
+    {% end %}
+
     {% if stream.lua_shared_dict["etcd-cluster-health-check-stream"] then %}
     lua_shared_dict etcd-cluster-health-check-stream {* stream.lua_shared_dict["etcd-cluster-health-check-stream"] *};
     {% else %}
@@ -691,7 +697,7 @@ http {
             deny all;
             stub_status;
         }
-        
+
         location = /apisix/collect_nginx_status {
             content_by_lua_block {
                 local prometheus = require("apisix.plugins.prometheus.exporter")

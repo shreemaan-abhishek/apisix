@@ -31,6 +31,10 @@ local is_http = ngx.config.subsystem == "http"
 local upstreams
 local healthcheck
 
+local healthcheck_shdict_name = "upstream-healthcheck"
+if ngx.config.subsystem == "stream" then
+    healthcheck_shdict_name = healthcheck_shdict_name .. "-" .. ngx.config.subsystem
+end
 
 local set_upstream_tls_client_param
 local set_upstream_ssl_verify
@@ -144,7 +148,7 @@ local function create_checker(upstream)
 
     local checker, err = healthcheck.new({
         name = get_healthchecker_name(healthcheck_parent),
-        shm_name = "upstream-healthcheck",
+        shm_name = healthcheck_shdict_name,
         checks = upstream.checks,
     })
 
@@ -374,6 +378,8 @@ function _M.set_by_route(route, api_ctx)
             end
         end
 
+        local checker = fetch_healthchecker(up_conf)
+        api_ctx.up_checker = checker
         return
     end
 
