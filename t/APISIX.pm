@@ -783,11 +783,11 @@ _EOC_
 
             set \$request_type               'traditional_http';
 
-            set \$llm_time_to_first_token        '';
+            set \$llm_time_to_first_token        '0';
             set \$request_llm_model              '';
             set \$llm_model                      '';
-            set \$llm_prompt_tokens              '';
-            set \$llm_completion_tokens          '';
+            set \$llm_prompt_tokens              '0';
+            set \$llm_completion_tokens          '0';
             set \$llm_content_risk_level         '';
 
             access_log $apisix_home/t/servroot/logs/access.log main;

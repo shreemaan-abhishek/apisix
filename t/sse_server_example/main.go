@@ -86,7 +86,7 @@ func completionsHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Final chunk indicating completion
-		finalChunk := `{"id":"chatcmpl-123","usage":{},"object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}]}`
+		finalChunk := `{"id":"chatcmpl-123","usage":{"prompt_tokens":15,"completion_tokens":20,"total_tokens":35},"object":"chat.completion.chunk","created":1694268190,"model":"gpt-4o-mini","system_fingerprint":"fp_44709d6fcb","choices":[{"index":0,"delta":{},"logprobs":null,"finish_reason":"stop"}]}`
 		send("data: %s\n\n", finalChunk)
 		send("data: %s\n\n", "[DONE]")
 	} else {
