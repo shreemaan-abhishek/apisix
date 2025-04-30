@@ -161,6 +161,11 @@ function _M.http_init_worker()
     if local_conf.apisix and local_conf.apisix.enable_server_tokens == false then
         ver_header = "APISIX"
     end
+    local process = require("ngx.process")
+    if process.type() == "privileged agent" then
+        -- start health checker timer in resty.rediscluster
+        require("resty.rediscluster").init()
+    end
 end
 
 

@@ -372,7 +372,7 @@ function _M.rate_limit(conf, ctx, name, cost)
 
     local delay, remaining, reset
     if not conf.policy or conf.policy == "local" then
-        delay, remaining, reset = lim:incoming(key, true, conf, cost)
+        delay, remaining, reset = lim:incoming(key, cost)
     else
         local enable_delayed_sync = (conf.sync_interval ~= NO_DELAYED_SYNC)
         if enable_delayed_sync then

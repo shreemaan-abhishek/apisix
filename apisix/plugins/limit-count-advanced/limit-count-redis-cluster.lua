@@ -21,6 +21,7 @@ local delayed_syncer = require("apisix.plugins.limit-count-advanced.delayed-sync
 local sliding_window = require("apisix.plugins.limit-count-advanced.sliding-window.sliding-window")
 local sliding_window_store = require("apisix.plugins.limit-count-advanced."
                                      .. "sliding-window.store.redis")
+local limit_count_local = require("apisix.plugins.limit-count-advanced.limit-count-local")
 
 local setmetatable = setmetatable
 local tostring = tostring
@@ -83,6 +84,12 @@ function _M.new(plugin_name, limit, window, conf)
         return nil, err
     end
 
+    local fallback_limiter = limit_count_local.new(plugin_name,
+                                                    limit, window, conf.window_type)
+    if not fallback_limiter then
+        return nil, err
+    end
+
     if conf.window_type == "sliding" then
 
         local sw_limit_count, err = sliding_window.new(sliding_window_store,
@@ -90,7 +97,7 @@ function _M.new(plugin_name, limit, window, conf)
         if not sw_limit_count then
             return nil, err
         end
-
+        sw_limit_count.fallback_limiter = fallback_limiter
         local self = {
             window_type = conf.window_type,
             limit_count = sw_limit_count,
@@ -105,6 +112,7 @@ function _M.new(plugin_name, limit, window, conf)
         conf = conf,
         plugin_name = plugin_name,
         red_cli = red_cli,
+        fallback_limiter = fallback_limiter,
     }
     self.delayed_syncer = delayed_syncer.new(limit, window, conf, self)
     return setmetatable(self, mt)

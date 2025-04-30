@@ -20,7 +20,7 @@ local shared_dict_store = require("apisix.plugins.limit-count-advanced.sliding-w
                                   .. "store.shared-dict")
 
 local ngx = ngx
-local ngx_time = ngx.time
+local ngx_now = ngx.now
 local assert = assert
 local setmetatable = setmetatable
 local core = require("apisix.core")
@@ -33,7 +33,7 @@ local mt = {
 
 local function set_endtime(self, key, time_window)
     -- set an end time
-    local end_time = ngx_time() + time_window
+    local end_time = ngx_now() + time_window
     -- save to dict by key
     local success, err = self.dict:set(key, end_time, time_window)
 
@@ -48,7 +48,7 @@ end
 local function read_reset(self, key)
     -- read from dict
     local end_time = (self.dict:get(key) or 0)
-    local reset = end_time - ngx_time()
+    local reset = end_time - ngx_now()
     if reset < 0 then
         reset = 0
     end
@@ -72,6 +72,8 @@ function _M.new(plugin_name, limit, window, window_type)
         end
 
         local self = {
+            limit = limit,
+            window = window,
             window_type = window_type,
             limit_count = sw_limit_count,
         }
@@ -80,6 +82,8 @@ function _M.new(plugin_name, limit, window, window_type)
     end
 
     local self = {
+        limit = limit,
+        window = window,
         window_type = window_type,
         limit_count = limit_count.new(plugin_name, limit, window),
         dict = ngx.shared[plugin_name .. "-reset-header"]
@@ -88,19 +92,16 @@ function _M.new(plugin_name, limit, window, window_type)
     return setmetatable(self, mt)
 end
 
-function _M.incoming(self, key, commit, conf, cost)
+function _M.incoming(self, key, cost)
     if self.window_type == "sliding" then
         return self.limit_count:incoming(key, cost)
     end
 
-    local delay, remaining = self.limit_count:incoming(key, commit, cost)
-    local reset = 0
-    if not delay then
-        return delay, remaining, reset
-    end
+    local delay, remaining = self.limit_count:incoming(key, true, cost)
+    local reset
 
-    if remaining == conf.count - cost then
-        reset = set_endtime(self, key, conf.time_window)
+    if remaining == self.limit - cost then
+        reset = set_endtime(self, key, self.window)
     else
         reset = read_reset(self, key)
     end

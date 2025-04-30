@@ -27,6 +27,7 @@ local pairs = pairs
 local ipairs = ipairs
 local tab_insert = table.insert
 local type = type
+local pcall = pcall
 
 local ngx_now = ngx.now
 local worker_id = ngx.worker.id
@@ -135,8 +136,13 @@ function _M.delayed_sync(self, key, cost, syncer_id)
         return nil, nil, err
     end
 
-    local remaining, reset
-    remaining, reset, err = self:_delayed_sync(key, cost, syncer_id)
+    -- wrap the delayed syncer call in a pcall to avoid the lock being held forever
+    local ok, remaining, reset, err = pcall(self._delayed_sync, self, key, cost, syncer_id)
+    if not ok then
+        err = remaining
+        remaining = nil
+        core.log.error("delayed sync failed: ", err, ", key: ", key)
+    end
 
     local ok, err_unlock = locker:unlock()
     if not ok then
@@ -188,7 +194,29 @@ function _M._delayed_sync(self, key, cost, syncer_id)
             remote_reset = reset
         elseif remaining_or_err ~= "rejected" then
             core.log.error("sync to redis failed: ", remaining_or_err, ", key: ", key)
-            return nil, nil, remaining_or_err
+            if self.limiter.fallback_limiter then
+                core.log.warn("try use fallback limiter to do rate limiting")
+                -- resty.limit.count don't accept 0 as rate limit cost,
+                -- we don't add this one request back after incoming call,
+                -- because in actual situations, a counting error of one request can be negligible.
+                if local_delta < 1 then
+                    local_delta = 1
+                end
+                _, remaining_or_err, reset =
+                       self.limiter.fallback_limiter:incoming(key, local_delta)
+                if type(remaining_or_err) ~= "string" then
+                    remote_remaining = remaining_or_err
+                    remote_reset = reset
+                elseif remaining_or_err ~= "rejected" then
+                    core.log.error("sync to fallback_limiter failed: ",
+                                        remaining_or_err, ", key: ", key)
+                else
+                    remote_remaining = 0
+                    remote_reset = reset
+                end
+            else
+                return nil, nil, remaining_or_err
+            end
         end
 
         err = self:sync_to_shm(key, remote_remaining, remote_reset, local_delta)
@@ -326,6 +354,22 @@ function _M.sync(self, syncer_id, time_to_sync)
                 self:sync_to_shm(key, remaining_or_err, reset, delta)
             elseif remaining_or_err ~= "rejected" then
                 core.log.error("sync to redis failed: ", remaining_or_err, ", key: ", key)
+                if self.limiter.fallback_limiter then
+                    core.log.warn("try use fallback limiter to do rate limiting")
+                    if delta < 1 then
+                        delta = 1
+                    end
+                    _, remaining_or_err, reset =
+                       self.limiter.fallback_limiter:incoming(key, delta)
+                    if type(remaining_or_err) ~= "string" then
+                        self:sync_to_shm(key, remaining_or_err, reset, delta)
+                    elseif remaining_or_err ~= "rejected" then
+                        core.log.error("sync to fallback_limiter failed: ",
+                                            remaining_or_err, ", key: ", key)
+                    else
+                        self:sync_to_shm(key, 0, reset, delta)
+                    end
+                end
             else
                 self:sync_to_shm(key, 0, reset, delta)
             end

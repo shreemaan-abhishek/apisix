@@ -393,6 +393,7 @@ http {
     lua_shared_dict plugin-limit-count-redis-cluster-slot-lock 10m;
     {% end %}
 
+    lua_shared_dict redis_cluster_health 10m;
     {% if http.lua_shared_dict["plugin-limit-count"] then %}
     lua_shared_dict plugin-limit-count-reset-header {* http.lua_shared_dict["plugin-limit-count"] *};
     {% else %}

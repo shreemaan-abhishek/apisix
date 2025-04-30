@@ -19,6 +19,7 @@ local delayed_syncer = require("apisix.plugins.limit-count-advanced.delayed-sync
 local sliding_window = require("apisix.plugins.limit-count-advanced.sliding-window.sliding-window")
 local sliding_window_store = require("apisix.plugins.limit-count-advanced."
                                      .. "sliding-window.store.redis")
+local limit_count_local = require("apisix.plugins.limit-count-advanced.limit-count-local")
 local redis_cli = require("apisix.plugins.limit-count-advanced.util").redis_cli
 
 local assert = assert
@@ -47,12 +48,18 @@ local script = core.string.compress_script([=[
 function _M.new(plugin_name, limit, window, conf)
     assert(limit > 0 and window > 0)
 
+    local fallback_limiter, err = limit_count_local.new(plugin_name,
+                                                    limit, window, conf.window_type)
+    if not fallback_limiter then
+        return nil, err
+    end
+
     if conf.window_type == "sliding" then
         local sw_limit_count, err = sliding_window.new(sliding_window_store, limit, window, conf)
         if not sw_limit_count then
             return nil, err
         end
-
+        sw_limit_count.fallback_limiter = fallback_limiter
         local self = {
             window_type = conf.window_type,
             limit_count = sw_limit_count,
@@ -67,6 +74,7 @@ function _M.new(plugin_name, limit, window, conf)
         window = window,
         conf = conf,
         plugin_name = plugin_name,
+        fallback_limiter = fallback_limiter,
     }
     self.delayed_syncer = delayed_syncer.new(limit, window, conf, self)
     return setmetatable(self, mt)
