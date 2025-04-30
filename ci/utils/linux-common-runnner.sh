@@ -38,6 +38,9 @@ patch_apisix_code(){
 
     sed -i "s/openssl111/openssl3/g" ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
     echo "luarocks config variables.OPENSSL_DIR \${OPENSSL_PREFIX}" >> ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
+
+    # we already droped snowflake id support from request-id plugin
+    rm -f "${VAR_APISIX_HOME}/t/plugin/request-id-reload-bugfix.t"
 }
 
 
