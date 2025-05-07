@@ -261,7 +261,10 @@ function _M.request(self, ctx, conf, request_table, extra_opts)
         core.log.warn("failed to send request to LLM server: ", err)
         return handle_error(err)
     end
-
+    -- handling this error separately is needed for retries
+    if res.status == 429 then
+        return res.status
+    end
     local code, body = read_response(ctx, res)
 
     if conf.keepalive then

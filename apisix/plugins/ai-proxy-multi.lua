@@ -47,6 +47,25 @@ local _M = {
     schema = schema.ai_proxy_multi_schema,
 }
 
+local function fallback_strategy_has(strategy, name)
+    if not strategy then
+        return false
+    end
+
+    if type(strategy) == "string" then
+        return strategy == name
+    end
+
+    if type(strategy) == "table" then
+        for _, v in ipairs(strategy) do
+            if v == name then
+                return true
+            end
+        end
+    end
+
+    return false
+end
 
 local function get_chash_key_schema(hash_on)
     if hash_on == "vars" then
@@ -160,6 +179,7 @@ local function resolve_endpoint(instance_conf)
         host = ai_driver.host
         port = ai_driver.port
     end
+
     local node = {
         host = host,
         port = port,
@@ -193,7 +213,7 @@ local function get_checkers_status_ver(checkers)
 end
 
 
-local function create_checkers(conf)
+local function create_checkers(conf, ctx)
     if healthcheck == nil then
         healthcheck = require("resty.healthcheck")
     end
@@ -209,9 +229,9 @@ local function create_checkers(conf)
     end
     conf.is_creating_ai_checkers = true
 
-    local ai_checkers = core.table.new(0, #conf.instances)
+    local ai_checkers = core.table.new(0, core.table.nkeys(ctx.ai_instance_candidates))
 
-    for _, ins in ipairs(conf.instances) do
+    for _, ins in pairs(ctx.ai_instance_candidates) do
         if ins.checks then
             core.log.info("create new healthcheck instance for ai_instance: ", ins.name,
             " checks: ", core.json.delay_encode(ins.checks, true))
@@ -249,7 +269,7 @@ local function create_checkers(conf)
         end
     end
 
-    for _, ins in ipairs(conf.instances) do
+    for _, ins in pairs(ctx.ai_instance_candidates) do
         local node = resolve_endpoint(ins)
         local host = ins.checks and ins.checks.active and ins.checks.active.host
         local port = ins.checks and ins.checks.active and ins.checks.active.port
@@ -287,17 +307,17 @@ local function create_checkers(conf)
 end
 
 
-local function fetch_health_instances(conf, checkers)
-    local instances = conf.instances
-    local new_instances = core.table.new(0, #instances)
+local function fetch_health_instances(ctx, conf, checkers)
+    local instances = ctx.ai_instance_candidates
+    local new_instances = core.table.new(0, core.table.nkeys(instances))
     if not checkers then
-        for _, ins in ipairs(conf.instances) do
+        for _, ins in pairs(ctx.ai_instance_candidates) do
             transform_instances(new_instances, ins)
         end
         return new_instances
     end
 
-    for _, ins in ipairs(instances) do
+    for _, ins in pairs(instances) do
         local checker = checkers[ins.name]
         if checker then
             local host = ins.checks and ins.checks.active and ins.checks.active.host
@@ -318,7 +338,7 @@ local function fetch_health_instances(conf, checkers)
 
     if core.table.nkeys(new_instances) == 0 then
         core.log.warn("all upstream nodes is unhealthy, use default")
-        for _, ins in ipairs(instances) do
+        for _, ins in pairs(instances) do
             transform_instances(new_instances, ins)
         end
     end
@@ -327,14 +347,14 @@ local function fetch_health_instances(conf, checkers)
 end
 
 
-local function create_server_picker(conf, ups_tab, checkers)
+local function create_server_picker(ctx, conf, ups_tab, checkers)
     local picker = pickers[conf.balancer.algorithm] -- nil check
     if not picker then
         pickers[conf.balancer.algorithm] = require("apisix.balancer." .. conf.balancer.algorithm)
         picker = pickers[conf.balancer.algorithm]
     end
 
-    local new_instances = fetch_health_instances(conf, checkers)
+    local new_instances = fetch_health_instances(ctx, conf, checkers)
     core.log.info("fetch health instances: ", core.json.delay_encode(new_instances))
 
     if #new_instances._priority_index > 1 then
@@ -348,7 +368,7 @@ end
 
 
 local function get_instance_conf(instances, name)
-    for _, ins in ipairs(instances) do
+    for _, ins in pairs(instances) do
         if ins.name == name then
             return ins
         end
@@ -357,7 +377,8 @@ end
 
 
 local function pick_target(ctx, conf, ups_tab)
-    local checkers = #conf.instances > 1 and create_checkers(conf)
+    local len_ai_instance_candidates = core.table.nkeys(ctx.ai_instance_candidates)
+    local checkers = len_ai_instance_candidates and create_checkers(conf, ctx)
 
     local version = plugin.conf_version(conf)
     if checkers then
@@ -368,7 +389,7 @@ local function pick_target(ctx, conf, ups_tab)
     local server_picker = ctx.server_picker
     if not server_picker then
         server_picker = lrucache_server_picker(ctx.matched_route.key, version,
-                                               create_server_picker, conf, ups_tab, checkers)
+                                               create_server_picker, ctx, conf, ups_tab, checkers)
     end
     if not server_picker then
         return nil, nil, "failed to fetch server picker"
@@ -380,9 +401,10 @@ local function pick_target(ctx, conf, ups_tab)
         return nil, nil, err
     end
     ctx.balancer_server = instance_name
-    if conf.fallback_strategy == "instance_health_and_rate_limiting" then
+    if conf.fallback_strategy == "instance_health_and_rate_limiting" or -- for backwards compatible
+       fallback_strategy_has(conf.fallback_strategy, "rate_limiting") then
         local ai_rate_limiting = require("apisix.plugins.ai-rate-limiting")
-        for _ = 1, #conf.instances do
+        for _ = 1, len_ai_instance_candidates do
             if ai_rate_limiting.check_instance_status(nil, ctx, instance_name) then
                 break
             end
@@ -397,25 +419,12 @@ local function pick_target(ctx, conf, ups_tab)
         end
     end
 
-    local instance_conf = get_instance_conf(conf.instances, instance_name)
+    local instance_conf = get_instance_conf(ctx.ai_instance_candidates, instance_name)
     return instance_name, instance_conf
 end
 
-
-local function pick_ai_instance(ctx, conf, ups_tab)
-    local instance_name, instance_conf, err
-    if #conf.instances == 1 then
-        instance_name = conf.instances[1].name
-        instance_conf = conf.instances[1]
-    else
-        instance_name, instance_conf, err = pick_target(ctx, conf, ups_tab)
-    end
-
-    core.log.info("picked instance: ", instance_name)
-    return instance_name, instance_conf, err
-end
-
-function _M.access(conf, ctx)
+-- picks an ai instance, updates ai_instance_candidates, sets the picked_ai_instance on the context
+local function pick_ai_instance(ctx, conf)
     local ups_tab = {}
     local algo = core.table.try_read_attr(conf, "balancer", "algorithm")
     if algo == "chash" then
@@ -424,19 +433,73 @@ function _M.access(conf, ctx)
         ups_tab["key"] = hash_key
         ups_tab["hash_on"] = hash_on
     end
+    local len_ai_instance_candidates = core.table.nkeys(ctx.ai_instance_candidates)
+    if len_ai_instance_candidates == 0 then
+        return nil, "no available instance"
+    end
+    local instance_name, instance_conf, err
+    if len_ai_instance_candidates == 1 then
+        for name, ins in pairs(ctx.ai_instance_candidates) do
+            instance_name = name
+            instance_conf = ins
+        end
+    else
+        instance_name, instance_conf, err = pick_target(ctx, conf, ups_tab)
+    end
 
-    local name, ai_instance, err = pick_ai_instance(ctx, conf, ups_tab)
+    core.log.info("picked instance: ", instance_name)
+    if instance_name and ctx.ai_instance_candidates then
+        ctx.ai_instance_candidates[instance_name] = nil
+    end
+    if not err then
+        ctx.picked_ai_instance_name = instance_name
+        ctx.picked_ai_instance = instance_conf
+    end
+    return instance_name , err
+end
+
+function _M.access(conf, ctx)
+    ctx.ai_instance_candidates = core.table.new(0, #conf.instances)
+    for _, instance in ipairs(conf.instances) do
+        ctx.ai_instance_candidates[instance.name] = instance
+    end
+    local name, err = pick_ai_instance(ctx, conf)
     if err then
         return 503, err
     end
-    ctx.picked_ai_instance_name = name
-    ctx.picked_ai_instance = ai_instance
     ctx.balancer_ip = name
     ctx.bypass_nginx_upstream = true
 end
 
 
-_M.before_proxy = base.before_proxy
+-- retry_on_error will pick another instance and update ai_instance_candidates(pick_ai_instance())
+-- so that it can be retried in before_proxy. It will return when no instances left to try or
+-- when no fallback strategy is matched.
+local function retry_on_error(ctx, conf, code)
+    ctx.bypass_nginx_upstream = true
+    if (code == 429 and fallback_strategy_has(conf.fallback_strategy, "http_429")) or
+       (code >= 500 and code < 600 and
+       fallback_strategy_has(conf.fallback_strategy, "http_5xx")) then
+        if core.table.nkeys(ctx.ai_instance_candidates) == 0 then
+            core.log.warn("no more AI instance candidates available")
+            return code
+        end
+        local name, err = pick_ai_instance(ctx, conf)
+        if err then
+            core.log.error("failed to pick new AI instance: ", err)
+            return code
+        end
+        ctx.balancer_ip = name
+        return
+    end
+    return code
+end
+
+function _M.before_proxy(conf, ctx)
+     return base.before_proxy(conf, ctx, function (ctx, conf, code)
+        return retry_on_error(ctx, conf, code)
+    end)
+end
 
 function _M.log(conf, ctx)
     if conf.logging then
