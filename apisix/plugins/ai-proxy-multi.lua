@@ -33,6 +33,7 @@ local string = string
 
 local priority_balancer = require("apisix.balancer.priority")
 local healthcheck
+local endpoint_regex = "^(https?)://([^:/]+):?(%d*)/?.*$"
 
 local pickers = {}
 local lrucache_server_picker = core.lrucache.new({
@@ -93,8 +94,14 @@ function _M.check_schema(conf)
     if not ok then
         return false, err
     end
-
     for _, instance in ipairs(conf.instances) do
+        local endpoint = instance and instance.override and instance.override.endpoint
+        if endpoint then
+            local scheme, host, _ = endpoint:match(endpoint_regex)
+            if not scheme or not host  then
+                return false, "invalid endpoint"
+            end
+        end
         local ai_driver, err = pcall(require, "apisix.plugins.ai-drivers." .. instance.provider)
         if not ai_driver then
             core.log.warn("fail to require ai provider: ", instance.provider, ", err", err)
@@ -167,7 +174,7 @@ local function resolve_endpoint(instance_conf)
     local scheme, host, port
     local endpoint = core.table.try_read_attr(instance_conf, "override", "endpoint")
     if endpoint then
-        scheme, host, port = endpoint:match("^(https?)://([^:/]+):?(%d*)/?.*$")
+        scheme, host, port = endpoint:match(endpoint_regex)
         if port == "" then
             port = (scheme == "https") and "443" or "80"
         end
