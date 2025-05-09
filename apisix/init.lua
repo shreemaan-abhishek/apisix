@@ -1097,6 +1097,8 @@ function _M.stream_init_worker()
 
     load_balancer = require("apisix.balancer")
 
+    require("apisix.timers").init_worker()
+
     local_conf = core.config.local_conf()
 end
 

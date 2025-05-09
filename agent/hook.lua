@@ -341,3 +341,18 @@ apisix.http_log_phase = function (...)
     end
     old_http_log_phase(...)
 end
+
+local old_stream_init_worker = apisix.stream_init_worker
+apisix.stream_init_worker = function(...)
+    local pcall = pcall
+    ok, res = pcall(old_stream_init_worker, ...)
+    if not ok then
+      core.log.error("failed to init worker, the data plane instance will be automatically exited soon, error: ", res)
+    end
+    if core.config.type == "etcd" then
+        local timers  = require("apisix.timers")
+        timers.register_timer(report_healthcheck_timer_name, report_healthcheck)
+    else
+        core.log.warn("skipped registering timer because config type: ", core.config.type)
+    end
+end
