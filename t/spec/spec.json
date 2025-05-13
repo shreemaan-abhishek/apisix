@@ -36,6 +36,39 @@
     { "name": "user", "description": "Operations about user" }
   ],
   "paths": {
+     "/multipleoftest": {
+      "post": {
+        "tags": ["pet"],
+        "summary": "Test multipleOf validation",
+        "operationId": "testMultipleOf",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MultipleOfTest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Invalid input" }
+        }
+      }
+    },
     "/pet": {
       "put": {
         "tags": ["pet"],
@@ -638,6 +671,16 @@
   },
   "components": {
     "schemas": {
+      "MultipleOfTest": {
+        "type": "object",
+        "required": ["testnumber"],
+        "properties": {
+          "testnumber": {
+            "type": "number",
+            "multipleOf": 0.01
+          }
+        }
+      },
       "Order": {
         "type": "object",
         "properties": {

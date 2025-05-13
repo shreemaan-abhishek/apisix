@@ -367,3 +367,27 @@ GET /api/v3/pet/incorrect-id
 --- more_headers
 Content-Type: application/json
 --- error_code: 200
+
+
+
+=== Test 19: test multipleOf validation
+--- request
+POST /api/v3/multipleoftest
+{"testnumber": 1.13}
+--- more_headers
+Content-Type: application/json
+--- no_error_log
+[error]
+
+
+
+=== Test 20: test multipleOf validation - invalid
+--- request
+POST /api/v3/multipleoftest
+{"testnumber": 1.1312}
+--- more_headers
+Content-Type: application/json
+--- response_body_like: failed to validate request.
+--- error_code: 400
+--- error_log
+error occured while validating request
