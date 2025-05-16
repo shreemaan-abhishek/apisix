@@ -386,11 +386,15 @@ local function get_plugins(config)
             -- the error is unrecoverable, so we need to raise it
             error("failed to load the configuration file: " .. err)
         end
-        for _, name in ipairs(local_conf.plugins) do
-            core.table.insert(http_plugins, {name = name})
+        if local_conf.plugins then
+            for _, name in ipairs(local_conf.plugins) do
+                core.table.insert(http_plugins, {name = name})
+            end
         end
-        for _,name in ipairs(local_conf.stream_plugins) do
-            core.table.insert(stream_plugins, {name = name})
+        if local_conf.stream_plugins then
+            for _, name in ipairs(local_conf.stream_plugins) do
+                core.table.insert(stream_plugins, {name = name})
+            end
         end
     else
         -- called during synchronizing plugin data

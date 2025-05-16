@@ -68,8 +68,7 @@ server {
 }
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /
     upstream_id: 1
 --- config
@@ -125,8 +124,7 @@ server {
 }
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /
     upstream_id: 1
 --- config
@@ -180,8 +178,7 @@ server {
 }
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /
     upstream_id: 1
 --- config

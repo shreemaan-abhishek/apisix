@@ -117,7 +117,7 @@ fi
 git checkout conf/config-default.yaml
 
 echo "passed: allow configuring node_listen as a number in the default config"
-
+sed -i 's/\(cache_levels:[[:space:]]*\)1:2/\1"1:2"/' conf/config-default.yaml
 # apisix test
 git checkout conf/config.yaml
 

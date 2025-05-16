@@ -29,7 +29,7 @@ rm logs/error.log || true
 
 echo '
 apisix:
-    extra_lua_path: "\$prefix/t/lib/?.lua"
+    extra_lua_path: "$prefix/t/lib/?.lua"
 nginx_config:
     error_log_level: info
 ' > conf/config.yaml
@@ -53,9 +53,9 @@ echo "prometheus run in privileged agent successfully when only http is enabled"
 sleep 0.5
 rm logs/error.log || true
 
-echo "
+echo '
 apisix:
-    extra_lua_path: "\$prefix/t/lib/?.lua"
+    extra_lua_path: "$prefix/t/lib/?.lua"
     enable_admin: true
     stream_proxy:
         tcp:
@@ -64,7 +64,7 @@ stream_plugins:
     - prometheus
 nginx_config:
     error_log_level: info
-" > conf/config.yaml
+' > conf/config.yaml
 
 make run
 sleep 0.1
@@ -85,9 +85,9 @@ make stop
 sleep 0.5
 rm logs/error.log || true
 
-echo "
+echo '
 apisix:
-    extra_lua_path: "\$prefix/t/lib/?.lua"
+    extra_lua_path: "$prefix/t/lib/?.lua"
     enable_admin: false
     stream_proxy:
         tcp:
@@ -96,7 +96,7 @@ stream_plugins:
     - prometheus
 nginx_config:
     error_log_level: info
-" > conf/config.yaml
+' > conf/config.yaml
 
 make run
 sleep 0.1

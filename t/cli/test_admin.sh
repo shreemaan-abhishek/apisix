@@ -196,8 +196,7 @@ deployment:
   admin:
     allow_admin: ~
     admin_key:
-        -
-        name: "admin"
+      - name: "admin"
         key: edd1c9f034335f136f87ad84b625c8f1
         role: admin
 ' > conf/config.yaml

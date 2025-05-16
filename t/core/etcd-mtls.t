@@ -183,7 +183,7 @@ deployment:
                             "password": "678901"
                         }
                     }
-                }]])
+                }]],nil, {["X-API-KEY"] = "edd1c9f034335f136f87ad84b625c8f1"})
 
             ngx.sleep(2)
             local new_idx = consumers.prev_index

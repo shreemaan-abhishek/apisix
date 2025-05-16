@@ -72,7 +72,7 @@ local config_schema = {
         apisix = {
             properties = {
                 lua_module_hook = {
-                    pattern = "^[a-zA-Z._-]+$",
+                    pattern = "^[a-zA-Z._-]*$",
                 },
                 proxy_protocol = {
                     type = "object",

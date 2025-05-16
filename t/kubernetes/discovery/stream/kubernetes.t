@@ -30,14 +30,15 @@ discovery:
   kubernetes:
     - id: first
       service:
+        schema: "https"
         host: "127.0.0.1"
         port: "6443"
       client:
         token_file: "/tmp/var/run/secrets/kubernetes.io/serviceaccount/token"
     - id: second
       service:
-        schema: "http",
-        host: "127.0.0.1",
+        schema: "http"
+        host: "127.0.0.1"
         port: "6445"
       client:
         token_file: "/tmp/var/run/secrets/kubernetes.io/serviceaccount/token"

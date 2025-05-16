@@ -11,6 +11,9 @@ apisix:
     enable: true
     keyring:
       - qeddd145sfvddff3
+  stream_proxy:
+    tcp:
+      - 9100
 _EOC_
 
     $block->set_value("extra_yaml_config", $extra_yaml_config);

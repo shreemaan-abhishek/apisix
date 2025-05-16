@@ -42,8 +42,7 @@ _EOC_
 
         my $route = <<_EOC_;
 routes:
-    -
-    upstream_id: 1
+  - upstream_id: 1
     uris:
         - /hello
 #END
@@ -64,8 +63,7 @@ __DATA__
 === TEST 1: all are down detected by health checker
 --- apisix_yaml
 upstreams:
-    -
-    id: 1
+  - id: 1
     type: least_conn
     nodes:
         - host: 127.0.0.1

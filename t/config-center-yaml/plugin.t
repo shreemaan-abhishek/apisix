@@ -35,11 +35,10 @@ deployment:
 _EOC_
 
     $block->set_value("yaml_config", $yaml_config);
-
+if (!$block->apisix_yaml) {
     my $routes = <<_EOC_;
 routes:
-  -
-    uri: /hello
+  - uri: /hello
     upstream:
         nodes:
             "127.0.0.1:1980": 1
@@ -47,7 +46,8 @@ routes:
 #END
 _EOC_
 
-    $block->set_value("apisix_yaml", $block->apisix_yaml . $routes);
+    $block->set_value("apisix_yaml", $block->extra_apisix_yaml . $routes);
+}
 });
 
 our $debug_config = t::APISIX::read_file("conf/debug.yaml");
@@ -58,7 +58,7 @@ run_tests();
 __DATA__
 
 === TEST 1: sanity
---- apisix_yaml
+--- extra_apisix_yaml
 plugins:
   - name: ip-restriction
   - name: jwt-auth
@@ -111,7 +111,7 @@ plugins:
     - jwt-auth
 stream_plugins:
     - mqtt-proxy
---- apisix_yaml
+--- extra_apisix_yaml
 plugins:
   - name: ip-restriction
   - name: jwt-auth
@@ -143,8 +143,8 @@ qr/(loaded plugin and sort by priority: (3000 name: ip-restriction|2510 name: jw
 
 
 
-=== TEST 3: disable plugin and its router
---- apisix_yaml
+=== TEST 3: disable plugin and its route
+--- extra_apisix_yaml
 plugins:
   - name: jwt-auth
 --- request
@@ -162,6 +162,7 @@ routes:
 plugins:
   - name: public-api
   - name: prometheus
+#END
 --- request
 GET /apisix/prometheus/metrics
 
@@ -181,7 +182,7 @@ plugins:
     - jwt-auth
 stream_plugins:
     - mqtt-proxy
---- apisix_yaml
+--- extra_apisix_yaml
 plugins:
   - name: xxx
     stream: ip-restriction
@@ -197,7 +198,7 @@ load(): plugins not changed
 
 
 === TEST 6: empty plugin list
---- apisix_yaml
+--- extra_apisix_yaml
 plugins:
 stream_plugins:
 --- debug_config eval: $::debug_config

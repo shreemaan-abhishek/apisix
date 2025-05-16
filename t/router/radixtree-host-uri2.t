@@ -42,15 +42,13 @@ __DATA__
 --- yaml_config eval: $::yaml_config
 --- apisix_yaml
 routes:
-  -
-    uri: /server_port
+  - uri: /server_port
     host: test.com
     upstream:
         nodes:
             "127.0.0.1:1981": 1
         type: roundrobin
-  -
-    uri: /server_port
+  - uri: /server_port
     upstream:
         nodes:
             "127.0.0.1:1980": 1
@@ -72,15 +70,13 @@ use config_provider: yaml
 --- yaml_config eval: $::yaml_config
 --- apisix_yaml
 routes:
-  -
-    uri: /server_port
-    host: *.test.com
+  - uri: /server_port
+    host: "*.test.com"
     upstream:
         nodes:
             "127.0.0.1:1981": 1
         type: roundrobin
-  -
-    uri: /server_port
+  - uri: /server_port
     upstream:
         nodes:
             "127.0.0.1:1980": 1
@@ -102,15 +98,13 @@ use config_provider: yaml
 --- yaml_config eval: $::yaml_config
 --- apisix_yaml
 routes:
-  -
-    uri: /*
-    host: *.test.com
+  - uri: /*
+    host: "*.test.com"
     upstream:
         nodes:
             "127.0.0.1:1981": 1
         type: roundrobin
-  -
-    uri: /server_port
+  - uri: /server_port
     upstream:
         nodes:
             "127.0.0.1:1980": 1
@@ -132,16 +126,14 @@ use config_provider: yaml
 --- yaml_config eval: $::yaml_config
 --- apisix_yaml
 routes:
-  -
-    uri: /*
-    host: *.test.com
+  - uri: /*
+    host: "*.test.com"
     filter_func: "function(vars) return vars.arg_name == 'json' end"
     upstream:
         nodes:
             "127.0.0.1:1981": 1
         type: roundrobin
-  -
-    uri: /server_port
+  - uri: /server_port
     upstream:
         nodes:
             "127.0.0.1:1980": 1
@@ -163,16 +155,14 @@ use config_provider: yaml
 --- yaml_config eval: $::yaml_config
 --- apisix_yaml
 routes:
-  -
-    uri: /*
-    host: *.test.com
+  - uri: /*
+    host: "*.test.com"
     filter_func: "function(vars) return vars.arg_name == 'json' end"
     upstream:
         nodes:
             "127.0.0.1:1981": 1
         type: roundrobin
-  -
-    uri: /server_port
+  - uri: /server_port
     upstream:
         nodes:
             "127.0.0.1:1980": 1
@@ -321,8 +311,7 @@ Host: t.com
 --- yaml_config eval: $::yaml_config
 --- apisix_yaml
 routes:
-  -
-    uri: /server_port
+  - uri: /server_port
     host: test.com
     upstream:
         nodes:
@@ -340,8 +329,7 @@ Host: tEst.com
 --- yaml_config eval: $::yaml_config
 --- apisix_yaml
 routes:
-  -
-    uri: /server_port
+  - uri: /server_port
     host: test.coM
     upstream:
         nodes:
@@ -368,15 +356,13 @@ upstreams:
       "127.0.0.1:1980": 1
     type: roundrobin
 routes:
-  -
-    service_id: 1
+  - service_id: 1
     upstream_id: 1
     uri: /hello
     plugins:
         proxy-rewrite:
             uri: /hello1
-  -
-    upstream_id: 1
+  - upstream_id: 1
     uri: /hello
     priority: -1
 #END

@@ -51,8 +51,7 @@ __DATA__
 === TEST 1: can't use service_name with nodes
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /hello
     upstream_id: 1
 upstreams:
@@ -91,8 +90,7 @@ services:
                       interval: 1
                       http_failures: 2
 routes:
-    -
-    service_id: 1
+  - service_id: 1
     uri: /server_port
 #END
 --- config
@@ -166,8 +164,7 @@ services:
                       interval: 1
                       http_failures: 2
 routes:
-    -
-    service_id: 1
+  - service_id: 1
     uri: /server_port
     upstream:
         type: roundrobin

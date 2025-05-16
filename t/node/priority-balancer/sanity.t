@@ -42,9 +42,8 @@ _EOC_
 
         my $route = <<_EOC_;
 routes:
-    -
-    upstream_id: 1
-    uris:
+    - upstream_id: 1
+      uris:
         - /hello
         - /mysleep
 #END
@@ -65,30 +64,29 @@ __DATA__
 === TEST 1: sanity
 --- apisix_yaml
 upstreams:
-    -
-    id: 1
-    type: least_conn
-    nodes:
-        - host: 127.0.0.1
-          port: 1979
-          weight: 2
-          priority: 1
-        - host: 127.0.0.2
-          port: 1979
-          weight: 1
-          priority: 1
-        - host: 127.0.0.3
-          port: 1979
-          weight: 2
-          priority: 0
-        - host: 127.0.0.4
-          port: 1979
-          weight: 1
-          priority: 0
-        - host: 127.0.0.1
-          port: 1980
-          weight: 2
-          priority: -1
+    - id: 1
+      type: least_conn
+      nodes:
+          - host: 127.0.0.1
+            port: 1979
+            weight: 2
+            priority: 1
+          - host: 127.0.0.2
+            port: 1979
+            weight: 1
+            priority: 1
+          - host: 127.0.0.3
+            port: 1979
+            weight: 2
+            priority: 0
+          - host: 127.0.0.4
+            port: 1979
+            weight: 1
+            priority: 0
+          - host: 127.0.0.1
+            port: 1980
+            weight: 2
+            priority: -1
 --- response_body
 hello world
 --- error_log
@@ -109,22 +107,21 @@ proxy request to 127.0.0.1:1980
 === TEST 2: all failed
 --- apisix_yaml
 upstreams:
-    -
-    id: 1
-    type: least_conn
-    nodes:
-        - host: 127.0.0.1
-          port: 1979
-          weight: 2
-          priority: 1
-        - host: 127.0.0.2
-          port: 1979
-          weight: 1
-          priority: 0
-        - host: 127.0.0.1
-          port: 1979
-          weight: 2
-          priority: -1
+    - id: 1
+      type: least_conn
+      nodes:
+          - host: 127.0.0.1
+            port: 1979
+            weight: 2
+            priority: 1
+          - host: 127.0.0.2
+            port: 1979
+            weight: 1
+            priority: 0
+          - host: 127.0.0.1
+            port: 1979
+            weight: 2
+            priority: -1
 --- error_code: 502
 --- error_log
 connect() failed
@@ -140,21 +137,20 @@ proxy request to 127.0.0.1:1979
 === TEST 3: default priority is zero
 --- apisix_yaml
 upstreams:
-    -
-    id: 1
-    type: least_conn
-    nodes:
-        - host: 127.0.0.1
-          port: 1979
-          weight: 2
-          priority: 1
-        - host: 127.0.0.2
-          port: 1979
-          weight: 1
-        - host: 127.0.0.1
-          port: 1980
-          weight: 2
-          priority: -1
+    - id: 1
+      type: least_conn
+      nodes:
+          - host: 127.0.0.1
+            port: 1979
+            weight: 2
+            priority: 1
+          - host: 127.0.0.2
+            port: 1979
+            weight: 1
+          - host: 127.0.0.1
+            port: 1980
+            weight: 2
+            priority: -1
 --- response_body
 hello world
 --- error_log
@@ -171,22 +167,21 @@ proxy request to 127.0.0.1:1980
 === TEST 4: least_conn
 --- apisix_yaml
 upstreams:
-    -
-    id: 1
-    type: least_conn
-    nodes:
-        - host: 127.0.0.1
-          port: 1979
-          weight: 2
-          priority: 1
-        - host: 127.0.0.1
-          port: 1980
-          weight: 3
-          priority: -1
-        - host: 0.0.0.0
-          port: 1980
-          weight: 2
-          priority: -1
+    - id: 1
+      type: least_conn
+      nodes:
+          - host: 127.0.0.1
+            port: 1979
+            weight: 2
+            priority: 1
+          - host: 127.0.0.1
+            port: 1980
+            weight: 3
+            priority: -1
+          - host: 0.0.0.0
+            port: 1980
+            weight: 2
+            priority: -1
 --- config
     location /t {
         content_by_lua_block {
@@ -229,26 +224,25 @@ proxy request to 127.0.0.1:1980 while connecting to upstream
 === TEST 5: roundrobin
 --- apisix_yaml
 upstreams:
-    -
-    id: 1
-    type: roundrobin
-    nodes:
-        - host: 127.0.0.1
-          port: 1979
-          weight: 1000
-          priority: 1
-        - host: 127.0.0.2
-          port: 1979
-          weight: 1
-          priority: 1
-        - host: 127.0.0.3
-          port: 1979
-          weight: 1000
-          priority: -1
-        - host: 127.0.0.4
-          port: 1979
-          weight: 1
-          priority: -1
+    - id: 1
+      type: roundrobin
+      nodes:
+          - host: 127.0.0.1
+            port: 1979
+            weight: 1000
+            priority: 1
+          - host: 127.0.0.2
+            port: 1979
+            weight: 1
+            priority: 1
+          - host: 127.0.0.3
+            port: 1979
+            weight: 1000
+            priority: -1
+          - host: 127.0.0.4
+            port: 1979
+            weight: 1
+            priority: -1
 --- error_code: 502
 --- error_log
 connect() failed
@@ -265,23 +259,22 @@ proxy request to 127.0.0.4:1979
 === TEST 6: ewma
 --- apisix_yaml
 upstreams:
-    -
-    id: 1
-    type: ewma
-    key: remote_addr
-    nodes:
-        - host: 127.0.0.1
-          port: 1979
-          weight: 2
-          priority: 1
-        - host: 127.0.0.2
-          port: 1979
-          weight: 1
-          priority: 0
-        - host: 127.0.0.3
-          port: 1979
-          weight: 2
-          priority: -1
+    - id: 1
+      type: ewma
+      key: remote_addr
+      nodes:
+          - host: 127.0.0.1
+            port: 1979
+            weight: 2
+            priority: 1
+          - host: 127.0.0.2
+            port: 1979
+            weight: 1
+            priority: 0
+          - host: 127.0.0.3
+            port: 1979
+            weight: 2
+            priority: -1
 --- error_code: 502
 --- error_log
 connect() failed
@@ -297,27 +290,26 @@ proxy request to 127.0.0.3:1979
 === TEST 7: chash
 --- apisix_yaml
 upstreams:
-    -
-    id: 1
-    type: chash
-    key: remote_addr
-    nodes:
-        - host: 127.0.0.1
-          port: 1979
-          weight: 2
-          priority: 1
-        - host: 127.0.0.2
-          port: 1979
-          weight: 1
-          priority: 1
-        - host: 127.0.0.3
-          port: 1979
-          weight: 2
-          priority: -1
-        - host: 127.0.0.4
-          port: 1979
-          weight: 1
-          priority: -1
+    - id: 1
+      type: chash
+      key: remote_addr
+      nodes:
+          - host: 127.0.0.1
+            port: 1979
+            weight: 2
+            priority: 1
+          - host: 127.0.0.2
+            port: 1979
+            weight: 1
+            priority: 1
+          - host: 127.0.0.3
+            port: 1979
+            weight: 2
+            priority: -1
+          - host: 127.0.0.4
+            port: 1979
+            weight: 1
+            priority: -1
 --- error_code: 502
 --- error_log
 connect() failed

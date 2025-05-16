@@ -31,6 +31,7 @@ description = {
 }
 
 dependencies = {
+    "lyaml = 6.2.8",
     "lua-resty-ctxdump = 0.1-0",
     "api7-lua-resty-dns-client = 7.0.1",
     "lua-resty-template = 2.0",
@@ -50,7 +51,6 @@ dependencies = {
     "lua-protobuf = 0.5.2-1",
     "lua-resty-openidc = 1.7.5",
     "luafilesystem = 1.7.0-2",
-    "api7-lua-tinyyaml = 0.4.2",
     "nginx-lua-prometheus-api7 = 0.20240201-1",
     "jsonschema = 0.9.8",
     "lua-resty-ipmatcher = 0.6.1",

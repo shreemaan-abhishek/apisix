@@ -62,8 +62,7 @@ __DATA__
 === TEST 1: create new server picker when nodes change
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /hello
     upstream_id: 1
 --- config
@@ -108,8 +107,7 @@ create_obj_fun(): upstream nodes:
 === TEST 2: don't create new server picker if nodes don't change
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /hello
     upstream_id: 1
 --- config
@@ -153,13 +151,11 @@ create_obj_fun(): upstream nodes:
 === TEST 3: create new server picker when nodes change, up_conf doesn't come from upstream
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /hello
     service_id: 1
 services:
-    -
-    id: 1
+  - id: 1
     upstream:
         service_name: mock
         discovery_type: mock
@@ -206,8 +202,7 @@ create_obj_fun(): upstream nodes:
 === TEST 4: don't create new server picker if nodes don't change (port missing)
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /hello
     upstream_id: 1
 --- config
@@ -252,8 +247,7 @@ connect() failed
 === TEST 5: create new server picker when priority change
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /hello
     upstream_id: 1
 --- config
@@ -298,8 +292,7 @@ create_obj_fun(): upstream nodes:
 === TEST 6: default priority of discovered node is 0
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /hello
     upstream_id: 1
 --- config
@@ -335,8 +328,7 @@ proxy request to 0.0.0.0:1980
 === TEST 7: create new server picker when metadata change
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /hello
     upstream_id: 1
 --- config
@@ -381,8 +373,7 @@ create_obj_fun(): upstream nodes:
 === TEST 8: don't create new server picker when metadata doesn't change
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /hello
     upstream_id: 1
 --- config
@@ -428,8 +419,7 @@ create_obj_fun(): upstream nodes:
 === TEST 9: bad nodes return by the discovery
 --- apisix_yaml
 routes:
-  -
-    uris:
+  - uris:
         - /hello
     upstream_id: 1
 --- config

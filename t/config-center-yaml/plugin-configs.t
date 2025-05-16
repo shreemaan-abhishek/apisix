@@ -47,8 +47,7 @@ __DATA__
 === TEST 1: sanity
 --- apisix_yaml
 plugin_configs:
-    -
-        id: 1
+      - id: 1
         plugins:
             response-rewrite:
                 body: "hello\n"
@@ -58,7 +57,7 @@ routes:
       plugin_config_id: 1
       upstream:
         nodes:
-          "127.0.0.1:1980":1
+          "127.0.0.1:1980": 1
         type: roundrobin
 #END
 --- response_body
@@ -74,7 +73,7 @@ routes:
       plugin_config_id: 1
       upstream:
         nodes:
-          "127.0.0.1:1980":1
+          "127.0.0.1:1980": 1
         type: roundrobin
 #END
 --- error_code: 503
@@ -86,8 +85,7 @@ failed to fetch plugin config by id: 1
 === TEST 3: mix plugins & plugin_config_id
 --- apisix_yaml
 plugin_configs:
-    -
-        id: 1
+    -   id: 1
         plugins:
             example-plugin:
                 i: 1
@@ -105,7 +103,7 @@ routes:
           body: "world\n"
       upstream:
         nodes:
-          "127.0.0.1:1980":1
+          "127.0.0.1:1980": 1
         type: roundrobin
 #END
 --- request
@@ -122,8 +120,7 @@ qr/conf_version: \d+#\d+,/
 === TEST 4: invalid plugin
 --- apisix_yaml
 plugin_configs:
-    -
-        id: 1
+    -   id: 1
         plugins:
             example-plugin:
                 skey: "s"
@@ -135,7 +132,7 @@ routes:
       plugin_config_id: 1
       upstream:
         nodes:
-          "127.0.0.1:1980":1
+          "127.0.0.1:1980": 1
         type: roundrobin
 #END
 --- error_code: 503
