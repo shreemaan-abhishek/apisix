@@ -166,14 +166,15 @@ local function init(env)
         util.die(err, "\n")
     end
 
-    local standalone = yaml_conf.deployment.config_provider == "yaml"
+    local standalone_json = yaml_conf.deployment.config_provider == "json"
+    local standalone_yaml = yaml_conf.deployment.config_provider == "yaml"
     local gw_id = getenv("API7_GATEWAY_GROUP_SHORT_ID")
     local ha_conf
     if  yaml_conf.deployment.fallback_cp then
         ha_conf = yaml_conf.deployment.fallback_cp.aws_s3
     end
 
-    if standalone and gw_id and gw_id ~= "" and ha_conf then
+    if (standalone_json or standalone_yaml) and gw_id and gw_id ~= "" and ha_conf then
         if not gw_id or gw_id == "" then
             util.die("failed to parse gateway group id from control plane token")
         end
@@ -184,8 +185,12 @@ local function init(env)
         if not res then
             util.die("failed to get resource data from s3: ", err)
         end
-
-        local success, err = util.write_file(profile:yaml_path("apisix"), res)
+        local success, err
+        if standalone_json then
+            success, err = util.write_file(profile:json_path("apisix"), res)
+        else
+            success, err = util.write_file(profile:yaml_path("apisix"), res)
+        end
         if not success then
             util.die("failed to write to apisix config file: ", err)
         end
