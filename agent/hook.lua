@@ -123,7 +123,8 @@ config_local.local_conf = function(force)
     end
 
     local config_data_from_control_plane, decode_err
-    if default_conf.deployment.config_provider == "yaml" then
+    if default_conf.deployment.config_provider == "yaml" or
+       default_conf.deployment.config_provider == "json" then
         local dp_config, err = util.read_file(constants.DP_CONF_FILE)
         if not dp_config then
             log.error("failed to read dp_config file: ", err)
