@@ -287,7 +287,6 @@ end
 
 
 function _M.new(key, opts)
-	 log.warn("I WAS CALLED")
     local local_conf, err = config_local.local_conf()
     if not local_conf then
         return nil, err
