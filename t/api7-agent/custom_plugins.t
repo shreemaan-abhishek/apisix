@@ -282,6 +282,8 @@ binary test
                 return
             end
 
+            ngx.sleep(0.2)
+
             local code, body = t('/apisix/admin/routes/1',
                  ngx.HTTP_PUT,
                  [[{
@@ -320,6 +322,9 @@ binary test
             end
 
             ngx.say("success")
+
+            -- clear test data to avoid affecting subsequent case execution
+            assert(core.etcd.delete("/plugins"))
         }
     }
 --- request
@@ -359,3 +364,105 @@ success
 --- error_log
 failed to load plugin string[string "bad lua code"]
 failed to check item data of [/apisix/custom_plugins]
+
+
+
+=== TEST 8: Internal errors in plugin_func when calling custom_plugin will not affect loading of other plugins
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local core = require("apisix.core")
+
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "plugins": {
+                        "echo": {
+                            "body": "inject body"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "uri": "/hello"
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+
+            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+            local http = require "resty.http"
+            local httpc = http.new()
+            local res = httpc:request_uri(uri)
+            ngx.say(res.body)
+
+            -- Simulate uploading custom plugin:
+            -- 1) Write ETCD /custom plugin to upload custom_plugin;
+            -- 2) Update ETCD /plugins.
+            -- NOTE: Only for simulation, not for production
+            local key = "/custom_plugins/error-plugin"
+            local val = {
+                name = "error-plugin",
+                content = [[
+                    local invalid_module = require("unknown-module")
+                    local core = require("apisix.core")
+                    local schema = {
+                        type = "object",
+                        properties = {
+                            body = {
+                                description = "body to replace upstream response.",
+                                type = "string"
+                            },
+                        },
+                    }
+                    local plugin_name = "error-plugin"
+                    local _M = {
+                        version = 0.1,
+                        priority = 412,
+                        name = plugin_name,
+                        schema = schema,
+                    }
+                    function _M.check_schema(conf)
+                        local ok, err = core.schema.check(schema, conf)
+                        if not ok then
+                            return false, err
+                        end
+
+                        return true
+                    end
+                    return _M
+                    ]]
+            }
+            local _, err = core.etcd.set(key, val)
+            if err then
+                ngx.say(err)
+                return
+            end
+            ngx.sleep(0.5)
+
+            assert(core.etcd.set("/plugins", {{name = "echo"}, {name = "error-plugin", is_custom = true}}))
+            ngx.sleep(0.5)
+
+            if body ~= "passed" then
+                ngx.say(body)
+                return
+            end
+
+            local res = httpc:request_uri(uri)
+            ngx.say(res.body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+inject body
+inject body
+--- error_log
+failed to create custom plugin instance: error-plugin
+failed to load plugin [error-plugin] err: [string "error-plugin"]:1: module 'unknown-module' not found

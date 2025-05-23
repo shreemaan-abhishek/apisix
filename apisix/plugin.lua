@@ -163,9 +163,13 @@ local function load_plugin(name, plugins_list, plugin_type, plugin_object, is_cu
                 end
                 local success, plugin_func = pcall(loadstring, content, name)
                 if success and plugin_func then
-                    plugin = plugin_func()
-                    ok = true
-                    pkg_loaded[pkg_name] = plugin
+                    success, plugin = pcall(plugin_func)
+                    if success then
+                        ok = true
+                        pkg_loaded[pkg_name] = plugin
+                    else
+                        core.log.error("failed to create custom plugin instance: ", name)
+                    end
                 end
             else
                 ok, plugin = pcall(require, pkg_name)
