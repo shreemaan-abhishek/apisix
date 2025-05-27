@@ -10,7 +10,7 @@ local nacos_clients = {}
 
 
 function _M.nodes(service_name, discovery_args)
-    local value = nacos_dict:get_stale(service_name)
+    local value = nacos_dict:get(service_name)
 
     local nodes = {}
     if not value then
@@ -26,7 +26,7 @@ function _M.nodes(service_name, discovery_args)
 
             ngx.sleep(step)
             waiting_time = waiting_time - step
-            value = nacos_dict:get_stale(service_name)
+            value = nacos_dict:get(service_name)
         end
     end
 
