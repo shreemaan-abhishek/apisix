@@ -68,10 +68,12 @@ env {*name*};
 thread_pool grpc-client-nginx-module threads=1;
 
 lua {
+    lua_shared_dict prometheus-metrics-basic 10m;
+    lua_shared_dict prometheus-status 1m;
     {% if meta.lua_shared_dict["prometheus-metrics"] then %}
-    lua_shared_dict prometheus-metrics {* meta.lua_shared_dict["prometheus-metrics"] *};
+    lua_shared_dict prometheus-metrics-advanced {* meta.lua_shared_dict["prometheus-metrics"] *};
     {% else %}
-    lua_shared_dict prometheus-metrics 10m
+    lua_shared_dict prometheus-metrics-advanced 10m;
     {% end %}
 }
 

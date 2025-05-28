@@ -283,7 +283,9 @@ _EOC_
 thread_pool grpc-client-nginx-module threads=1;
 
 lua {
-    lua_shared_dict prometheus-metrics 15m;
+    lua_shared_dict prometheus-metrics-basic 10m;
+    lua_shared_dict prometheus-status 1m;
+    lua_shared_dict prometheus-metrics-advanced 15m;
 }
 _EOC_
     }
@@ -626,6 +628,9 @@ _EOC_
     }
 
     lua_shared_dict prometheus-metrics 10m;
+    lua_shared_dict prometheus-metrics-basic 10m;
+    lua_shared_dict prometheus-status 1m;
+    lua_shared_dict prometheus-metrics-advanced 15m;
 _EOC_
     }
 

@@ -314,16 +314,18 @@ function _M.upload_metrics(self)
             current_time - self.last_metrics_uploading_time < self.telemetry.interval then
         return
     end
-    if self.ongoing_metrics_uploading then
-        core.log.info("previous metrics upload request not finished yet")
-        return
-    end
 
     local prom = exporter.get_prometheus()
     if not prom then
         core.log.warn("prometheus is uninitialised")
         return
     end
+
+    if self.ongoing_metrics_uploading then
+        core.log.info("previous metrics upload request not finished yet")
+        return
+    end
+    self.ongoing_metrics_uploading = true
 
     -- collect nginx API related metrics by HTTP
     -- because some APIs (ngx.var and subrequest) are disabled in ngx.timer
@@ -356,7 +358,6 @@ function _M.upload_metrics(self)
 
     http_cli:set_timeout(self.http_timeout)
 
-    self.ongoing_metrics_uploading = true
     local res, err = http_cli:request_uri(self.metrics_url, {
         method =  "POST",
         body = iterator(metrics_tab, last_index),

@@ -212,7 +212,7 @@ api7ee:
 registered timer to send telemetry data to control plane
 metrics size is too large, truncated it
 receive data plane metrics
-metrics size: 237
+metrics size:
 upload metrics to control plane successfully
 
 

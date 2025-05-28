@@ -27,8 +27,10 @@ local C         = ffi.C
 local pcall = pcall
 local select = select
 local type = type
-local prometheus
-local prometheus_bkp
+local basic_prometheus
+local basic_prometheus_bkp
+local advanced_prometheus
+local advanced_prometheus_bkp
 local router = require("apisix.router")
 local get_routes = router.http_routes
 local get_ssls   = router.ssls
@@ -41,12 +43,18 @@ local get_protos = require("apisix.plugins.grpc-transcode.proto").protos
 local service_fetch = require("apisix.http.service").get
 local latency_details = require("apisix.utils.log-util").latency_details_in_ms
 local xrpc = require("apisix.stream.xrpc")
+local timeout_err = "timeout"
 
 local shdict_name = "config"
 if ngx.config.subsystem == "stream" then
     shdict_name = shdict_name .. "-stream"
 end
 local config_dict = ngx.shared[shdict_name]
+
+local status_dict = ngx.shared["prometheus-status"]
+if not status_dict then
+    error('shared dict prometheus-status not defined')
+end
 
 local next = next
 
@@ -105,17 +113,18 @@ local _M = {}
 
 
 local function init_stream_metrics()
-    metrics.stream_connection_total = prometheus:counter("stream_connection_total",
+    metrics.stream_connection_total = advanced_prometheus:counter("stream_connection_total",
         "Total number of connections handled per stream route in APISIX",
         {"route"})
 
-    xrpc.init_metrics(prometheus)
+    xrpc.init_metrics(advanced_prometheus)
 end
 
 local metric_label_map = {
     connections = {"state", "gateway_group_id", "instance_id"},
     requests = {"gateway_group_id", "instance_id"},
     etcd_reachable = {"gateway_group_id", "instance_id"},
+    prometheus_disable = {"gateway_group_id", "instance_id"},
     node_info = {"hostname", "gateway_group_id", "instance_id"},
     etcd_modify_indexes = {"key", "gateway_group_id", "instance_id"},
     shared_dict_capacity_bytes = {"name", "gateway_group_id", "instance_id"},
@@ -165,12 +174,16 @@ local function append_tables(...)
     return t3
  end
 
+
 function _M.http_init(prometheus_enabled_in_stream)
     -- todo: support hot reload, we may need to update the lua-prometheus
     -- library
     if ngx.get_phase() ~= "init" and ngx.get_phase() ~= "init_worker"  then
-        if prometheus_bkp then
-            prometheus = prometheus_bkp
+        if basic_prometheus_bkp then
+            basic_prometheus = basic_prometheus_bkp
+        end
+        if advanced_prometheus_bkp then
+            advanced_prometheus = advanced_prometheus_bkp
         end
         return
     end
@@ -203,34 +216,38 @@ function _M.http_init(prometheus_enabled_in_stream)
     local llm_active_connections_exptime = core.table.try_read_attr(attr, "metrics",
                                                             "llm_active_connections", "expire")
 
-    prometheus = base_prometheus.init("prometheus-metrics", metric_prefix)
+    basic_prometheus = base_prometheus.init("prometheus-metrics-basic", metric_prefix)
+    advanced_prometheus = base_prometheus.init("prometheus-metrics-advanced", metric_prefix)
 
-    metrics.connections = prometheus:gauge("nginx_http_current_connections",
+    metrics.connections = basic_prometheus:gauge("nginx_http_current_connections",
             "Number of HTTP connections",
             metric_label_map.connections)
 
-    metrics.requests = prometheus:gauge("http_requests_total",
+    metrics.requests = basic_prometheus:gauge("http_requests_total",
             "The total number of client requests since APISIX started",
             metric_label_map.requests)
 
-    metrics.etcd_reachable = prometheus:gauge("etcd_reachable",
+    metrics.etcd_reachable = basic_prometheus:gauge("etcd_reachable",
             "Config server etcd reachable from APISIX, 0 is unreachable",
             metric_label_map.etcd_reachable)
 
+    metrics.prometheus_disable = basic_prometheus:gauge("prometheus_disable",
+            "Disable prometheus metrics collection, 1 is disabled, 0 is enabled",
+            metric_label_map.prometheus_disable)
 
-    metrics.node_info = prometheus:gauge("node_info",
+    metrics.node_info = basic_prometheus:gauge("node_info",
             "Info of APISIX node",
             metric_label_map.node_info)
 
-    metrics.etcd_modify_indexes = prometheus:gauge("etcd_modify_indexes",
+    metrics.etcd_modify_indexes = basic_prometheus:gauge("etcd_modify_indexes",
             "Etcd modify index for APISIX keys",
             metric_label_map.etcd_modify_indexes)
 
-    metrics.shared_dict_capacity_bytes = prometheus:gauge("shared_dict_capacity_bytes",
+    metrics.shared_dict_capacity_bytes = basic_prometheus:gauge("shared_dict_capacity_bytes",
             "The capacity of each nginx shared DICT since APISIX start",
             metric_label_map.shared_dict_capacity_bytes)
 
-    metrics.shared_dict_free_space_bytes = prometheus:gauge("shared_dict_free_space_bytes",
+    metrics.shared_dict_free_space_bytes = basic_prometheus:gauge("shared_dict_free_space_bytes",
             "The free space of each nginx shared DICT since APISIX start",
             metric_label_map.shared_dict_free_space_bytes)
 
@@ -239,7 +256,7 @@ function _M.http_init(prometheus_enabled_in_stream)
     -- The consumer label indicates the name of consumer corresponds to the
     -- request to the route/service, it will be an empty string if there is
     -- no consumer in request.
-    metrics.status = prometheus:counter("http_status",
+    metrics.status = advanced_prometheus:counter("http_status",
             "HTTP status codes per service in APISIX",
             append_tables(metric_label_map.status,
             extra_labels("http_status")), status_exptime)
@@ -248,13 +265,13 @@ function _M.http_init(prometheus_enabled_in_stream)
     if attr and attr.default_buckets then
         buckets = attr.default_buckets
     end
-    metrics.latency = prometheus:histogram("http_latency",
+    metrics.latency = advanced_prometheus:histogram("http_latency",
         "HTTP request latency in milliseconds per service in APISIX",
         append_tables(metric_label_map.latency,
         extra_labels("http_latency")),
         buckets, latency_exptime)
 
-    metrics.bandwidth = prometheus:counter("bandwidth",
+    metrics.bandwidth = advanced_prometheus:counter("bandwidth",
             "Total bandwidth in bytes consumed per service in APISIX",
             append_tables(metric_label_map.bandwidth,
             extra_labels("bandwidth")), bandwidth_exptime)
@@ -263,23 +280,23 @@ function _M.http_init(prometheus_enabled_in_stream)
     if attr and attr.llm_latency_buckets then
         llm_latency_buckets = attr.llm_latency_buckets
     end
-    metrics.llm_latency = prometheus:histogram("llm_latency",
+    metrics.llm_latency = advanced_prometheus:histogram("llm_latency",
         "LLM request latency in milliseconds",
         append_tables(metric_label_map.llm_latency,
         extra_labels("llm_latency")),
         llm_latency_buckets, llm_latency_exptime)
 
-    metrics.llm_prompt_tokens = prometheus:counter("llm_prompt_tokens",
+    metrics.llm_prompt_tokens = advanced_prometheus:counter("llm_prompt_tokens",
             "LLM service consumed prompt tokens",
             append_tables(metric_label_map.llm_prompt_tokens,
             extra_labels("llm_prompt_tokens")), llm_prompt_tokens_exptime)
 
-    metrics.llm_completion_tokens = prometheus:counter("llm_completion_tokens",
+    metrics.llm_completion_tokens = advanced_prometheus:counter("llm_completion_tokens",
             "LLM service consumed completion tokens",
             append_tables(metric_label_map.llm_completion_tokens,
             extra_labels("llm_completion_tokens")), llm_completion_tokens_exptime)
 
-    metrics.llm_active_connections = prometheus:gauge("llm_active_connections",
+    metrics.llm_active_connections = advanced_prometheus:gauge("llm_active_connections",
             "Number of active connections to LLM service",
             append_tables(metric_label_map.llm_active_connections,
             extra_labels("llm_active_connections")), llm_active_connections_exptime)
@@ -308,8 +325,8 @@ function _M.stream_init()
         metric_prefix = attr.metric_prefix
     end
 
-    prometheus = base_prometheus.init("prometheus-metrics", metric_prefix)
-
+    basic_prometheus = base_prometheus.init("prometheus-metrics-basic", metric_prefix)
+    advanced_prometheus = base_prometheus.init("prometheus-metrics-advanced", metric_prefix)
     init_stream_metrics()
 end
 
@@ -628,11 +645,9 @@ local function shared_dict_status(gateway_group_id, instance_id)
 end
 
 
-local function collect_regular_metrics(ctx, stream_only)
-    if not prometheus or not metrics then
-        core.log.error("prometheus: plugin is not initialized, please make sure ",
-                     " 'prometheus_metrics' shared dict is present in nginx template")
-        return 500, {message = "An unexpected error occurred"}
+local function collect_regular_metrics(stream_only)
+    if not basic_prometheus or not advanced_prometheus or not metrics then
+        return
     end
 
     local gateway_group_id = get_gateway_group_id()
@@ -669,6 +684,12 @@ local function collect_regular_metrics(ctx, stream_only)
             metrics.etcd_modify_indexes:set(res.headers["X-Etcd-Index"], key_values)
         end
     end
+
+    if status_dict:get("disabled") then
+        metrics.prometheus_disable:set(1, {gateway_group_id, instance_id})
+    else
+        metrics.prometheus_disable:set(0, {gateway_group_id, instance_id})
+    end
 end
 
 
@@ -683,15 +704,70 @@ local function collect_api_specific_metrics()
     metrics.node_info:set(1, gen_arr(hostname, gateway_group_id, instance_id))
 end
 
+local function timer(timeout, id)
+    ngx.sleep(timeout)
+    return timeout_err
+end
+
+local prometheus_advanced_metric_data = function ()
+    if not advanced_prometheus then
+        return {}
+    end
+    return advanced_prometheus:metric_data()
+end
+
+local combined_prometheus = {}
+
+setmetatable(combined_prometheus, {
+    __index = function(_, key)
+        return advanced_prometheus[key]
+    end
+})
+
+function combined_prometheus.metric_data()
+    local attr = plugin.plugin_attr(plugin_name)
+    local timeout = attr and attr.fetch_metric_timeout or 1
+    local thread_timer, err = ngx.thread.spawn(timer, timeout)
+    if not thread_timer then
+        core.log.error("failed to spawn thread f: ", err)
+        return {}
+    end
+    local fetch_metrics_thread, err = ngx.thread.spawn(prometheus_advanced_metric_data)
+    if not fetch_metrics_thread then
+        core.log.error("failed to spawn thread g: ", err)
+        return {}
+    end
+    local ok, metric_data = ngx.thread.wait(fetch_metrics_thread, thread_timer)
+    if not ok then
+        core.log.error("failed to wait")
+        return {}
+    end
+
+    if metric_data == timeout_err then
+        local ok , err = ngx.thread.kill(fetch_metrics_thread)
+        if not ok then
+            core.log.warn("failed to kill advanced_metric process thread: ", err)
+        end
+        core.log.warn("fetch advanced prometheus metrics timeout")
+        metric_data = {}
+    end
+
+    if basic_prometheus then
+        local basic_metrics = basic_prometheus:metric_data()
+        for _, v in ipairs(basic_metrics) do
+            core.table.insert(metric_data, v)
+        end
+    end
+    return metric_data
+end
 
 local function collect(ctx, stream_only)
     collect_api_specific_metrics()
-    collect_regular_metrics(ctx, stream_only)
+    collect_regular_metrics(stream_only)
 
     core.response.set_header("content_type", "text/plain")
-    return 200, core.table.concat(prometheus:metric_data())
+    return 200, core.table.concat(combined_prometheus:metric_data())
 end
-
 
 _M.collect = collect
 _M.collect_regular_metrics = collect_regular_metrics
@@ -724,7 +800,7 @@ _M.get_api = get_api
 
 
 function _M.export_metrics(stream_only)
-    if not prometheus then
+    if not basic_prometheus and not advanced_prometheus then
         core.response.exit(200, "{}")
     end
     local api = get_api(false)
@@ -743,7 +819,7 @@ end
 
 
 function _M.metric_data()
-    return prometheus:metric_data()
+    return combined_prometheus:metric_data()
 end
 
 
@@ -801,14 +877,21 @@ end
 
 
 function _M.get_prometheus()
-    return prometheus
+    if not basic_prometheus or not advanced_prometheus then
+        return nil
+    end
+    return combined_prometheus
 end
 
-
 function _M.destroy()
-    if prometheus ~= nil then
-        prometheus_bkp = core.table.deepcopy(prometheus)
-        prometheus = nil
+    if basic_prometheus ~= nil then
+        basic_prometheus_bkp = core.table.deepcopy(basic_prometheus)
+        basic_prometheus = nil
+    end
+
+    if advanced_prometheus ~= nil then
+        advanced_prometheus_bkp = core.table.deepcopy(advanced_prometheus)
+        advanced_prometheus = nil
     end
 end
 

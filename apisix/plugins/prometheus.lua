@@ -16,9 +16,33 @@
 --
 local core = require("apisix.core")
 local exporter = require("apisix.plugins.prometheus.exporter")
-
-
+local plugin    = require("apisix.plugin")
+local ngx = ngx
+local error = error
+local prometheus_keys = require("prometheus_keys")
+local org_add = prometheus_keys.add
 local plugin_name = "prometheus"
+local status_dict = ngx.shared["prometheus-status"]
+if not status_dict then
+    error('shared dict prometheus-status not defined')
+end
+
+
+prometheus_keys.add = function(...)
+    local err = org_add(...)
+    if err and err:find("Shared dictionary used for prometheus metrics is full", 1, true) then
+        local attr = plugin.plugin_attr("prometheus")
+        -- Currently only one value is used for pausing prometheus
+        -- TODO: Support degradation_pause_steps to support multiple subsequent pause intervals
+        local timeout = (attr and attr.degradation_pause_steps and attr.degradation_pause_steps[1])
+                         or 60
+        core.log.error("Shared dictionary used for prometheus metrics is full ",
+            "please increase the size of the shared dict. Disabling for ", timeout, " seconds")
+        status_dict:set("disabled", true, timeout)
+    end
+    return err
+end
+
 
 local metadata_schema = {
     type = "object",
@@ -73,7 +97,6 @@ local _M = {
     version = 0.2,
     priority = 500,
     name = plugin_name,
-    log  = exporter.http_log,
     schema = schema,
     metadata_schema = metadata_schema,
     run_policy = "prefer_route",
@@ -92,6 +115,16 @@ function _M.check_schema(conf, schema_type)
     return true
 end
 
+function _M.log(conf, ctx)
+    local attr = plugin.plugin_attr("prometheus")
+    if attr and attr.allow_degradation then
+        if status_dict:get("disabled") then
+            core.log.info("prometheus plugin is disabled")
+            return
+        end
+    end
+    return exporter.http_log(conf, ctx)
+end
 
 function _M.api()
     return exporter.get_api(true)
