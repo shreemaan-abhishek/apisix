@@ -491,7 +491,7 @@ passed
             test_dict:set("/status/gpt4#total", 0)
             -- trigger the health check
             send_request()
-            ngx.sleep(1.2)
+            ngx.sleep(2)
 
             local instances_count = {
                 ["gpt-4"] = 0,
@@ -512,7 +512,7 @@ passed
 
             -- set the instance to healthy
             test_dict:set("/status/gpt4#total", 30)
-            ngx.sleep(1.2)
+            ngx.sleep(2)
 
             local instances_count = {
                 ["gpt-4"] = 0,
@@ -657,7 +657,7 @@ passed
             test_dict:set("/status/gpt3#total", 50)
             -- trigger the health check
             send_request()
-            ngx.sleep(1.2)
+            ngx.sleep(2)
 
             local instances_count = {
                 ["gpt-4"] = 0,
@@ -680,7 +680,7 @@ passed
             -- set the gpt3 instance to unhealthy
             test_dict:set("/status/gpt4#total", 50)
             test_dict:set("/status/gpt3#total", 0)
-            ngx.sleep(1.2)
+            ngx.sleep(2)
 
             local instances_count = {
                 ["gpt-4"] = 0,
@@ -848,7 +848,7 @@ passed
             test_dict:set("/status/gpt3#total", 50)
             -- trigger the health check
             send_request()
-            ngx.sleep(1.2)
+            ngx.sleep(2)
 
             local instances_count = {
                 ["gpt-4"] = 0,
@@ -871,7 +871,7 @@ passed
             -- set the gpt3 instance to unhealthy
             test_dict:set("/status/gpt4#total", 50)
             test_dict:set("/status/gpt3#total", 0)
-            ngx.sleep(1.2)
+            ngx.sleep(2)
 
             local instances_count = {
                 ["gpt-4"] = 0,
