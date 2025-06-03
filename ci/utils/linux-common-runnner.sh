@@ -38,7 +38,9 @@ patch_apisix_code(){
 
     sed -i "s/openssl111/openssl3/g" ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
     echo "luarocks config variables.OPENSSL_DIR \${OPENSSL_PREFIX}" >> ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
-
+    # temporary fix
+    sed -i 's|install rockspec/api7-master-0\.rockspec\([ \t]*\)|install --only-server https://raw.githubusercontent.com/rocks-moonscript-org/moonrocks-mirror/daab2726276e3282dc347b89a42a5107c3500567 rockspec/api7-master-0.rockspec |g' "${VAR_APISIX_HOME}/Makefile"
+    sed -i 's|install rockspec/apisix-master-0\.rockspec\([ \t]*\)|install --only-server https://raw.githubusercontent.com/rocks-moonscript-org/moonrocks-mirror/daab2726276e3282dc347b89a42a5107c3500567 rockspec/apisix-master-0.rockspec |g' "${VAR_APISIX_HOME}/Makefile"
     # we already droped snowflake id support from request-id plugin
     rm -f "${VAR_APISIX_HOME}/t/plugin/request-id-reload-bugfix.t"
 }
@@ -96,6 +98,7 @@ install_module() {
 
     # use ee's rockspec
     cp -av "${VAR_CUR_HOME}/api7-master-0.rockspec" "${VAR_APISIX_HOME}/rockspec/"
+
     sed -i 's/apisix-master-0.rockspec/api7-master-0.rockspec/g' "${VAR_APISIX_HOME}/Makefile"
     sed -i 's/\$(addprefix \$(ENV_NGINX_PREFIX), openssl111)/\$(addprefix \$(ENV_NGINX_PREFIX), openssl3)/g' "${VAR_APISIX_HOME}/Makefile"
     sed -i 's/\$(ENV_HOMEBREW_PREFIX)\/opt\/openresty-openssl111/\$(ENV_HOMEBREW_PREFIX)\/opt\/openresty-openssl3/g' "${VAR_APISIX_HOME}/Makefile"
