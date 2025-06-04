@@ -27,18 +27,10 @@ if not status_dict then
     error('shared dict prometheus-status not defined')
 end
 
-
 prometheus_keys.add = function(...)
     local err = org_add(...)
     if err and err:find("Shared dictionary used for prometheus metrics is full", 1, true) then
-        local attr = plugin.plugin_attr("prometheus")
-        -- Currently only one value is used for pausing prometheus
-        -- TODO: Support degradation_pause_steps to support multiple subsequent pause intervals
-        local timeout = (attr and attr.degradation_pause_steps and attr.degradation_pause_steps[1])
-                         or 60
-        core.log.error("Shared dictionary used for prometheus metrics is full ",
-            "please increase the size of the shared dict. Disabling for ", timeout, " seconds")
-        status_dict:set("disabled", true, timeout)
+        status_dict:set("memory_full", true)
     end
     return err
 end

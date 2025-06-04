@@ -55,6 +55,10 @@ local status_dict = ngx.shared["prometheus-status"]
 if not status_dict then
     error('shared dict prometheus-status not defined')
 end
+local metric_dict = ngx.shared["prometheus-metrics-advanced"]
+if not metric_dict then
+    error('shared dict prometheus-metrics-advanced not defined')
+end
 
 local next = next
 
@@ -109,7 +113,9 @@ local function extra_labels(name, ctx)
 end
 
 
-local _M = {}
+local _M = {
+    disabling = false,
+}
 
 
 local function init_stream_metrics()
@@ -726,7 +732,7 @@ setmetatable(combined_prometheus, {
 
 function combined_prometheus.metric_data()
     local attr = plugin.plugin_attr(plugin_name)
-    local timeout = attr and attr.fetch_metric_timeout or 1
+    local timeout = attr and attr.fetch_metric_timeout or 5
     local thread_timer, err = ngx.thread.spawn(timer, timeout)
     if not thread_timer then
         core.log.error("failed to spawn thread f: ", err)
@@ -824,6 +830,13 @@ end
 
 
 local function inc_llm_active_connections(ctx, value)
+    local attr = plugin.plugin_attr("prometheus")
+    if attr and attr.allow_degradation then
+        if status_dict:get("disabled") then
+            core.log.info("prometheus plugin is disabled")
+            return
+        end
+    end
     local disabled_label_metric_map = get_disabled_label_metric_map()
 
     local vars = ctx.var
@@ -895,5 +908,32 @@ function _M.destroy()
     end
 end
 
+function _M.disable_on_memory_full(self)
+    local attr = plugin.plugin_attr("prometheus")
+    -- Currently only one value is used for pausing prometheus
+    -- TODO: Support degradation_pause_steps to support multiple subsequent pause intervals
+    local timeout = (attr and attr.degradation_pause_steps and attr.degradation_pause_steps[1])
+                     or 60
+    ngx.timer.every(1, function ()
+        if self.disabling then
+            return
+        end
+        self.disabling = true
+        if status_dict:get("memory_full") then
+            core.log.error("Shared dictionary used for prometheus metrics is full ",
+            "please increase the size of the shared dict. Disabling for ", timeout, " seconds")
+            status_dict:set("disabled", true)
+            -- wait for all pending http_log phases to be done
+            ngx.sleep(1)
+            metric_dict:flush_all()
+            metric_dict:flush_expired()
+            status_dict:set("memory_full", false)
+            ngx.sleep(timeout)
+            status_dict:set("disabled", false)
+            core.log.info("Prometheus metrics collection is enabled again")
+        end
+        self.disabling = false
+    end)
+end
 
 return _M

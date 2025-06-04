@@ -583,6 +583,8 @@ plugin_attr:
       ip: 127.0.0.1
       port: 9091
     fetch_metric_timeout: 5
+    allow_degradation: false
+    degradation_pause_steps: [ 60 ]
     #metrics:
     #  http_status:
     #    # extra labels from nginx variables

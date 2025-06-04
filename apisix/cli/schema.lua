@@ -315,6 +315,34 @@ local config_schema = {
                 }
             }
         },
+        plugin_attr = {
+            type = "object",
+            properties = {
+                prometheus = {
+                    type = "object",
+                    properties = {
+                        fetch_metric_timeout = {
+                            type = "integer",
+                            default = 5,
+                        },
+                        allow_degradation = {
+                            type = "boolean",
+                            default = false,
+                        },
+                        degradation_pause_steps = {
+                            type = "array",
+                            minItems = 1,
+                            maxItems = 1,
+                            items = {
+                                type = "integer",
+                                minimum = 1,
+                            },
+                            default = { 60 },
+                        },
+                    },
+                },
+            },
+        },
         deployment = {
             type = "object",
             properties = {

@@ -223,3 +223,31 @@ if ! echo "$out" | grep 'property "host" validation failed'; then
 fi
 
 echo "passed: check etcd schema during init"
+
+echo '
+plugin_attr:
+  prometheus:
+    degradation_pause_steps: [ 10.1 ]
+' > conf/config.yaml
+
+out=$(make init 2>&1 || true)
+if ! echo "$out" | grep 'property "degradation_pause_steps" validation failed: failed to validate item 1: wrong type: expected integer, got number'; then
+    echo "failed: plugin_attr.prometheus.degradation_pause_steps should be a integer"
+    exit 1
+fi
+
+echo "passed: plugin_attr.prometheus.degradation_pause_steps should be a integer"
+
+echo '
+plugin_attr:
+  prometheus:
+    degradation_pause_steps: [ 10, 30, 60 ]
+' > conf/config.yaml
+
+out=$(make init 2>&1 || true)
+if ! echo "$out" | grep 'property "degradation_pause_steps" validation failed: expect array to have at most 1 items'; then
+    echo "failed: plugin_attr.prometheus.degradation_pause_steps should contains only one item"
+    exit 1
+fi
+
+echo "passed: plugin_attr.prometheus.degradation_pause_steps should contains only one item"
