@@ -910,6 +910,9 @@ end
 
 function _M.disable_on_memory_full(self)
     local attr = plugin.plugin_attr("prometheus")
+    if not attr or not attr.allow_degradation then
+        return
+    end
     -- Currently only one value is used for pausing prometheus
     -- TODO: Support degradation_pause_steps to support multiple subsequent pause intervals
     local timeout = (attr and attr.degradation_pause_steps and attr.degradation_pause_steps[1])
