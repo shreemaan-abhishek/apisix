@@ -92,6 +92,7 @@ local _M = {
     schema = schema,
     metadata_schema = metadata_schema,
     run_policy = "prefer_route",
+    destroy = exporter.destroy,
 }
 
 

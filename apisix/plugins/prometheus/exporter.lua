@@ -906,6 +906,8 @@ function _M.destroy()
         advanced_prometheus_bkp = core.table.deepcopy(advanced_prometheus)
         advanced_prometheus = nil
     end
+    status_dict:flush_all()
+    status_dict:flush_expired()
 end
 
 function _M.disable_on_memory_full(self)
