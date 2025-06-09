@@ -335,22 +335,22 @@ do
                 val = get_parsed_graphql()[arg_key]
             elseif core_str.has_prefix(key, "post_arg.") then
                 -- trim the "post_arg." prefix (10 characters)
-                key = sub_str(key, 10)
+                local arg_key = sub_str(key, 10)
                 local parsed_body, err = get_parsed_request_body(t._ctx)
                 if not parsed_body then
-                    log.warn("failed to fetch post args value by key: ", key, " error: ", err)
+                    log.warn("failed to fetch post args value by key: ", arg_key, " error: ", err)
                     return nil
                 end
-                if key:find("[%[%*]") or key:find("..", 1, true) then
-                    key = "$." .. key
-                    local results = jp.query(parsed_body, key)
+                if arg_key:find("[%[%*]") or arg_key:find("..", 1, true) then
+                    arg_key = "$." .. arg_key
+                    local results = jp.query(parsed_body, arg_key)
                     if #results == 0 then
                         val = nil
                     else
                         val = results
                     end
                 else
-                    local parts = util.split(key, "(.)")
+                    local parts = util.split(arg_key, "(.)")
                     local current = parsed_body
                     for _, part in ipairs(parts) do
                         if type(current) ~= "table" then
@@ -361,8 +361,6 @@ do
                     end
                     val = current
                 end
-
-                return val
             else
                 local getter = apisix_var_names[key]
                 if getter then

@@ -98,3 +98,66 @@ qr/serving ctx value from cache for key: graphql_name/
 serving ctx value from cache for key: graphql_name
 serving ctx value from cache for key: graphql_name
 serving ctx value from cache for key: graphql_name
+
+
+
+=== TEST 3: parse post_arg only once and use subsequent from cache
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [=[{
+                        "methods": ["POST"],
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "plugins": {
+                            "serverless-post-function": {
+                                "phase": "rewrite",
+                                "functions" : ["return function(conf, ctx)
+                                                ngx.log(ngx.WARN, 'find ctx.var.post_arg: ', ctx.var[\"post_arg.model.name\"] ~= nil);
+                                                ngx.log(ngx.WARN, 'find ctx.var.post_arg: ', ctx.var[\"post_arg.model.name\"] ~= nil);
+                                                ngx.log(ngx.WARN, 'find ctx.var.post_arg: ', ctx.var[\"post_arg.model.name\"] ~= nil);
+                                                end"]
+                            }
+                        },
+                        "uri": "/hello",
+                        "vars": [
+                            [
+                                ["post_arg.model.name","==","deepseek"]
+                            ]
+                        ]
+                }]=]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 4: send request
+--- request
+POST /hello
+{ "model":{"name": "deepseek", "name1": "openai", "name2": "o3"}}
+--- more_headers
+Content-Type: application/json
+--- response_body
+hello world
+--- error_code: 200
+--- grep_error_log eval
+qr/serving ctx value from cache for key: post_arg.model.name/
+--- grep_error_log_out
+serving ctx value from cache for key: post_arg.model.name
+serving ctx value from cache for key: post_arg.model.name
+serving ctx value from cache for key: post_arg.model.name
