@@ -275,6 +275,7 @@ do
         __index = function(t, key)
             local cached = t._cache[key]
             if cached ~= nil then
+                log.info("serving ctx value from cache for key: ", key)
                 return cached
             end
 
@@ -324,14 +325,14 @@ do
                 end
 
             elseif core_str.has_prefix(key, "http_") then
-                key = key:lower()
-                key = re_gsub(key, "-", "_", "jo")
-                val = get_var(key, t._request)
+                local arg_key = key:lower()
+                arg_key = re_gsub(arg_key, "-", "_", "jo")
+                val = get_var(arg_key, t._request)
 
             elseif core_str.has_prefix(key, "graphql_") then
                 -- trim the "graphql_" prefix
-                key = sub_str(key, 9)
-                val = get_parsed_graphql()[key]
+                local arg_key = sub_str(key, 9)
+                val = get_parsed_graphql()[arg_key]
             elseif core_str.has_prefix(key, "post_arg.") then
                 -- trim the "post_arg." prefix (10 characters)
                 key = sub_str(key, 10)
@@ -376,7 +377,6 @@ do
                     val = get_var(key, t._request)
                 end
             end
-
             if val ~= nil and not no_cacheable_var_names[key] then
                 t._cache[key] = val
             end
