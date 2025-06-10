@@ -37,10 +37,8 @@ patch_apisix_code(){
     sed -i "s/npm.taobao.org/npmmirror.com/" ${VAR_APISIX_HOME}/t/plugin/grpc-web/package-lock.json
 
     sed -i "s/openssl111/openssl3/g" ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
+    sed -i 's/^LUAROCKS_VER=3\.8\.0$/LUAROCKS_VER=3.12.0/' ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
     echo "luarocks config variables.OPENSSL_DIR \${OPENSSL_PREFIX}" >> ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
-    # temporary fix
-    sed -i 's|install rockspec/api7-master-0\.rockspec\([ \t]*\)|install --only-server https://raw.githubusercontent.com/rocks-moonscript-org/moonrocks-mirror/daab2726276e3282dc347b89a42a5107c3500567 rockspec/api7-master-0.rockspec |g' "${VAR_APISIX_HOME}/Makefile"
-    sed -i 's|install rockspec/apisix-master-0\.rockspec\([ \t]*\)|install --only-server https://raw.githubusercontent.com/rocks-moonscript-org/moonrocks-mirror/daab2726276e3282dc347b89a42a5107c3500567 rockspec/apisix-master-0.rockspec |g' "${VAR_APISIX_HOME}/Makefile"
     # we already droped snowflake id support from request-id plugin
     rm -f "${VAR_APISIX_HOME}/t/plugin/request-id-reload-bugfix.t"
 }

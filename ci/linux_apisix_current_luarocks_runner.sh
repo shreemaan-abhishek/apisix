@@ -35,7 +35,7 @@ script() {
     sudo rm -rf /usr/local/share/lua/5.1/apisix
 
     # install APISIX with local version
-    sudo luarocks install --only-server https://raw.githubusercontent.com/rocks-moonscript-org/moonrocks-mirror/daab2726276e3282dc347b89a42a5107c3500567 rockspec/apisix-master-0.rockspec --only-deps > build.log 2>&1 || (cat build.log && exit 1)
+    sudo luarocks install rockspec/apisix-master-0.rockspec --only-deps > build.log 2>&1 || (cat build.log && exit 1)
     sudo luarocks make rockspec/apisix-master-0.rockspec > build.log 2>&1 || (cat build.log && exit 1)
     # ensure all files under apisix is installed
     diff -rq apisix /usr/local/share/lua/5.1/apisix
