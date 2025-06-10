@@ -165,9 +165,8 @@ function _M.http_init_worker()
     if process.type() == "privileged agent" then
         -- start health checker timer in resty.rediscluster
         require("resty.rediscluster").init()
-        -- start the background prometheus task which cleans up shared dict
-        require("apisix.plugins.prometheus.exporter"):disable_on_memory_full()
     end
+    require("apisix.plugins.prometheus"):init_degradation_timer()
 end
 
 

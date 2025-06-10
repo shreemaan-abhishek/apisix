@@ -61,7 +61,8 @@ if [ "$code" -ne 503 ]; then
     exit 1
 fi
 
-sleep 1
+echo 'wait for metrics to be flushed'
+sleep 3
 
 echo 'check http_status metric for /test/1'
 if ! curl -s http://127.0.0.1:9091/apisix/prometheus/metrics | grep 'http_status.*code="503".*matched_uri="/test/1"' > /dev/null; then
@@ -112,6 +113,45 @@ if ! curl -s http://127.0.0.1:9091/apisix/prometheus/metrics | grep 'prometheus_
     echo "failed: prometheus_disable metric should be reset to 0 after reload"
     exit 1
 fi
+
+echo 'send requests to /test/1-50'
+for i in {1..50}; do
+    curl -s http://127.0.0.1:9080/test/$i -o /dev/null
+done
+
+echo 'wait for degradation to take effect'
+sleep 2
+
+echo 'prometheus_disable metric should be updated'
+if ! curl -s http://127.0.0.1:9091/apisix/prometheus/metrics | grep 'prometheus_disable{.*1$' > /dev/null; then
+    echo "failed: prometheus_disable metric should be set to 1"
+    exit 1
+fi
+
+echo 'all http_status metrics should be cleared'
+if curl -s http://127.0.0.1:9091/apisix/prometheus/metrics | grep 'http_status{' > /dev/null; then
+    echo "failed: http_status metrics should be cleared during degradation"
+    exit 1
+fi
+
+echo 'wait for degradation to end'
+sleep 10
+
+echo 'send requests to /test/1-10'
+for i in {1..10}; do
+    curl -s http://127.0.0.1:9080/test/$i -o /dev/null
+done
+
+echo 'wait for metrics to be flushed'
+sleep 3
+
+echo 'check http_status metric for /test/1-10'
+for i in {1..10}; do
+    if ! curl -s http://127.0.0.1:9091/apisix/prometheus/metrics | grep 'http_status.*code="503".*matched_uri="/test/'$i'"' > /dev/null; then
+        echo "failed: metrics should contain /test/$i metric"
+        exit 1
+    fi
+done
 
 make stop
 

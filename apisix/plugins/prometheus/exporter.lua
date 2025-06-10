@@ -55,10 +55,6 @@ local status_dict = ngx.shared["prometheus-status"]
 if not status_dict then
     error('shared dict prometheus-status not defined')
 end
-local metric_dict = ngx.shared["prometheus-metrics-advanced"]
-if not metric_dict then
-    error('shared dict prometheus-metrics-advanced not defined')
-end
 
 local next = next
 
@@ -75,6 +71,7 @@ local default_export_uri = "/apisix/prometheus/metrics"
 local DEFAULT_BUCKETS = {1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 30000, 60000}
 
 local metrics = {}
+local advanced_metrics = {}
 
 local inner_tab_arr = {}
 
@@ -122,6 +119,7 @@ local function init_stream_metrics()
     metrics.stream_connection_total = advanced_prometheus:counter("stream_connection_total",
         "Total number of connections handled per stream route in APISIX",
         {"route"})
+    core.table.insert(advanced_metrics, metrics.stream_connection_total)
 
     xrpc.init_metrics(advanced_prometheus)
 end
@@ -195,6 +193,7 @@ function _M.http_init(prometheus_enabled_in_stream)
     end
 
     clear_tab(metrics)
+    clear_tab(advanced_metrics)
 
     -- Newly added metrics should follow the naming best practices described in
     -- https://prometheus.io/docs/practices/naming/#metric-names
@@ -266,6 +265,7 @@ function _M.http_init(prometheus_enabled_in_stream)
             "HTTP status codes per service in APISIX",
             append_tables(metric_label_map.status,
             extra_labels("http_status")), status_exptime)
+    core.table.insert(advanced_metrics, metrics.status)
 
     local buckets = DEFAULT_BUCKETS
     if attr and attr.default_buckets then
@@ -276,11 +276,13 @@ function _M.http_init(prometheus_enabled_in_stream)
         append_tables(metric_label_map.latency,
         extra_labels("http_latency")),
         buckets, latency_exptime)
+    core.table.insert(advanced_metrics, metrics.latency)
 
     metrics.bandwidth = advanced_prometheus:counter("bandwidth",
             "Total bandwidth in bytes consumed per service in APISIX",
             append_tables(metric_label_map.bandwidth,
             extra_labels("bandwidth")), bandwidth_exptime)
+    core.table.insert(advanced_metrics, metrics.bandwidth)
 
     local llm_latency_buckets = DEFAULT_BUCKETS
     if attr and attr.llm_latency_buckets then
@@ -291,21 +293,25 @@ function _M.http_init(prometheus_enabled_in_stream)
         append_tables(metric_label_map.llm_latency,
         extra_labels("llm_latency")),
         llm_latency_buckets, llm_latency_exptime)
+    core.table.insert(advanced_metrics, metrics.llm_latency)
 
     metrics.llm_prompt_tokens = advanced_prometheus:counter("llm_prompt_tokens",
             "LLM service consumed prompt tokens",
             append_tables(metric_label_map.llm_prompt_tokens,
             extra_labels("llm_prompt_tokens")), llm_prompt_tokens_exptime)
+    core.table.insert(advanced_metrics, metrics.llm_prompt_tokens)
 
     metrics.llm_completion_tokens = advanced_prometheus:counter("llm_completion_tokens",
             "LLM service consumed completion tokens",
             append_tables(metric_label_map.llm_completion_tokens,
             extra_labels("llm_completion_tokens")), llm_completion_tokens_exptime)
+    core.table.insert(advanced_metrics, metrics.llm_completion_tokens)
 
     metrics.llm_active_connections = advanced_prometheus:gauge("llm_active_connections",
             "Number of active connections to LLM service",
             append_tables(metric_label_map.llm_active_connections,
             extra_labels("llm_active_connections")), llm_active_connections_exptime)
+    core.table.insert(advanced_metrics, metrics.llm_active_connections)
 
     if prometheus_enabled_in_stream then
         init_stream_metrics()
@@ -324,6 +330,7 @@ function _M.stream_init()
     end
 
     clear_tab(metrics)
+    clear_tab(advanced_metrics)
 
     local metric_prefix = "apisix_"
     local attr = plugin.plugin_attr("prometheus")
@@ -910,35 +917,18 @@ function _M.destroy()
     status_dict:flush_expired()
 end
 
-function _M.disable_on_memory_full(self)
-    local attr = plugin.plugin_attr("prometheus")
-    if not attr or not attr.allow_degradation then
-        return
+-- reset internal status of prometheus and metrics instance
+function _M.reset()
+    for _, metric in ipairs(advanced_metrics) do
+        metric.lookup = {}
     end
-    -- Currently only one value is used for pausing prometheus
-    -- TODO: Support degradation_pause_steps to support multiple subsequent pause intervals
-    local timeout = (attr and attr.degradation_pause_steps and attr.degradation_pause_steps[1])
-                     or 60
-    ngx.timer.every(1, function ()
-        if self.disabling then
-            return
-        end
-        self.disabling = true
-        if status_dict:get("memory_full") then
-            core.log.error("Shared dictionary used for prometheus metrics is full ",
-            "please increase the size of the shared dict. Disabling for ", timeout, " seconds")
-            status_dict:set("disabled", true)
-            -- wait for all pending http_log phases to be done
-            ngx.sleep(1)
-            metric_dict:flush_all()
-            metric_dict:flush_expired()
-            status_dict:set("memory_full", false)
-            ngx.sleep(timeout)
-            status_dict:set("disabled", false)
-            core.log.info("Prometheus metrics collection is enabled again")
-        end
-        self.disabling = false
-    end)
+    if advanced_prometheus then
+        advanced_prometheus.key_index.last = 0
+        advanced_prometheus.key_index.deleted = 0
+        advanced_prometheus.key_index.not_expired_index = 1
+        advanced_prometheus.key_index.keys = {}
+        advanced_prometheus.key_index.index = {}
+    end
 end
 
 return _M
