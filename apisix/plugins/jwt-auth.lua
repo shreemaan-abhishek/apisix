@@ -306,8 +306,12 @@ local function get_real_payload(key, auth_conf, payload, key_claim_name)
         exp = ngx_time() + auth_conf.exp
     }
     if payload then
-        local extra_payload = core.json.decode(payload)
-        core.table.merge(real_payload, extra_payload)
+        local extra_payload, err = core.json.decode(payload)
+        if err then
+            return nil, err
+        end
+        core.table.merge(extra_payload, real_payload)
+        return extra_payload
     end
     return real_payload
 end
@@ -476,7 +480,11 @@ local function gen_token()
         return core.response.exit(503)
     end
 
-    local real_payload = get_real_payload(key, consumer.auth_conf, payload, key_claim_name)
+    local real_payload, err = get_real_payload(key, consumer.auth_conf, payload, key_claim_name)
+    if not real_payload then
+       core.log.warn("failed to parse payload: ", err)
+       return core.response.exit(500, {message = "failed to parse payload"})
+    end
     local jwt_token, err = jwt_parser.encode(consumer.auth_conf.algorithm, auth_secret,
                                              jwt_header, real_payload)
     if not jwt_token then
