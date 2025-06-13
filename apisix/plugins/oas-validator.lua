@@ -85,9 +85,18 @@ function _M.access(conf, ctx)
         end
         headers_json = tostring(core.json.encode(headers))
     end
-
-    local ok, err = validator.validate_request(core.request.get_method(), ctx.var.request_uri,
-                                                    headers_json, req_body_json, conf.spec,
+    if not conf._openapi_id then
+        local openapi_id, err = validator.register_openapi(conf.spec)
+        if not openapi_id then
+            core.log.error("failed to register openapi spec, err: ", err)
+            return 500, {message = "failed to parse openapi spec"}
+        end
+        conf._openapi_id = openapi_id
+    end
+    local ok, err = validator.validate_request(conf._openapi_id, conf.spec,
+                                                    core.request.get_method(),
+                                                    ctx.var.request_uri,
+                                                    headers_json, req_body_json,
                                                     conf.skip_path_params_validation,
                                                     conf.skip_query_param_validation)
 
