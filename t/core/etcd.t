@@ -351,6 +351,8 @@ GET /t
             local etcd = require("apisix.core.etcd")
             assert(etcd.set("/ab", "ab"))
             local res, err = etcd.get("/a", true)
+            assert(err == nil)
+            assert(#res.body.list == 1)
             ngx.status = res.status
             ngx.say(res.body.list[1].value)
         }
@@ -396,8 +398,32 @@ ab
 --- request
 GET /t
 --- grep_error_log eval
-qr/init_by_lua:\d+: \S+/
---- grep_error_log_out
-init_by_lua:12: ab
-init_by_lua:19: 200
-init_by_lua:26: 404
+qr/init_by_lua.*: \S+/
+--- grep_error_log_out eval
+qr{init_by_lua.* ab
+init_by_lua.* 200
+init_by_lua.* 404}
+
+
+
+=== TEST 8: list multiple kv, get prefix
+--- config
+    location /t {
+        content_by_lua_block {
+            local etcd = require("apisix.core.etcd")
+            assert(etcd.set("/ab", "ab"))
+            assert(etcd.set("/abc", "abc"))
+            -- get prefix
+            local res, err = etcd.get("/a", true)
+            assert(err == nil)
+            assert(#res.body.list == 2)
+            ngx.status = res.status
+            ngx.say(res.body.list[1].value)
+            ngx.say(res.body.list[2].value)
+        }
+    }
+--- request
+GET /t
+--- response_body
+ab
+abc

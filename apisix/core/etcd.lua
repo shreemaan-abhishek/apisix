@@ -241,8 +241,8 @@ function _M.get_format(res, real_key, is_dir, formatter)
             local last_slash_index = string.find(res.body.node.key, "/[^/]*$")
             if last_slash_index then
                 res.body.node.key = string.sub(res.body.node.key, 1, last_slash_index-1)
-                res = kvs_to_nodes(res, false)
             end
+            res = kvs_to_nodes(res, false)
         end
     end
 
@@ -346,7 +346,6 @@ function _M.get(key, is_dir)
     if not res then
         return nil, err
     end
-
     return _M.get_format(res, key, is_dir)
 end
 
