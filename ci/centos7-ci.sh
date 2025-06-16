@@ -27,12 +27,12 @@ install_dependencies() {
     source scl_source enable devtoolset-9
     set -eu
 
-    export APISIX_RUNTIME=1.2.1
-    wget "https://raw.githubusercontent.com/api7/apisix-build-tools/apisix-runtime/${APISIX_RUNTIME}/build-apisix-runtime.sh"
+    export APISIX_RUNTIME=1.2.2
+    wget "https://raw.githubusercontent.com/api7/apisix-build-tools/api7ee-runtime/${APISIX_RUNTIME}/build-api7ee-runtime.sh"
     chmod +x build-apisix-runtime.sh
     ./build-apisix-runtime.sh latest
     curl -k -o /usr/local/openresty/openssl3/ssl/openssl.cnf \
-        https://raw.githubusercontent.com/api7/apisix-build-tools/apisix-runtime/${APISIX_RUNTIME}/conf/openssl3/openssl.cnf
+        https://raw.githubusercontent.com/api7/apisix-build-tools/api7ee-runtime/${APISIX_RUNTIME}/conf/openssl3/openssl.cnf
 
     # install luarocks
     ./utils/linux-install-luarocks.sh
