@@ -337,6 +337,7 @@ local nodes_schema = {
                         description = "port of node",
                         type = "integer",
                         minimum = 1,
+                        maximum = 65535
                     },
                     weight = {
                         description = "weight of node",
@@ -370,6 +371,7 @@ _M.discovery_nodes = {
                 description = "port of node",
                 type = "integer",
                 minimum = 1,
+                maximum = 65535
             },
             weight = {
                 description = "weight of node",
@@ -966,6 +968,8 @@ _M.stream_route = {
         server_port = {
             description = "server port",
             type = "integer",
+            minimum = 1,
+            maximum = 65535
         },
         sni = {
             description = "server name indication",
