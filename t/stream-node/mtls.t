@@ -319,7 +319,7 @@ GET /t
 --- stream_enable
 --- max_size: 1048576
 --- exec
-echo "" | openssl s_client -connect 127.0.0.1:2005 \
+echo "" | timeout 1 openssl s_client -ign_eof -connect 127.0.0.1:2005 \
     -servername localhost -cert t/certs/mtls_client.crt -key t/certs/mtls_client.key \
     -sess_out session.dat
 
