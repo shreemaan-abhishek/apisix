@@ -487,7 +487,7 @@ end
 
 function _M.list_all_services()
     local endpoint_dict = get_endpoint_dict()
-    local keys = endpoint_dict:get_keys()
+    local keys = endpoint_dict:get_keys(0)
     if not keys then
         return {}
     end
