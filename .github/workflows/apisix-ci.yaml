@@ -36,6 +36,7 @@ jobs:
         test_dir:
           - t/plugin/[a-k]*
           - t/plugin/[l-z]*
+          - t/plugin.elasticsearch
           - t/admin t/api7-agent t/cli t/config-center-yaml t/control t/core t/debug t/discovery t/misc
           - t/node t/pubsub t/router t/script t/secret t/stream-node t/utils t/wasm t/xds-library t/xrpc
 
@@ -100,6 +101,9 @@ jobs:
           if [[ $test_dir =~ 't/plugin' ]]; then
             echo "type=plugin" >>$GITHUB_OUTPUT
           fi
+          if [[ $test_dir =~ 't/plugin.elasticsearch' ]]; then
+            echo "type=plugin.elasticsearch" >>$GITHUB_OUTPUT
+          fi
           if [[ $test_dir =~ 't/admin ' ]]; then
             echo "type=first" >>$GITHUB_OUTPUT
           fi
@@ -139,13 +143,13 @@ jobs:
         run: |
           cd workbench
           if [[ -f docker-images-backup/apisix-images.tar ]]; then
-            [[ ${{ steps.test_env.outputs.type }} != first ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh before
+            [[ ${{ steps.test_env.outputs.type }} != first && ${{ steps.test_env.outputs.type }} != plugin.elasticsearch ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh before
             docker load --input docker-images-backup/apisix-images.tar
             echo "loaded docker images"
             # preserve storage space
             rm docker-images-backup/apisix-images.tar
             make ci-env-up project_compose_ci=ci/pod/docker-compose.${{ steps.test_env.outputs.type }}.yml
-            if [[ ${{ steps.test_env.outputs.type }} != first ]]; then
+            if [[ ${{ steps.test_env.outputs.type }} != first && ${{ steps.test_env.outputs.type }} != plugin.elasticsearch ]]; then
               sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh after
             fi
           fi
@@ -154,10 +158,10 @@ jobs:
         name: Linux launch services
         run: |
           cd workbench
-          [[ ${{ steps.test_env.outputs.type }} != first ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh before
+          [[ ${{ steps.test_env.outputs.type }} != first && ${{ steps.test_env.outputs.type }} != plugin.elasticsearch ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh before
           [[ ${{ steps.test_env.outputs.type }} == plugin ]] && ./ci/pod/openfunction/build-function-image.sh
           make ci-env-up project_compose_ci=ci/pod/docker-compose.${{ steps.test_env.outputs.type }}.yml
-          [[ ${{ steps.test_env.outputs.type }} != first ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh after
+          [[ ${{ steps.test_env.outputs.type }} != first && ${{ steps.test_env.outputs.type }} != plugin.elasticsearch ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh after
           echo "Linux launch services, done."
 
       - name: Start Dubbo Backend

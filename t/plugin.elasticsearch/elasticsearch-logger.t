@@ -46,8 +46,7 @@ __DATA__
                 {
                     endpoint_addr = "http://127.0.0.1:9200",
                     field = {
-                        index = "services",
-                        type = "collector"
+                        index = "services"
                     },
                     auth = {
                         username = "elastic",
@@ -165,6 +164,18 @@ passed
     end)
 
     http.request_uri = function(self, uri, params)
+        if params.method == "GET" then
+            return {
+                status = 200,
+                body = [[
+                {
+                    "version": {
+                        "number": "8.10.2"
+                    }
+                }
+                ]]
+            }
+        end
         if not params.body or type(params.body) ~= "string" then
             return nil, "invalid params body"
         end
@@ -293,9 +304,7 @@ GET /hello
 --- response_body
 hello world
 --- error_log
-Batch Processor[elasticsearch-logger] failed to process entries: elasticsearch server returned status: 401
-"reason":"missing authentication credentials for REST request [/_bulk]"
-Batch Processor[elasticsearch-logger] exceeded the max_retry_count
+failed to process entries: elasticsearch server returned status: 401
 
 
 
@@ -416,6 +425,18 @@ passed
     end)
 
     http.request_uri = function(self, uri, params)
+        if params.method == "GET" then
+            return {
+                status = 200,
+                body = [[
+                {
+                    "version": {
+                        "number": "8.10.2"
+                    }
+                }
+                ]]
+            }
+        end
         if not params.body or type(params.body) ~= "string" then
             return nil, "invalid params body"
         end
@@ -637,6 +658,18 @@ passed
     end)
 
     http.request_uri = function(self, uri, params)
+        if params.method == "GET" then
+            return {
+                status = 200,
+                body = [[
+                {
+                    "version": {
+                        "number": "8.10.2"
+                    }
+                }
+                ]]
+            }
+        end
         if not params.body or type(params.body) ~= "string" then
             return nil, "invalid params body"
         end
@@ -744,6 +777,10 @@ Action/metadata line [1] contains an unknown parameter [_type]
                         field = {
                             index = "services"
                         },
+                        auth = {
+                            username = "elastic",
+                            password = "123456"
+                        },
                         batch_max_size = 1,
                         inactive_timeout = 1,
                         include_req_body = true
@@ -783,6 +820,10 @@ Action/metadata line [1] contains an unknown parameter [_type]
                         endpoint_addr = "http://127.0.0.1:9201",
                         field = {
                             index = "services"
+                        },
+                        auth = {
+                            username = "elastic",
+                            password = "123456"
                         },
                         batch_max_size = 1,
                         inactive_timeout = 1,
@@ -855,6 +896,10 @@ ok
                         field = {
                             index = "services-{%Y.%m.%d}"
                         },
+                        auth = {
+                            username = "elastic",
+                            password = "123456"
+                        },
                         batch_max_size = 1,
                         inactive_timeout = 1,
                     }
@@ -869,7 +914,7 @@ ok
         }
     }
 --- error_log eval
-qr/body: \{"create":\{"_index":"services-\d\d\d\d\.\d\d\.\d\d"\}\}/
+qr/body: \{"index":\{"_index":"services-\d\d\d\d\.\d\d\.\d\d"\}\}/
 
 
 
@@ -893,6 +938,10 @@ qr/body: \{"create":\{"_index":"services-\d\d\d\d\.\d\d\.\d\d"\}\}/
                         field = {
                             index = "services-$host"
                         },
+                        auth = {
+                            username = "elastic",
+                            password = "123456"
+                        },
                         batch_max_size = 1,
                         inactive_timeout = 1,
                     }
@@ -907,7 +956,7 @@ qr/body: \{"create":\{"_index":"services-\d\d\d\d\.\d\d\.\d\d"\}\}/
         }
     }
 --- error_log eval
-qr/body: \{"create":\{"_index":"services-127.0.0.1"\}\}/
+qr/body: \{"index":\{"_index":"services-127.0.0.1"\}\}/
 
 
 
@@ -931,6 +980,10 @@ qr/body: \{"create":\{"_index":"services-127.0.0.1"\}\}/
                         field = {
                             index = "services-$host-{%Y.%m.%d}"
                         },
+                        auth = {
+                            username = "elastic",
+                            password = "123456"
+                        },
                         batch_max_size = 1,
                         inactive_timeout = 1,
                     }
@@ -945,4 +998,154 @@ qr/body: \{"create":\{"_index":"services-127.0.0.1"\}\}/
         }
     }
 --- error_log eval
-qr/body: \{"create":\{"_index":"services-127.0.0.1-\d\d\d\d\.\d\d\.\d\d"\}\}/
+qr/body: \{"index":\{"_index":"services-127.0.0.1-\d\d\d\d\.\d\d\.\d\d"\}\}/
+
+
+
+=== TEST 25: set route (auth) - check compat with version 9
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1', ngx.HTTP_PUT, {
+                uri = "/hello",
+                upstream = {
+                    type = "roundrobin",
+                    nodes = {
+                        ["127.0.0.1:1980"] = 1
+                    }
+                },
+                plugins = {
+                    ["elasticsearch-logger"] = {
+                        endpoint_addr = "http://127.0.0.1:9301",
+                        field = {
+                            index = "services"
+                        },
+                        auth = {
+                            username = "elastic",
+                            password = "123456"
+                        },
+                        batch_max_size = 1,
+                        inactive_timeout = 1
+                    }
+                }
+            })
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 26: test route (auth success)
+--- request
+GET /hello
+--- wait: 2
+--- response_body
+hello world
+--- error_log
+Batch Processor[elasticsearch-logger] successfully processed the entries
+
+
+
+=== TEST 27: set route (auth) - check compat with version 7
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1', ngx.HTTP_PUT, {
+                uri = "/hello",
+                upstream = {
+                    type = "roundrobin",
+                    nodes = {
+                        ["127.0.0.1:1980"] = 1
+                    }
+                },
+                plugins = {
+                    ["elasticsearch-logger"] = {
+                        endpoint_addr = "http://127.0.0.1:9401",
+                        field = {
+                            index = "services"
+                        },
+                        auth = {
+                            username = "elastic",
+                            password = "123456"
+                        },
+                        batch_max_size = 1,
+                        inactive_timeout = 1
+                    }
+                }
+            })
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 28: test route (auth success)
+--- request
+GET /hello
+--- wait: 2
+--- response_body
+hello world
+--- error_log
+Batch Processor[elasticsearch-logger] successfully processed the entries
+
+
+
+=== TEST 29: set route (auth) - check compat with version 6
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1', ngx.HTTP_PUT, {
+                uri = "/hello",
+                upstream = {
+                    type = "roundrobin",
+                    nodes = {
+                        ["127.0.0.1:1980"] = 1
+                    }
+                },
+                plugins = {
+                    ["elasticsearch-logger"] = {
+                        endpoint_addr = "http://127.0.0.1:9501",
+                        field = {
+                            index = "services"
+                        },
+                        auth = {
+                            username = "elastic",
+                            password = "123456"
+                        },
+                        batch_max_size = 1,
+                        inactive_timeout = 1
+                    }
+                }
+            })
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 30: test route (auth success)
+--- request
+GET /hello
+--- wait: 2
+--- response_body
+hello world
+--- error_log
+Batch Processor[elasticsearch-logger] successfully processed the entries

@@ -41,6 +41,8 @@ patch_apisix_code(){
     echo "luarocks config variables.OPENSSL_DIR \${OPENSSL_PREFIX}" >> ${VAR_APISIX_HOME}/utils/linux-install-luarocks.sh
     # we already droped snowflake id support from request-id plugin
     rm -f "${VAR_APISIX_HOME}/t/plugin/request-id-reload-bugfix.t"
+    # move elasticsearch-logger.t to t/plugin.elasticsearch/elasticsearch-logger.t and run it in sperate job
+    rm -f "${VAR_APISIX_HOME}/t/plugin/elasticsearch-logger.t"
 }
 
 
