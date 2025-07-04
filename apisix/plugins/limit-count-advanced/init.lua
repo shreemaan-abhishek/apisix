@@ -25,6 +25,7 @@ local NO_DELAYED_SYNC = -1
 
 local limit_redis_cluster_new
 local limit_redis_new
+local limit_redis_sentinel_new
 local limit_local_new
 do
     local local_src = "apisix.plugins.limit-count-advanced.limit-count-local"
@@ -35,6 +36,9 @@ do
 
     local cluster_src = "apisix.plugins.limit-count-advanced.limit-count-redis-cluster"
     limit_redis_cluster_new = require(cluster_src).new
+
+    local sentinel_src = "apisix.plugins.limit-count-advanced.limit-count-redis-sentinel"
+    limit_redis_sentinel_new = require(sentinel_src).new
 end
 local lrucache = core.lrucache.new({
     type = 'plugin', serial_creating = true,
@@ -103,6 +107,36 @@ local policy_to_additional_properties = {
         },
         required = {"redis_cluster_nodes", "redis_cluster_name"},
     },
+    ["redis-sentinel"] = {
+        properties = {
+            redis_sentinels = {
+                type     = "array",
+                minItems = 1,
+                items    = {
+                    type       = "object",
+                    properties = {
+                        host = { type = "string", minLength = 2 },
+                        port = { type = "integer", minimum = 1, maximum = 65535 },
+                    },
+                    required = { "host", "port" },
+                    additionalProperties = false,
+                },
+            },
+            redis_master_name       = { type = "string", minLength = 1 },
+            redis_role              = {
+                                        type = "string",
+                                        enum = { "master", "slave" },
+                                        default = "master"
+                                      },
+            redis_connect_timeout   = { type = "integer", minimum = 1, default = 1000 },
+            redis_read_timeout      = { type = "integer", minimum = 1, default = 1000 },
+            redis_keepalive_timeout = { type = "integer", minimum = 1, default = 60000 },
+            redis_username          = { type = "string", minLength = 1 },
+            redis_password          = { type = "string", minLength = 0 },
+            redis_database          = { type = "integer", minimum = 0, default = 0 },
+        },
+        required = { "redis_sentinels", "redis_master_name" },
+    },
 }
 local schema = {
     type = "object",
@@ -128,7 +162,7 @@ local schema = {
         },
         policy = {
             type = "string",
-            enum = {"local", "redis", "redis-cluster"},
+            enum = {"local", "redis", "redis-cluster", "redis-sentinel"},
             default = "local",
         },
         allow_degradation = {type = "boolean", default = false},
@@ -155,6 +189,12 @@ local schema = {
             },
         },
         ["then"] = policy_to_additional_properties["redis-cluster"],
+        ["else"] = {
+            ["if"] = {
+                properties = { policy = { enum = { "redis-sentinel" } } },
+            },
+            ["then"] = policy_to_additional_properties["redis-sentinel"],
+        },
     }
 }
 local metadata_defaults = {
@@ -288,6 +328,10 @@ local function create_limit_obj(conf, plugin_name)
                                        conf.time_window, conf)
     end
 
+    if conf.policy == "redis-sentinel" then
+        return limit_redis_sentinel_new("plugin-" .. plugin_name, conf.count,
+                                        conf.time_window, conf)
+    end
     return nil
 end
 

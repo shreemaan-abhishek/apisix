@@ -128,3 +128,57 @@ GET /t
 --- error_code: 200
 --- response_body
 passed
+
+
+
+=== TEST 4: set route(id: 1) with redis-sentinel
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                        "methods": ["GET"],
+                        "plugins": {
+                            "limit-count-advanced": {
+                                "count": 2,
+                                "time_window": 5,
+                                "rejected_code": 503,
+                                "policy": "redis-sentinel",
+                                "redis_sentinels": [
+                                    {"host": "127.0.0.1", "port": 26379}
+                                ],
+                                "redis_master_name": "mymaster",
+                                "redis_role": "master",
+                                "window_type": "sliding",
+                                "sync_interval": 0.2,
+                                "redis_database": 1
+                            }
+                        },
+                        "upstream": {
+                            "nodes": {
+                                "127.0.0.1:1980": 1
+                            },
+                            "type": "roundrobin"
+                        },
+                        "uri": "/hello"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 5: up the limit
+--- pipelined_requests eval
+["GET /hello", "GET /hello", "GET /hello"]
+--- error_code eval
+[200, 200, 503]

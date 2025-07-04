@@ -93,7 +93,7 @@ function _M.new(plugin_name, limit, window, conf)
     if conf.window_type == "sliding" then
 
         local sw_limit_count, err = sliding_window.new(sliding_window_store,
-                                                       limit, window, conf, red_cli)
+                                                       limit, window, red_cli)
         if not sw_limit_count then
             return nil, err
         end

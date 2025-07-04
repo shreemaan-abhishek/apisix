@@ -483,3 +483,104 @@ passed
 --- response_body
 3
 0
+
+
+
+=== TEST 16: setup routes with redis sentinel
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local apis = {
+                  {
+                      uri = "/apisix/admin/upstreams/localhost_1980",
+                      body = [[{
+                          "nodes": {
+                              "127.0.0.1:1980": 1
+                          },
+                          "type": "roundrobin"
+                      }]],
+                  },
+                  {
+                      uri = "/apisix/admin/routes/hello",
+                      body = [[{
+                          "uri": "/hello",
+                          "plugins": {
+                              "limit-count-advanced": {
+                                  "count": 2,
+                                  "time_window": 1,
+                                  "key_type": "var",
+                                  "key": "arg_key",
+                                  "policy": "redis",
+                                  "redis_host": "127.0.0.1",
+                                  "window_type": "sliding",
+                                  "sync_interval": 0.2
+                              }
+                          },
+                          "upstream_id": "localhost_1980"
+                      }]],
+                  },
+                  {
+                      uri = "/apisix/admin/routes/hello1",
+                      body = [[{
+                          "uri": "/hello1",
+                          "plugins": {
+                          "limit-count-advanced": {
+                            "count": 2,
+                            "time_window": 1,
+                            "rejected_code": 503,
+                            "policy": "redis-sentinel",
+                            "redis_sentinels": [
+                                 {"host": "127.0.0.1", "port": 26379}
+                             ],
+                             "redis_master_name": "mymaster",
+                             "redis_role": "master",
+                             "window_type": "sliding",
+                             "sync_interval": 0.2,
+                             "redis_database": 1
+                            }
+                          },
+                          "upstream_id": "localhost_1980"
+                      }]],
+                  },
+            }
+            local code, body
+            for _, api in ipairs(apis) do
+                code, body = t(api.uri, ngx.HTTP_PUT, api.body)
+                if code >= 300 then
+                    ngx.status = code
+                    ngx.say(body)
+                    return
+                end
+            end
+            ngx.say("passed")
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 17: sanity - delayed sync to redis
+--- pipelined_requests eval
+["GET /hello", "GET /hello", "GET /hello"]
+--- error_code eval
+[200, 200, 503]
+--- wait: 1
+--- grep_error_log eval
+qr{delayed sync to redis}
+--- grep_error_log_out eval
+qr/(delayed sync to redis\n){3}/
+
+
+
+=== TEST 18: sanity - delayed sync to redis-sentinel
+--- pipelined_requests eval
+["GET /hello1", "GET /hello1", "GET /hello1"]
+--- error_code eval
+[200, 200, 503]
+--- wait: 1
+--- grep_error_log eval
+qr{delayed sync to redis-sentinel}
+--- grep_error_log_out eval
+qr/(delayed sync to redis-sentinel\n){3}/

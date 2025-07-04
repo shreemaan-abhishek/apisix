@@ -1,0 +1,245 @@
+
+BEGIN {
+    if ($ENV{TEST_NGINX_CHECK_LEAK}) {
+        $SkipReason = "unavailable for the hup tests";
+
+    } else {
+        $ENV{TEST_NGINX_USE_HUP} = 1;
+        undef $ENV{TEST_NGINX_USE_STAP};
+    }
+}
+
+use t::APISIX 'no_plan';
+
+repeat_each(1);
+no_long_string();
+no_shuffle();
+no_root_location();
+
+add_block_preprocessor(sub {
+    my ($block) = @_;
+
+    if (!$block->request) {
+        $block->set_value("request", "GET /t");
+    }
+
+    if (!$block->error_log && !$block->no_error_log) {
+        $block->set_value("no_error_log", "[error]\n[alert]");
+    }
+});
+
+run_tests;
+
+__DATA__
+
+=== TEST 1: set route without redis master name
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/hello",
+                    "plugins": {
+                        "limit-count-advanced": {
+                            "count": 2,
+                            "time_window": 2,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-sentinel",
+                            "redis_sentinels": [
+                                 {"host": "127.0.0.1", "port": 26379}
+                             ],
+                             "redis_role": "master"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- error_code: 400
+
+
+
+=== TEST 2: set route without redis sentinels
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/hello",
+                    "plugins": {
+                        "limit-count-advanced": {
+                            "count": 2,
+                            "time_window": 2,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-sentinel",
+                            "redis_role": "master",
+                            "redis_database": 1
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- error_code: 400
+
+
+
+=== TEST 3: set route
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/hello",
+                    "plugins": {
+                        "limit-count-advanced": {
+                            "count": 2,
+                            "time_window": 2,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-sentinel",
+                            "redis_sentinels": [
+                                 {"host": "127.0.0.1", "port": 26379}
+                             ],
+                             "redis_master_name": "mymaster",
+                             "redis_role": "master"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 4: up the limit
+--- pipelined_requests eval
+["GET /hello", "GET /hello", "GET /hello", "GET /hello"]
+--- error_code eval
+[200, 200, 503, 503]
+
+
+
+=== TEST 5: set route with different limit count
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/hello",
+                    "plugins": {
+                        "limit-count-advanced": {
+                            "count": 2,
+                            "time_window": 2,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-sentinel",
+                            "redis_sentinels": [
+                                 {"host": "127.0.0.1", "port": 26379}
+                             ],
+                             "redis_master_name": "mymaster",
+                             "redis_role": "master",
+                             "redis_database": 1
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            local code, body = t('/apisix/admin/routes/2',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/hello1",
+                    "plugins": {
+                        "limit-count-advanced": {
+                            "count": 1,
+                            "time_window": 2,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-sentinel",
+                            "redis_sentinels": [
+                                 {"host": "127.0.0.1", "port": 26379}
+                             ],
+                             "redis_master_name": "mymaster",
+                             "redis_role": "master",
+                             "redis_database": 1
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 6: up the limit
+--- pipelined_requests eval
+["GET /hello","GET /hello", "GET /hello", "GET /hello1", "GET /hello1"]
+--- error_code eval
+[200, 200, 503, 200, 503]

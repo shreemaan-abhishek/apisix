@@ -1,4 +1,5 @@
 local redis_new = require("resty.redis").new
+local redis_sentinel = require("resty.redis.connector")
 local _M = {}
 
 
@@ -47,4 +48,27 @@ function _M.redis_cli(conf)
     return red, nil
 end
 
+function _M.redis_cli_sentinel(conf)
+    local redis_conf = {
+        password = conf.redis_password,
+        db = conf.redis_database or 0,
+        sentinels = conf.redis_sentinels or {},
+        master_name = conf.redis_master_name,
+        role = conf.redis_role or "master",
+        connect_timeout = conf.redis_connect_timeout or 1000,
+        read_timeout = conf.redis_read_timeout or 1000,
+        keepalive_timeout = conf.redis_keepalive_timeout or 60000,
+    }
+
+    local sentinel_client, err = redis_sentinel.new(redis_conf)
+    if not sentinel_client then
+        return nil, "failed to create redis client: " .. (err or "unknown error")
+    end
+
+    local red, err = sentinel_client:connect()
+    if not red then
+        return nil, "redis connection failed: " .. (err or "unknown error")
+    end
+    return red, nil
+end
 return _M

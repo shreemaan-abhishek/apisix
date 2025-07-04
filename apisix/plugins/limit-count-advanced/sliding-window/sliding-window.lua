@@ -6,7 +6,6 @@ local math_ceil = math.ceil
 local ngx_now = ngx.now
 local setmetatable = setmetatable
 local log = require("apisix.core.log")
-local redis_cli = require("apisix.plugins.limit-count-advanced.util").redis_cli
 
 local _M = {}
 local mt = { __index = _M }
@@ -53,7 +52,27 @@ local function get_last_rate(self, sample, now_ms, red_cli)
 end
 
 
-function _M.new(store, limit, window_size, conf, red_cli)
+function _M.new(store, limit, window_size, red_cli)
+    if not store then
+        return nil, "'store' parameter is missing"
+    end
+    if not store.incr then
+        return nil, "'store' has to implement 'incr' function"
+    end
+    if not store.get then
+        return nil, "'store' has to implement 'get' function"
+    end
+
+    return setmetatable({
+        store = store,
+        limit = limit,
+        window_size = window_size,
+        red_cli = red_cli
+    }, mt)
+end
+
+
+function _M.new_with_red_cli_factory(store, limit, window_size, red_cli_factory, conf)
     if not store then
         return nil, "'store' parameter is missing"
     end
@@ -69,7 +88,7 @@ function _M.new(store, limit, window_size, conf, red_cli)
         limit = limit,
         window_size = window_size,
         conf = conf,
-        red_cli = red_cli
+        red_cli_factory = red_cli_factory
     }, mt)
 end
 
@@ -95,8 +114,8 @@ function _M.incoming(self, key, cost)
     local remaining_time = self.window_size - now % self.window_size
 
     local red_cli, err
-    if not self.red_cli and self.conf then
-        red_cli, err = redis_cli(self.conf)
+    if not self.red_cli and self.red_cli_factory then
+        red_cli, err = self.red_cli_factory(self.conf)
         if not red_cli then
             return nil, err, 0
         end
