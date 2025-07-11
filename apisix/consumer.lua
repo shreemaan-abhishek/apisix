@@ -71,6 +71,9 @@ local function get_credential_id_from_etcd_key(key)
 end
 
 local function filter_consumers_list(data_list)
+    if not data_list then
+        return {}
+    end
     if #data_list == 0 then
         return data_list
     end

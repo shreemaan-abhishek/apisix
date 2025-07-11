@@ -177,19 +177,26 @@ function _M.heartbeat(self, first)
 
     local post_heartbeat_payload = core.json.encode(payload)
     self.ongoing_heartbeat = true
-    local res, err = send_request(self.heartbeat_url, {
-        method =  "POST",
-        body = post_heartbeat_payload,
-        headers = headers,
-        http_timeout = self.http_timeout,
-        ssl_verify = self.ssl_verify,
-        ssl_ca_cert = self.ssl_ca_cert,
-        ssl_cert_path = self.ssl_cert_path,
-        ssl_key_path = self.ssl_key_path,
-        ssl_server_name = self.ssl_server_name,
-    })
+    local ok, res_or_err, err = pcall(function()
+        local res, err = send_request(self.heartbeat_url, {
+            method =  "POST",
+            body = post_heartbeat_payload,
+            headers = headers,
+            http_timeout = self.http_timeout,
+            ssl_verify = self.ssl_verify,
+            ssl_ca_cert = self.ssl_ca_cert,
+            ssl_cert_path = self.ssl_cert_path,
+            ssl_key_path = self.ssl_key_path,
+            ssl_server_name = self.ssl_server_name,
+        })
+        return res, err
+    end)
     self.ongoing_heartbeat = false
-
+    if not ok then
+        core.log.error("heartbeat error: ", res_or_err)
+        return
+    end
+    local res = res_or_err
     if not first then
         self.last_heartbeat_time = current_time
     end
@@ -326,51 +333,57 @@ function _M.upload_metrics(self)
         return
     end
     self.ongoing_metrics_uploading = true
+    local ok, res_or_err, err = pcall(function ()
+        -- collect nginx API related metrics by HTTP
+        -- because some APIs (ngx.var and subrequest) are disabled in ngx.timer
+        local res, err = utils.fetch_nginx_metrics(self.http_timeout)
+        if err or not res or res.status ~= 200 then
+            core.log.error("fetch nginx metrics error ", err or (res and res.status))
+        end
 
-    -- collect nginx API related metrics by HTTP
-    -- because some APIs (ngx.var and subrequest) are disabled in ngx.timer
-    local res, err = utils.fetch_nginx_metrics(self.http_timeout)
-    if err or not res or res.status ~= 200 then
-        core.log.error("fetch nginx metrics error ", err or (res and res.status))
-    end
+        -- collect remaining metrics by function call
+        exporter.collect_regular_metrics()
 
-    -- collect remaining metrics by function call
-    exporter.collect_regular_metrics()
+        -- extract metrics from prometheus object
+        local metrics_tab = prom:metric_data()
 
-    -- extract metrics from prometheus object
-    local metrics_tab = prom:metric_data()
+        local metrics_headers = {
+            ["X-Is-Truncated"] = false,
+            ["X-Instance-Id"] = core.id.get(),
+            [AUTH_HEADER] = control_plane_token,
+            ["Transfer-Encoding"] = "chunked",
+            ["Content-Type"] = "text/plain",
+        }
 
-    local metrics_headers = {
-        ["X-Is-Truncated"] = false,
-        ["X-Instance-Id"] = core.id.get(),
-        [AUTH_HEADER] = control_plane_token,
-        ["Transfer-Encoding"] = "chunked",
-        ["Content-Type"] = "text/plain",
-    }
+        local truncated, last_index = truncate_metrics(metrics_tab, self.telemetry.max_metrics_size)
+        if truncated then
+            core.log.warn("metrics size is too large, truncated it to: ", self.telemetry.max_metrics_size)
+            metrics_headers["X-Is-Truncated"] = true
+        end
 
-    local truncated, last_index = truncate_metrics(metrics_tab, self.telemetry.max_metrics_size)
-    if truncated then
-        core.log.warn("metrics size is too large, truncated it to: ", self.telemetry.max_metrics_size)
-        metrics_headers["X-Is-Truncated"] = true
-    end
+        local http_cli = resty_http.new()
 
-    local http_cli = resty_http.new()
+        http_cli:set_timeout(self.http_timeout)
+        local res, err = http_cli:request_uri(self.metrics_url, {
+            method =  "POST",
+            body = iterator(metrics_tab, last_index),
+            headers = metrics_headers,
+            keepalive = true,
+            ssl_verify = false,
+            ssl_cert_path = self.ssl_cert_path,
+            ssl_key_path = self.ssl_key_path,
+        })
+        return res, err
+    end)
 
-    http_cli:set_timeout(self.http_timeout)
-
-    local res, err = http_cli:request_uri(self.metrics_url, {
-        method =  "POST",
-        body = iterator(metrics_tab, last_index),
-        headers = metrics_headers,
-        keepalive = true,
-        ssl_verify = false,
-        ssl_cert_path = self.ssl_cert_path,
-        ssl_key_path = self.ssl_key_path,
-    })
     self.ongoing_metrics_uploading = false
+    if not ok then
+        core.log.error("upload metrics error: ", res_or_err)
+        return
+    end
+    local res = res_or_err
 
     self.last_metrics_uploading_time = current_time
-    local resp_body
     if not res then
         core.log.error("upload metrics failed ", err)
         return
