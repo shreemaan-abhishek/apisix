@@ -36,21 +36,14 @@ services:
       - "6479:6379"
     volumes:
       - ./data/master:/data
-    command:
-      [
+    command: [
         "redis-server",
-        "--appendonly",
-        "yes",
-        "--repl-diskless-load",
-        "on-empty-db",
-        "--replica-announce-ip",
-        "127.0.0.1",
-        "--replica-announce-port",
-        "6479",
-        "--protected-mode",
-        "no"
+        "--appendonly", "yes",
+        "--repl-diskless-load", "on-empty-db",
+        "--protected-mode", "no"
       ]
-
+    networks:
+      - apisix_net
 
   redis-slave-1:
     image: redis:latest
@@ -62,25 +55,15 @@ services:
       - "6380:6379"
     volumes:
       - ./data/slave1:/data
-    command:
-      [
+    command: [
         "redis-server",
-        "--appendonly",
-        "yes",
-        "--replicaof",
-        "redis-master",
-        "6479",
-        "--repl-diskless-load",
-        "on-empty-db",
-        "--replica-announce-ip",
-        "127.0.0.1",
-        "--replica-announce-port",
-        "6380",
-        "--protected-mode",
-        "no"
+        "--appendonly", "yes",
+        "--replicaof", "redis-master", "6379",
+        "--repl-diskless-load", "on-empty-db",
+        "--protected-mode", "no"
       ]
-
-
+    networks:
+      - apisix_net
 
   sentinel-1:
     image: redis:latest
@@ -91,13 +74,37 @@ services:
     ports:
       - "26379:26379"
     command: >
-      sh -c 'echo "bind 0.0.0.0" > /etc/sentinel.conf &&
-            echo "sentinel monitor mymaster 127.0.0.1 6479 2" >> /etc/sentinel.conf &&
-            echo "sentinel resolve-hostnames yes" >> /etc/sentinel.conf &&
-            echo "sentinel down-after-milliseconds mymaster 10000" >> /etc/sentinel.conf &&
-            echo "sentinel failover-timeout mymaster 10000" >> /etc/sentinel.conf &&
-            echo "sentinel parallel-syncs mymaster 1" >> /etc/sentinel.conf &&
+      sh -c 'echo "bind 0.0.0.0" > /etc/sentinel.conf;
+            echo "sentinel monitor mymaster redis-master 6379 2" >> /etc/sentinel.conf;
+            echo "sentinel resolve-hostnames yes" >> /etc/sentinel.conf;
+            echo "sentinel down-after-milliseconds mymaster 10000" >> /etc/sentinel.conf;
+            echo "sentinel failover-timeout mymaster 10000" >> /etc/sentinel.conf;
+            echo "sentinel parallel-syncs mymaster 1" >> /etc/sentinel.conf;
             redis-sentinel /etc/sentinel.conf'
+    networks:
+      - apisix_net
+
+  sentinel-2:
+    image: redis:7.0
+    container_name: sentinel-2
+    hostname: sentinel-2
+    depends_on:
+      - redis-master
+    ports:
+      - "26380:26379"
+    command: >
+      sh -c 'echo "bind 0.0.0.0" > /etc/sentinel.conf;
+            echo "sentinel monitor mymaster redis-master 6379 2" >> /etc/sentinel.conf;
+            echo "sentinel resolve-hostnames yes" >> /etc/sentinel.conf;
+            echo "sentinel down-after-milliseconds mymaster 10000" >> /etc/sentinel.conf;
+            echo "sentinel failover-timeout mymaster 10000" >> /etc/sentinel.conf;
+            echo "sentinel parallel-syncs mymaster 1" >> /etc/sentinel.conf;
+            echo "aclfile /etc/sentinel.acl" >> /etc/sentinel.conf;
+            echo "user admin on >admin-password +@all" > /etc/sentinel.acl;
+            echo "user default off" >> /etc/sentinel.acl;
+            redis-sentinel /etc/sentinel.conf'
+    networks:
+      - apisix_net
 
   ## keycloak
   apisix_keycloak:

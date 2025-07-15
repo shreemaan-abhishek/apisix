@@ -51,6 +51,8 @@ end
 function _M.redis_cli_sentinel(conf)
     local redis_conf = {
         password = conf.redis_password,
+        sentinel_username = conf.sentinel_username,
+        sentinel_password = conf.sentinel_password,
         db = conf.redis_database or 0,
         sentinels = conf.redis_sentinels or {},
         master_name = conf.redis_master_name,
