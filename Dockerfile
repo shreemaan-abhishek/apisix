@@ -53,7 +53,7 @@ RUN set -ex; \
     && rm -f /usr/local/apisix/apisix/plugins/inspect.lua \
     && rm -f /etc/apt/sources.list.d/openresty.list /etc/apt/sources.list.d/apisix.list
 
-FROM debian:bookworm-slim
+FROM ubuntu:24.04
 COPY --from=runtime-builder /usr/local/openresty /usr/local/openresty
 COPY --from=apisix-builder /usr/local/apisix /usr/local/apisix
 COPY --from=apisix-builder /usr/bin/apisix /usr/bin/apisix
@@ -63,7 +63,7 @@ ENV PATH=$PATH:/usr/local/openresty/luajit/bin:/usr/local/openresty/nginx/sbin:/
 WORKDIR /usr/local/apisix
 
 RUN apt update \
-    && apt install libpcre3 debianutils -y \
+    && apt install -y libpcre3 \
     # forward request and error logs to docker log collector
     && ln -sf /dev/stdout /usr/local/apisix/logs/access.log \
     && ln -sf /dev/stderr /usr/local/apisix/logs/error.log
