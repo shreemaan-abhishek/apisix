@@ -234,6 +234,7 @@ do
         request_type               = true,
         apisix_request_id          = true,
 
+        apisix_upstream_response_time = true,
         llm_time_to_first_token    = true,
         request_llm_model          = true,
         llm_model                  = true,

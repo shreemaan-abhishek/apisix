@@ -910,6 +910,7 @@ http {
             set $llm_prompt_tokens              '0';
             set $llm_completion_tokens          '0';
             set $llm_content_risk_level         '';
+            set $apisix_upstream_response_time  $upstream_response_time;
 
             access_by_lua_block {
                 apisix.http_access_phase()
