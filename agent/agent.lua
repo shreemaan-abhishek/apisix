@@ -23,6 +23,8 @@ local get_phase     = ngx.get_phase
 local getenv        = os.getenv
 local tab_isempty   = require "table.isempty"
 
+local ngx_re       = require("ngx.re")
+
 local shdict_name = "config"
 if ngx.config.subsystem == "stream" then
     shdict_name = shdict_name .. "-stream"
@@ -122,9 +124,15 @@ local function send_request(url, opts)
 end
 
 local status_counts_dict = ngx.shared["api-calls-by-status"]
+local api_calls_for_portal_dict = ngx.shared["api-calls-for-portal"]
 local is_http = ngx.config.subsystem == "http"
-if is_http and not status_counts_dict then
-    error('shared dict "api-calls-by-status" not defined')
+if is_http then
+    if not status_counts_dict then
+        error('shared dict "api-calls-by-status" not defined')
+    end
+    if not api_calls_for_portal_dict then
+        error('shared dict "api-calls-for-portal" not defined')
+    end
 end
 
 local function get_api_calls_by_status_code(last_counter)
@@ -146,6 +154,40 @@ local function get_api_calls_by_status_code(last_counter)
     return api_calls_per_code, api_calls_per_code_delta, api_calls_delta
 end
 
+local function get_api_calls_for_portal(last_counter)
+    if not is_http then
+        return
+    end
+
+    local last_value = last_counter or {}
+    local api_calls = {}
+    local api_calls_deltas = {}
+
+    local keys = api_calls_for_portal_dict:get_keys(0)
+    for _, key in ipairs(keys) do
+        local count = api_calls_for_portal_dict:get(key)
+        api_calls[key] = count
+
+        local delta = count - (last_value[key] or 0)
+        if delta > 0 then
+            local parts = ngx_re.split(key, ":")
+            if #parts == 6 then
+                table.insert(api_calls_deltas, {
+                    subscription_id = parts[1],
+                    developer_id = parts[2],
+                    application_id = parts[3],
+                    credential_id = parts[4],
+                    api_product_id = parts[5],
+                    status_code = tonumber(parts[6]) or 0,
+                    count = delta,
+                })
+            end
+        end
+    end
+
+    return api_calls, api_calls_deltas
+end
+
 function _M.heartbeat(self, first)
     local current_time = ngx_time()
     if self.last_heartbeat_time and
@@ -163,6 +205,12 @@ function _M.heartbeat(self, first)
         get_api_calls_by_status_code(self.api_calls_per_code_last_value)
     payload.api_calls_per_code = api_calls_per_code_delta
     payload.api_calls = api_calls_delta
+
+    local api_calls_for_portal, api_calls_for_portal_delta =
+        get_api_calls_for_portal(self.api_calls_for_portal_last_value)
+    if next(api_calls_for_portal_delta) then
+        payload.portal_api_calls = api_calls_for_portal_delta
+    end
 
     local uid = core.id.get()
     payload.control_plane_revision = utils.get_control_plane_revision()
@@ -223,6 +271,7 @@ function _M.heartbeat(self, first)
 
     -- Reset counter only when heartbeat success.
     self.api_calls_per_code_last_value = api_calls_per_code
+    self.api_calls_for_portal_last_value = api_calls_for_portal
 
     local resp_body, err = utils.parse_resp(res.body)
     if not resp_body then
@@ -705,6 +754,7 @@ function _M.new(agent_conf)
         developer_config_version = 0,
         -- Init from the data stored in the shared dict (defaults to {}).
         api_calls_per_code_last_value = get_api_calls_by_status_code(),
+        api_calls_for_portal_last_value = get_api_calls_for_portal(),
         consumer_version = 0,
         consumer_proxy = agent_conf.consumer_proxy,
         developer_proxy = agent_conf.developer_proxy,

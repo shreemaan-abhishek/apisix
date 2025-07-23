@@ -87,7 +87,7 @@ run_tests;
 
 __DATA__
 
-=== TEST 1: test incremented api call count in hearbeat
+=== TEST 1: test incremented api call count in heartbeat
 --- main_config
 env API7_CONTROL_PLANE_TOKEN=a7ee-token;
 env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;

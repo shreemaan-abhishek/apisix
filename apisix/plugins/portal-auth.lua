@@ -1,3 +1,4 @@
+local ngx  = ngx
 local core = require("apisix.core")
 local require = require
 local pairs = pairs
@@ -43,6 +44,11 @@ local schema = {
 
 local plugin_name = "portal-auth"
 
+local api_calls_for_portal_dict = ngx.shared["api-calls-for-portal"]
+if not api_calls_for_portal_dict then
+    error('shared dict "api-calls-for-portal" not defined')
+end
+
 local _M = {
     version = 0.1,
     priority = 2700,
@@ -78,6 +84,28 @@ local function execute_auth_plugins(auth_plugins, ctx)
     return false, errors
 end
 
+function _M.log(conf, ctx)
+    local consumer = ctx.consumer
+    if consumer and consumer.labels then
+        local subscription_id = consumer.labels.subscription_id
+        local developer_id = consumer.labels.developer_id
+        local application_id = consumer.labels.application_id
+        local credential_id = consumer.credential_id
+        local api_product_id = consumer.labels.api_product_id
+        local status_code = ngx.status
+
+        local key = subscription_id .. ":"
+            .. developer_id .. ":"
+            .. application_id .. ":"
+            .. credential_id .. ":"
+            .. api_product_id .. ":"
+            .. status_code
+        local _, err = api_calls_for_portal_dict:incr(key, 1, 0)
+        if err then
+            core.log.error("failed to increase api calls for ", key, ", err: ", err)
+        end
+    end
+end
 
 function _M.rewrite(conf, ctx)
     if conf.api_product_id then

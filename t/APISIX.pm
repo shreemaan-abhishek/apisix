@@ -566,6 +566,7 @@ _EOC_
     $http_config .= <<_EOC_;
     $lua_deps_path
 
+    lua_shared_dict api-calls-for-portal 10m;
     lua_shared_dict api-calls-by-status  2m;
     lua_shared_dict plugin-limit-req 10m;
     lua_shared_dict plugin-limit-count 10m;

@@ -298,6 +298,7 @@ http {
     lua_max_running_timers {* max_running_timers *};
     {% end %}
 
+    lua_shared_dict api-calls-for-portal 10m;
     lua_shared_dict api-calls-by-status  2m;
 
     {% if http.lua_shared_dict["internal-status"] then %}
