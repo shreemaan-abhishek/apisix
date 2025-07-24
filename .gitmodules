@@ -4,4 +4,3 @@
 [submodule "lua-resty-aws-s3"]
 	path = lua-resty-aws-s3
 	url = https://github.com/api7/lua-resty-aws-s3.git
-	branch = initial
