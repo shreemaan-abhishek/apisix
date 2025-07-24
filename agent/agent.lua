@@ -155,13 +155,13 @@ local function get_api_calls_by_status_code(last_counter)
 end
 
 local function get_api_calls_for_portal(last_counter)
-    if not is_http then
-        return
-    end
-
     local last_value = last_counter or {}
     local api_calls = {}
     local api_calls_deltas = {}
+
+    if not is_http then
+        return api_calls, api_calls_deltas
+    end
 
     local keys = api_calls_for_portal_dict:get_keys(0)
     for _, key in ipairs(keys) do
