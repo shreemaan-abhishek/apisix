@@ -208,9 +208,7 @@ function _M.heartbeat(self, first)
 
     local api_calls_for_portal, api_calls_for_portal_delta =
         get_api_calls_for_portal(self.api_calls_for_portal_last_value)
-    if next(api_calls_for_portal_delta) then
-        payload.portal_api_calls = api_calls_for_portal_delta
-    end
+    payload.portal_api_calls = api_calls_for_portal_delta
 
     local uid = core.id.get()
     payload.control_plane_revision = utils.get_control_plane_revision()
