@@ -320,6 +320,7 @@ nginx_config:                     # config for render the template to generate n
 #    weight: 1                     # default 1
 #    fetch_interval: 3             # default 3 sec, only take effect for keepalive: false way
 #    keepalive: true               # default true, use the long pull way to query consul servers
+#    sort_type: "origin"           # default origin
 #    default_server:               # you can define default server when missing hit
 #      host: "127.0.0.1"
 #      port: 20999

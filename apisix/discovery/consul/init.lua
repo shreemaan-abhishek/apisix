@@ -36,6 +36,7 @@ local ngx_worker_id      = ngx.worker.id
 local all_services = core.table.new(0, 5)
 local default_service
 local default_weight
+local sort_type
 local skip_service_map = core.table.new(0, 1)
 local dump_params
 
@@ -176,6 +177,25 @@ local function get_retry_delay(retry_delay)
 end
 
 
+local function combine_sort_nodes_cmp(left, right)
+    if left.host ~= right.host then
+        return left.host < right.host
+    end
+
+    return left.port < right.port
+end
+
+
+local function port_sort_nodes_cmp(left, right)
+    return left.port < right.port
+end
+
+
+local function host_sort_nodes_cmp(left, right)
+    return left.host < right.host
+end
+
+
 function _M.connect(premature, consul_server, retry_delay)
     if premature then
         return
@@ -245,6 +265,7 @@ function _M.connect(premature, consul_server, retry_delay)
                     ", body: ", json_delay_encode(result.body, true))
                 -- add services to table
                 local nodes = up_services[service_name]
+                local nodes_uniq = {}
                 for  _, node in ipairs(result.body) do
                     local svc_address, svc_port = node.ServiceAddress, node.ServicePort
                     if not svc_address then
@@ -255,12 +276,29 @@ function _M.connect(premature, consul_server, retry_delay)
                         nodes = core.table.new(1, 0)
                         up_services[service_name] = nodes
                     end
-                    -- add node to nodes table
-                    core.table.insert(nodes, {
-                        host = svc_address,
-                        port = tonumber(svc_port),
-                        weight = default_weight,
-                    })
+                    -- not store duplicate service IDs.
+                    local service_id = svc_address .. ":" .. svc_port
+                    if not nodes_uniq[service_id] then
+                        -- add node to nodes table
+                        core.table.insert(nodes, {
+                            host = svc_address,
+                            port = tonumber(svc_port),
+                            weight = default_weight,
+                        })
+                        nodes_uniq[service_id] = true
+                    end
+                end
+                if nodes then
+                    if sort_type == "port_sort" then
+                        core.table.sort(nodes, port_sort_nodes_cmp)
+
+                    elseif sort_type == "host_sort" then
+                        core.table.sort(nodes, host_sort_nodes_cmp)
+
+                    elseif sort_type == "combine_sort" then
+                        core.table.sort(nodes, combine_sort_nodes_cmp)
+
+                    end
                 end
                 up_services[service_name] = nodes
             end
@@ -365,6 +403,7 @@ function _M.init_worker()
 
     log.notice("consul_conf: ", json_delay_encode(consul_conf, true))
     default_weight = consul_conf.weight
+    sort_type = consul_conf.sort_type
     -- set default service, used when the server node cannot be found
     if consul_conf.default_service then
         default_service = consul_conf.default_service
