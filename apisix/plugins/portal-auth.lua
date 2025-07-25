@@ -51,7 +51,7 @@ end
 
 local _M = {
     version = 0.1,
-    priority = 2700,
+    priority = 2750,
     type = 'auth',
     name = plugin_name,
     schema = schema

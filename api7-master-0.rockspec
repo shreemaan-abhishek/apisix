@@ -84,6 +84,7 @@ dependencies = {
     "lua-ffi-zlib = 0.6-0",
     "multipart = 0.5.9-1",
     "luautf8 = 0.1.6-1",
+    "lua-resty-t1k = 1.1.5",
 }
 
 build = {
