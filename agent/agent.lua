@@ -208,7 +208,16 @@ function _M.heartbeat(self, first)
 
     local api_calls_for_portal, api_calls_for_portal_delta =
         get_api_calls_for_portal(self.api_calls_for_portal_last_value)
-    payload.portal_api_calls = api_calls_for_portal_delta
+    -- we reuse time same payload table for every heartbearts,
+    -- so we need to assign payload.portal_api_calls every time,
+    -- otherwise it will keep the last value.
+    if next(api_calls_for_portal_delta) then
+        payload.portal_api_calls = api_calls_for_portal_delta
+    else
+        -- payload.portal_api_calls is a array, but a empty array in lua will be encode as `{}`,
+        -- that will cause the dp manager json schema validation failed.
+        payload.portal_api_calls = nil
+    end
 
     local uid = core.id.get()
     payload.control_plane_revision = utils.get_control_plane_revision()
