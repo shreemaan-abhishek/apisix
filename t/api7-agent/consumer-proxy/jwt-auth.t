@@ -211,7 +211,9 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
                         "type": "roundrobin"
                     },
                     "plugins":{
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                          "claims_to_verify": ["exp"]
+                        }
                     },
                     "uri": "/hello"
                 }]]

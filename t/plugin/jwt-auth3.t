@@ -81,6 +81,7 @@ __DATA__
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "header": "jwt-header",
                             "query": "jwt-query",
                             "cookie": "jwt-cookie",
@@ -136,6 +137,7 @@ Cookie: jwt-cookie=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIs
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "header": "jwt-header",
                             "query": "jwt-query",
                             "cookie": "jwt-cookie",
@@ -182,6 +184,7 @@ jwt-query: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "header": "jwt-header",
                             "query": "jwt-query",
                             "cookie": "jwt-cookie",
@@ -227,6 +230,7 @@ jwt-header: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "header": "jwt-header",
                             "query": "jwt-query",
                             "cookie": "jwt-cookie",
@@ -272,6 +276,7 @@ hello: world
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "header": "jwt-header",
                             "query": "jwt-query",
                             "cookie": "jwt-cookie",
@@ -340,6 +345,7 @@ apisix:
                     "username": "jack",
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "key": "user-key",
                             "secret": "my-secret-key"
                         }
@@ -495,6 +501,7 @@ GET /t
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "header": "jwt-header",
                             "query": "jwt-query",
                             "cookie": "jwt-cookie",
@@ -558,7 +565,9 @@ Success! Data written to: kv/apisix/rsa1
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                            "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {
@@ -690,6 +699,7 @@ GET /t
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "header": "jwt-header",
                             "query": "jwt-query",
                             "cookie": "jwt-cookie",

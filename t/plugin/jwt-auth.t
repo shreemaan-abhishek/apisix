@@ -112,7 +112,9 @@ passed
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                          "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {
@@ -372,7 +374,9 @@ passed
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                            "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {
@@ -572,7 +576,9 @@ passed
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                            "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {
@@ -668,7 +674,9 @@ passed
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                            "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {
@@ -793,7 +801,9 @@ passed
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                            "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {
@@ -909,7 +919,9 @@ passed
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                            "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {
@@ -999,7 +1011,9 @@ passed
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                            "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {
@@ -1247,7 +1261,9 @@ passed
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                            "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {

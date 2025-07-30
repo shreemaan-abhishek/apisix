@@ -26,6 +26,7 @@ __DATA__
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "key": "custom-user-key",
                             "secret": "custom-secret-key",
                             "key_claim_name": "iss"

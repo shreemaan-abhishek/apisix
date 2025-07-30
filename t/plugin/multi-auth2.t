@@ -75,7 +75,9 @@ passed
                                     "key-auth": {}
                                 },
                                 {
-                                    "jwt-auth": {}
+                                "jwt-auth": {
+                                        "claims_to_verify": ["exp"]
+                                    }
                                 },
                                 {
                                     "hmac-auth": {}
@@ -240,6 +242,7 @@ passed
                     "username": "jack",
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "key": "user-key",
                             "secret": "my-secret-key"
                         }
@@ -321,6 +324,7 @@ failed to authenticate the request
                                 },
                                 {
                                     "jwt-auth": {
+                                        "claims_to_verify": ["exp"],
                                         "anonymous_consumer": "not-found-anonymous"
                                     }
                                 },

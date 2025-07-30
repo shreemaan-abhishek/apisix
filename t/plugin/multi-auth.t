@@ -78,6 +78,7 @@ passed
                                 },
                                 {
                                     "jwt-auth": {
+                                        "claims_to_verify": ["exp"],
                                         "hide_credentials": true
                                     }
                                 }
@@ -350,6 +351,7 @@ hello world
                                 },
                                 {
                                     "jwt-auth": {
+                                        "claims_to_verify": ["exp"],
                                         "cookie": "jwt",
                                         "query": "jwt",
                                         "hide_credentials": true,

@@ -101,6 +101,7 @@ passed
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "anonymous_consumer": "anonymous"
                         }
                     },

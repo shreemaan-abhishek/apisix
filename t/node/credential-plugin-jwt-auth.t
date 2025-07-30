@@ -16,7 +16,9 @@ __DATA__
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                          "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {

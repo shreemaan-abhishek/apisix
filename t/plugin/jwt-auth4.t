@@ -73,7 +73,9 @@ passed
                 ngx.HTTP_PUT,
                 [[{
                     "plugins": {
-                        "jwt-auth": {}
+                        "jwt-auth": {
+                            "claims_to_verify": ["exp"]
+                        }
                     },
                     "upstream": {
                         "nodes": {
@@ -342,17 +344,7 @@ passed
 
 
 
-=== TEST 13: verify success with expired token
---- request
-GET /hello
---- more_headers
-Authorization: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6MTU2Mzg3MDUwMX0.pPNVvh-TQsdDzorRwa-uuiLYiEBODscp9wv0cwD6c68
---- response_body
-hello world
-
-
-
-=== TEST 14: verify failed before nbf claim
+=== TEST 13: verify failed before nbf claim
 --- request
 GET /hello
 --- more_headers
@@ -365,13 +357,47 @@ qr/failed to verify jwt/
 
 
 
-=== TEST 15: verify success after nbf claim
+=== TEST 14: verify success after nbf claim
 --- request
 GET /hello
 --- more_headers
 Authorization: eyJhbGciOiJIUzM4NCIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJ1c2VyLWtleSIsImV4cCI6MTU2Mzg3MDUwMSwibmJmIjoxNzI5Njc1MDQyfQ.IycpH4Lc48BHSxUBXBNDXGawvNgi_6a-qsa-xnhYFLooeWc8DyX8zLadvyEFpMPq
 --- response_body
 hello world
+
+
+
+=== TEST 15: only verify exp claim
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "plugins": {
+                        "jwt-auth": {
+                            "claims_to_verify": ["exp"]
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "uri": "/hello"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
 
 
 

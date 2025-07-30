@@ -221,15 +221,13 @@ function _M.verify_claims(self, claims, conf)
 
     for _, claim_name in ipairs(claims) do
         local claim = self.payload[claim_name]
-        if claim then
-            local checker = claims_checker[claim_name]
-            if type(claim) ~= checker.type then
-                return false, "claim " .. claim_name .. " is not a " .. checker.type
-            end
-            local ok, err = checker.check(claim, conf)
-            if not ok then
-                return false, err
-            end
+        local checker = claims_checker[claim_name]
+        if type(claim) ~= checker.type then
+            return false, "claim " .. claim_name .. " is not a " .. checker.type
+        end
+        local ok, err = checker.check(claim, conf)
+        if not ok then
+            return false, err
         end
     end
 

@@ -73,6 +73,7 @@ passed
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "header": "jwt-header",
                             "query": "jwt-query",
                             "cookie": "jwt-cookie"
@@ -222,6 +223,7 @@ hello world
                     "username": "kerouac",
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "exp": 1,
                             "algorithm": "HS256",
                             "base64_secret": false,
@@ -243,6 +245,7 @@ hello world
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "query": "jwt",
                             "header": "Mytoken",
                             "cookie": "jwt"
@@ -414,6 +417,7 @@ qr/ailed to verify jwt: 'exp' claim expired at/
                 [[{
                     "plugins": {
                         "jwt-auth": {
+                            "claims_to_verify": ["exp"],
                             "query": "jwt",
                             "header": "Mytoken",
                             "cookie": "jwt"
