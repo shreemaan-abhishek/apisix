@@ -413,6 +413,12 @@ http {
     lua_shared_dict plugin-limit-count-advanced 10m;
     {% end %}
 
+    {% if http.lua_shared_dict["plugin-limit-count-advanced-lock"] then %}
+    lua_shared_dict plugin-limit-count-advanced-lock {* http.lua_shared_dict["plugin-limit-count-advanced-lock"] *};
+    {% else %}
+    lua_shared_dict plugin-limit-count-advanced-lock 10m;
+    {% end %}
+
     {% if http.lua_shared_dict["plugin-limit-count-advanced-redis-cluster-slot-lock"] then %}
     lua_shared_dict plugin-limit-count-advanced-redis-cluster-slot-lock {* http.lua_shared_dict["plugin-limit-count-advanced-redis-cluster-slot-lock"] *};
     {% else %}

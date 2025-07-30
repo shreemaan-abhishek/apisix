@@ -36,6 +36,7 @@ local ngx_sleep = ngx.sleep
 local ngx_timer = ngx.timer
 
 local shdict_name = "plugin-limit-count-advanced"
+local lock_shdict_name = shdict_name .. "-lock"
 local shd = ngx.shared[shdict_name]
 assert(shd, "get shared dict(" .. shdict_name .. ") failed")
 
@@ -123,7 +124,7 @@ end
 
 
 function _M.delayed_sync(self, key, cost, syncer_id)
-    local locker, err = resty_lock:new(shdict_name)
+    local locker, err = resty_lock:new(lock_shdict_name)
     if not locker then
         core.log.error("new resty locker failed: ", err, ", syncer_id: ", syncer_id)
         return nil, nil, err
@@ -364,7 +365,7 @@ function _M.sync(self, syncer_id, time_to_sync)
         tab_insert(local_delta_keys_uniq, key)
     end
 
-    local locker, err = resty_lock:new(shdict_name)
+    local locker, err = resty_lock:new(lock_shdict_name)
     if not locker then
         core.log.error("new resty locker failed: ", err, ", syncer_id: ", syncer_id)
         return

@@ -572,6 +572,7 @@ _EOC_
     lua_shared_dict plugin-limit-count 10m;
     lua_shared_dict plugin-limit-count-reset-header 10m;
     lua_shared_dict plugin-limit-count-advanced 10m;
+    lua_shared_dict plugin-limit-count-advanced-lock 10m;
     lua_shared_dict plugin-limit-count-advanced-redis-cluster-slot-lock 1m;
     lua_shared_dict plugin-limit-count-advanced-reset-header 10m;
     lua_shared_dict plugin-limit-conn 10m;
