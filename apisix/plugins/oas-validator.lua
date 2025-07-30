@@ -101,7 +101,7 @@ function _M.access(conf, ctx)
                                                     conf.skip_query_param_validation)
 
     if not ok then
-        core.log.error("error occured while validating request, err: " .. err)
+        core.log.warn("error occured while validating request, err: " .. err)
         if not conf.verbose_errors then
             err = ""
         end
