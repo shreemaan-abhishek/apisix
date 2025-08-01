@@ -58,8 +58,7 @@ local schema = {
                 type = "string",
                 enum = {"exp","nbf"},
             },
-            uniqueItems = true,
-            default = {"exp", "nbf"},
+            uniqueItems = true
         },
         key_claim_name = {
             type = "string",
