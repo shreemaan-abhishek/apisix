@@ -178,7 +178,7 @@ local function get_parsed_request_body(ctx)
     if core_str.find(ct_header, CONTENT_TYPE_JSON) then
         local request_table, err = request.get_json_request_body_table()
         if not request_table then
-            return nil, "failed to parse JSON body: " .. err
+            return nil, "failed to parse JSON body: " .. (err and err.message)
         end
         return request_table
     end

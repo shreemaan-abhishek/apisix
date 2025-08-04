@@ -272,3 +272,17 @@ POST /hello
 --- more_headers
 Content-Type: application/json
 --- error_code: 200
+
+
+
+=== TEST 13: send request with invalid body should not panic
+--- request
+POST /hello
+{ "model":{"name": "deepseek"}, "messages": [ { "role": "system", "content": [{
+--- more_headers
+Content-Type: application/json
+--- error_code: 404
+--- error_log
+failed to parse JSON body: could not get parse JSON request body:
+--- no_error_log
+attempt to concatenate local 'err'
