@@ -14,8 +14,9 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
-local core = require("apisix.core")
-local limit_conn = require("apisix.plugins.limit-conn.init")
+local core                              = require("apisix.core")
+local limit_conn                        = require("apisix.plugins.limit-conn.init")
+local workflow                           = require("apisix.plugins.workflow")
 
 
 local plugin_name = "limit-conn"
@@ -64,5 +65,17 @@ function _M.log(conf, ctx)
     return limit_conn.decrease(conf, ctx)
 end
 
+function _M.workflow_handler()
+    workflow.register(plugin_name,
+    function (conf) -- schema validation
+        return core.schema.check(schema, conf)
+    end,
+    function (conf, ctx) -- handler run in access phase
+        return limit_conn.increase(conf, ctx, plugin_name, 1)
+    end,
+    function (conf, ctx) -- log_handler run in log phase
+        return limit_conn.decrease(conf, ctx, plugin_name, 1)
+    end)
+end
 
 return _M
