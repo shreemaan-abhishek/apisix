@@ -1315,3 +1315,73 @@ passed
 hello world
 --- skip_eval
 1: $ENV{OPENSSL_FIPS} eq 'yes'
+
+
+
+=== TEST 54: create jwt-auth without claims_to_verify
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "plugins": {
+                        "jwt-auth": {}
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "uri": "/hello"
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 55: add consumer with username and plugins
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/consumers',
+                ngx.HTTP_PUT,
+                [[{
+                    "username": "jack",
+                    "plugins": {
+                        "jwt-auth": {
+                            "key": "jack",
+                            "secret": "543790d2-c47c-4f9f-aca3-1779dc9b94a6"
+                        }
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 56: send request with a expired jwt token
+--- request
+GET /hello?jwt=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJrZXkiOiJqYWNrIiwiZXhwIjoxNzU0NTIzOTExfQ.xeFCgo0d3MkMVqPIJDAaN4_mjIMv--yCsfHPnuRWD34
+--- error_code: 200
+--- response_body
+hello world

@@ -206,17 +206,9 @@ function _M.verify_signature(self, key)
 end
 
 
-function _M.get_default_claims(self)
-    return {
-        "nbf",
-        "exp"
-    }
-end
-
-
 function _M.verify_claims(self, claims, conf)
     if not claims then
-        claims = self:get_default_claims()
+        return true
     end
 
     for _, claim_name in ipairs(claims) do
