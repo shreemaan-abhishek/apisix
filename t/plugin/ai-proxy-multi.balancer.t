@@ -917,20 +917,14 @@ distribution: deepseek: 10
                                     "weight": 10
                                     },
                                 {
-                                    "auth": {
-                                        "header": {
-                                            "Authorization": "Bearer token"
-                                        }
-                                    },
+                                    "auth": {"header": {"Authorization": "Bearer token"}},
                                     "name": "mock-200",
-                                    "override": {
-                                        "endpoint": "http://localhost:6724/chat/completions"
-                                    },
+                                    "override": {"endpoint": "http://localhost:6724/chat/completions"},
                                     "priority": 0,
                                     "provider": "openai-compatible",
                                     "weight": 1
                                     }
-                            ],                            
+                            ],
                             "ssl_verify": false
                         }
                     }
@@ -1272,3 +1266,57 @@ GET /t
 disabled upstream healthcheck
 distribution: deepseek: 5
 distribution: openai: 5
+
+
+
+=== TEST 20: set route with only one instance and configure it with http_5xx fallback_strategy
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local json = require("toolkit.json")
+            local request_body = {
+                uri = "/anything",
+                plugins = {
+                    ["ai-proxy-multi"] = {
+                        fallback_strategy = {"http_5xx"},
+                        instances = {
+                          {
+                            name = "deepseek",
+                            provider = "deepseek",
+                            auth = {
+                                header = {Authorization = "Bearer token" }
+                            },
+                            weight = 1,
+                            override = { endpoint = "http://localhost:6727" }
+                          }
+                        },
+                        ssl_verify = false
+                    }
+                }
+            }
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 json.encode(request_body)
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 21: send request
+--- request
+POST /anything
+{ "messages": [ { "role": "system", "content": "You are a mathematician" }, { "role": "user", "content": "What is 1+1?"} ] }
+--- more_headers
+Host: openai_internal_error
+--- error_code: 500
+--- no_error_log
+[error]
