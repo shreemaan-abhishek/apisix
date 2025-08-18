@@ -515,6 +515,7 @@ plugins:                          # plugin list (sorted by priority)
   #- dubbo-proxy                   # priority: 507
   - grpc-transcode                 # priority: 506
   - grpc-web                       # priority: 505
+  - soap                           # priority: 504
   - public-api                     # priority: 501
   - prometheus                     # priority: 500
   - datadog                        # priority: 495
@@ -577,6 +578,9 @@ plugin_attr:
     service_name: APISIX
     service_instance_name: APISIX Instance Name
     endpoint_addr: http://127.0.0.1:12800
+  soap:
+    endpoint: http://127.0.0.1:5000
+    timeout: 3000
   prometheus:
     export_uri: /apisix/prometheus/metrics
     metric_prefix: apisix_

@@ -398,6 +398,24 @@ services:
     networks:
       vector_net:
 
+  soap-server:
+    image: api7/soap-server
+    hostname: soap-server
+    restart: always
+    networks:
+      - apisix_net
+
+  soap-proxy:
+    hostname: soap-proxy
+    build:
+      context: .
+      dockerfile: ci/pod/soap-proxy/Dockerfile
+    restart: always
+    ports:
+      - "15001:5000"
+    networks:
+      - apisix_net
+
   openapi-petstore:
     image: swaggerapi/petstore3:1.0.19
     ports:
