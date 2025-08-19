@@ -136,12 +136,14 @@ build-image-pre:
 build-image: build-image-pre
 	@docker build -t ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}-${ARCH} .
 	@if docker run --entrypoint cat --rm -i ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}-${ARCH} /usr/local/apisix/apisix/core.lua | file - | grep -q 'ASCII text'; then echo "code obfuscation did not work"; exit 1; fi
+	@docker build -f Dockerfile-root --build-arg GATEWAY_IMAGE=${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}-${ARCH} -t ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway-root:${IMAGE_TAG}-${ARCH} .
 
 
 ### Push docker image
 .PHONY: push-image
 push-image: build-image
 	@docker push ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}-${ARCH}
+	@docker push ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway-root:${IMAGE_TAG}-${ARCH}
 
 ### Create and push docker manifest (multi-arch image)
 .PHONY: docker-manifest
@@ -151,3 +153,8 @@ docker-manifest:
     docker manifest annotate ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG} ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}-$${arch} --arch $${arch}; \
 	done
 	docker manifest push ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway:${IMAGE_TAG}
+	for arch in $(LINUX_ARCH); do \
+		docker manifest create --amend ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway-root:${IMAGE_TAG} ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway-root:${IMAGE_TAG}-$${arch}; \
+    docker manifest annotate ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway-root:${IMAGE_TAG} ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway-root:${IMAGE_TAG}-$${arch} --arch $${arch}; \
+	done
+	docker manifest push ${REGISTRY}/${REGISTRY_NAMESPACE}/api7-ee-3-gateway-root:${IMAGE_TAG}

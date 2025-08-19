@@ -1,0 +1,3 @@
+ARG GATEWAY_IMAGE=api7/api7-ee-3-gateway
+FROM ${GATEWAY_IMAGE}
+USER root

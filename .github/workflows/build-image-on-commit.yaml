@@ -5,6 +5,7 @@ on:
       - main
     paths:
       - Dockerfile
+      - Dockerfile-root
   push:
     branches:
       - main
