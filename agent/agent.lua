@@ -52,7 +52,7 @@ local payload = {
     ports = utils.get_listen_ports(),
 }
 
-local control_plane_token = getenv("API7_CONTROL_PLANE_TOKEN")
+local control_plane_token = getenv("API7_DP_MANAGER_TOKEN") or getenv("API7_CONTROL_PLANE_TOKEN")
 local AUTH_HEADER = "Control-Plane-Token"
 local headers = {
     ["Content-Type"] = "application/json",

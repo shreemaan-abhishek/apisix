@@ -192,10 +192,6 @@ run_tests;
 __DATA__
 
 === TEST 1: enable jwt-auth plugin
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -234,10 +230,6 @@ passed
 
 
 === TEST 2: create public API route (jwt-auth sign)
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -264,10 +256,6 @@ passed
 
 
 === TEST 3: sign / verify in argument
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -299,10 +287,6 @@ consumer_query api receive header [control-plane-token: a7ee-token]
 
 
 === TEST 4: enable jwt-auth plugin with anonymous consumer
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -343,10 +327,6 @@ passed
 === TEST 5: invalid authorization header will lead to fallback to anonymous consumer logic
 # in the mock DPM server, an anonymous consumer is configured with limit-count plugin
 # in this test we verify the execution of limit-count plugin
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- pipelined_requests eval
 ["GET /hello", "GET /hello"]
 --- more_headers eval
@@ -357,10 +337,6 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 
 
 === TEST 6: same test as above but pass no authorization header
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- pipelined_requests eval
 ["GET /hello", "GET /hello"]
 --- error_code eval
@@ -369,10 +345,6 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 
 
 === TEST 7: enable jwt-auth plugin with non-existent anonymous consumer
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -411,10 +383,6 @@ passed
 
 
 === TEST 8: anonymous-consumer configured in the route should not be found
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /hello
 --- error_code: 401

@@ -33,10 +33,6 @@ run_tests;
 __DATA__
 
 === TEST 1: heartbeat and telemetry requests will send one by one when http request timeout
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:

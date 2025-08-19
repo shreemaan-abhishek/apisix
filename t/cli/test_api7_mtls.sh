@@ -39,7 +39,7 @@ deployment:
       verify: false
   ' > conf/config.yaml
 
-  out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) make init 2>&1 || echo "ouch")
+  out=$(API7_DP_MANAGER_CERT=$(cat t/certs/mtls_client.crt) API7_DP_MANAGER_KEY=$(cat t/certs/mtls_client.key) make init 2>&1 || echo "ouch")
 if echo "$out" | grep "bad certificate"; then
     echo "failed: apisix should not echo \"bad certificate\""
     exit 1
@@ -47,7 +47,7 @@ fi
 
 echo "passed: certificate verify success expectedly"
 
-# success: set env API7_CONTROL_PLANE_CA and verify: false
+# success: set env API7_DP_MANAGER_CA and verify: false
 echo '
 deployment:
   role: traditional
@@ -61,7 +61,7 @@ deployment:
       verify: false
   ' > conf/config.yaml
 
-  out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) API7_CONTROL_PLANE_CA=$(cat t/certs/mtls_ca.crt) make init 2>&1 || echo "ouch")
+  out=$(API7_DP_MANAGER_CERT=$(cat t/certs/mtls_client.crt) API7_DP_MANAGER_KEY=$(cat t/certs/mtls_client.key) API7_DP_MANAGER_CA=$(cat t/certs/mtls_ca.crt) make init 2>&1 || echo "ouch")
 if echo "$out" | grep -E 'bad certificate|certificate verify failed'; then
     echo "failed: apisix should not echo \"bad certificate\" or \"certificate verify failed\""
     exit 1
@@ -69,7 +69,7 @@ fi
 
 echo "passed: certificate verify success expectedly"
 
-# failed: should set ssl_trusted_certificate or API7_CONTROL_PLANE_CA
+# failed: should set ssl_trusted_certificate or API7_DP_MANAGER_CA
 echo '
 deployment:
   role: traditional
@@ -83,7 +83,7 @@ deployment:
       verify: true
   ' > conf/config.yaml
 
-  out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) make init 2>&1 || echo "ouch")
+  out=$(API7_DP_MANAGER_CERT=$(cat t/certs/mtls_client.crt) API7_DP_MANAGER_KEY=$(cat t/certs/mtls_client.key) make init 2>&1 || echo "ouch")
 if ! echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat|certificate verify failed'; then
     echo "failed: apisix should echo \"bad certificate\" or \"should set ssl_trusted_certificat\" or \"certificate verify failed\""
     exit 1
@@ -91,7 +91,7 @@ fi
 
 echo "passed: certificate verify success expectedly"
 
-# success: set env API7_CONTROL_PLANE_CA and verify: true
+# success: set env API7_DP_MANAGER_CA and verify: true
 echo '
 deployment:
   role: traditional
@@ -107,7 +107,7 @@ deployment:
 
 echo "" > logs/error.log
 
-  out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) API7_CONTROL_PLANE_CA=$(cat t/certs/mtls_ca.crt) make run 2>&1 || echo "ouch")
+  out=$(API7_DP_MANAGER_CERT=$(cat t/certs/mtls_client.crt) API7_DP_MANAGER_KEY=$(cat t/certs/mtls_client.key) API7_DP_MANAGER_CA=$(cat t/certs/mtls_ca.crt) make run 2>&1 || echo "ouch")
 if echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat|certificate verify failed'; then
     echo "failed: apisix should not echo \"bad certificate\" or \"should set ssl_trusted_certificat\" or \"certificate verify failed\""
     exit 1
@@ -141,7 +141,7 @@ deployment:
 
 echo "" > logs/error.log
 
-  out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) API7_CONTROL_PLANE_CA=$(cat t/certs/mtls_ca.crt) make run 2>&1 || echo "ouch")
+  out=$(API7_DP_MANAGER_CERT=$(cat t/certs/mtls_client.crt) API7_DP_MANAGER_KEY=$(cat t/certs/mtls_client.key) API7_DP_MANAGER_CA=$(cat t/certs/mtls_ca.crt) make run 2>&1 || echo "ouch")
 if echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat|certificate host mismatch'; then
     echo "failed: apisix should not echo \"bad certificate\" or \"should set ssl_trusted_certificat\""
     exit 1
@@ -178,7 +178,7 @@ deployment:
 
 echo "" > logs/error.log
 
-  out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) API7_CONTROL_PLANE_CA=$(cat t/certs/mtls_ca.crt) API7_CONTROL_PLANE_SNI=admin.apisix.dev make run 2>&1 || echo "ouch")
+  out=$(API7_DP_MANAGER_CERT=$(cat t/certs/mtls_client.crt) API7_DP_MANAGER_KEY=$(cat t/certs/mtls_client.key) API7_DP_MANAGER_CA=$(cat t/certs/mtls_ca.crt) API7_DP_MANAGER_SNI=admin.apisix.dev make run 2>&1 || echo "ouch")
 if echo "$out" | grep -E 'bad certificate|should set ssl_trusted_certificat'; then
     echo "failed: apisix should not echo \"bad certificate\" or \"should set ssl_trusted_certificat\""
     exit 1
@@ -211,7 +211,7 @@ deployment:
   ' > conf/config.yaml
 
 echo "" > logs/error.log
-  out=$(API7_CONTROL_PLANE_CERT=$(cat t/certs/mtls_client.crt) API7_CONTROL_PLANE_KEY=$(cat t/certs/mtls_client.key) make init 2>&1 || echo "ouch")
+  out=$(API7_DP_MANAGER_CERT=$(cat t/certs/mtls_client.crt) API7_DP_MANAGER_KEY=$(cat t/certs/mtls_client.key) make init 2>&1 || echo "ouch")
 
 #check if file exists
 if [ ! -f /tmp/api7ee.crt ]; then

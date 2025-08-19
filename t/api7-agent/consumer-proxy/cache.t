@@ -176,10 +176,6 @@ run_tests;
 __DATA__
 
 === TEST 1: enable key-auth plugin
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -216,10 +212,6 @@ passed
 
 
 === TEST 2: release consumer cache
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -253,10 +245,6 @@ release consuemr cache, new config version: 5
 
 
 === TEST 3: switch to consumer proxy
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -297,10 +285,6 @@ passed
 
 
 === TEST 4: switch off consumer proxy
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -368,10 +352,6 @@ passed
 
 
 === TEST 5: 404 will be cached
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -404,10 +384,6 @@ not found consumer in nginx proxy
 
 
 === TEST 6: 500 will not be cached
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {

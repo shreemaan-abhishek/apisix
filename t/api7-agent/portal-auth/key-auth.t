@@ -146,10 +146,6 @@ run_tests;
 __DATA__
 
 === TEST 1: enable key-auth plugin
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -192,10 +188,6 @@ passed
 
 
 === TEST 2: invalid apikey
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /hello
 --- more_headers
@@ -210,10 +202,6 @@ not found consumer, status: 404
 
 
 === TEST 3: access success
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /hello
 --- more_headers
@@ -227,10 +215,6 @@ receive data plane developer_query: key-auth, auth-one
 
 
 === TEST 4: enable key-auth plugin specify header and query
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -276,10 +260,6 @@ passed
 
 
 === TEST 5: specify invalid header
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /hello
 --- more_headers
@@ -293,10 +273,6 @@ Missing API key found in request
 
 
 === TEST 6: specify invalid query
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /hello?apikey=auth-one
 --- error_code: 401
@@ -308,10 +284,6 @@ Missing API key found in request
 
 
 === TEST 7: access success with header authkey
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /hello
 --- more_headers
@@ -325,10 +297,6 @@ receive data plane developer_query: key-auth, auth-one
 
 
 === TEST 8: access success with query authkey
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /hello?authkey=auth-one
 --- error_code: 200
@@ -340,10 +308,6 @@ receive data plane developer_query: key-auth, auth-one
 
 
 === TEST 9: add route 2
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -389,10 +353,6 @@ passed
 
 
 === TEST 10: route 2 is forbidden
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /hello_chunked
 --- more_headers
@@ -407,10 +367,6 @@ receive data plane developer_query: key-auth, auth-one
 
 
 === TEST 11: access success with header authkey
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /hello
 --- more_headers
@@ -425,10 +381,6 @@ receive data plane developer_query: key-auth, auth-one
 
 
 === TEST 12: set service 1
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -473,10 +425,6 @@ passed
 
 
 === TEST 13: route refer to service 1
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -526,10 +474,6 @@ passed
 
 
 === TEST 14: control plane receive service_id
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /log_request
 --- more_headers
@@ -542,10 +486,6 @@ receive data plane developer_query: key-auth, auth-one, 1
 
 
 === TEST 15: access upstream with more headers x-api7-portal-*
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /log_request
 --- more_headers
@@ -562,10 +502,6 @@ x-api7-portal-subscription-id: 6e8954e6-c95e-40cc-b778-688efd65a90b
 
 
 === TEST 16: access upstream with request_id header
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- request
 GET /log_request
 --- more_headers
@@ -577,10 +513,6 @@ qr/x-api7-portal-request-id: [0-9a-f-]+,/
 
 
 === TEST 17: api_product_id label present in prometheus metrics
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- pipelined_requests eval
 ["GET /log_request", "GET /log_request", "GET /apisix/prometheus/metrics"]
 --- error_code eval
@@ -591,10 +523,6 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 
 
 === TEST 18: api_product_id and consumer labels present in prometheus metrics
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- pipelined_requests eval
 ["GET /log_request", "GET /log_request", "GET /apisix/prometheus/metrics"]
 --- more_headers

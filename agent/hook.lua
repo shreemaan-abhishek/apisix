@@ -56,7 +56,8 @@ local function update_conf_for_etcd(etcd_conf)
     })
 
     etcd_conf.extra_headers[GATEWAY_INSTANCE_ID_HEADER] = id.get
-    etcd_conf.extra_headers[AUTH_HEADER] = getenv("API7_CONTROL_PLANE_TOKEN")
+    etcd_conf.extra_headers[AUTH_HEADER] = getenv("API7_DP_MANAGER_TOKEN")
+                                            or getenv("API7_CONTROL_PLANE_TOKEN")
     if run_id then
         etcd_conf.extra_headers[RUN_ID_HEADER] = run_id
     end
@@ -186,7 +187,7 @@ local function hook()
     local etcd_conf = core.table.try_read_attr(local_conf, "deployment", "etcd")
     local ssl_conf = core.table.try_read_attr(local_conf, "apisix", "ssl")
 
-    local endpoint = getenv("API7_CONTROL_PLANE_ENDPOINT_DEBUG")
+    local endpoint = getenv("API7_DP_MANAGER_ENDPOINT_DEBUG")
     if not endpoint or endpoint == "" then
         endpoint = etcd_conf.host[1]
     end
@@ -262,7 +263,7 @@ local function hook()
         run_id = run_id,
     })
 
-    local skip_first_heartbeat = getenv("API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG")
+    local skip_first_heartbeat = getenv("API7_SKIP_FIRST_HEARTBEAT_DEBUG")
     if skip_first_heartbeat == "true" then
         return
     end

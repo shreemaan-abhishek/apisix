@@ -37,7 +37,7 @@ local io_stderr = io.stderr
 local getenv = os.getenv
 
 local AUTH_HEADER = "Control-Plane-Token"
-local control_plane_token = getenv("API7_CONTROL_PLANE_TOKEN")
+local control_plane_token = getenv("API7_DP_MANAGER_TOKEN") or getenv("API7_CONTROL_PLANE_TOKEN")
 
 local _M = {}
 

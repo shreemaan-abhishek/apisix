@@ -88,10 +88,6 @@ run_tests;
 __DATA__
 
 === TEST 1: test incremented api call count in heartbeat
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
@@ -130,10 +126,6 @@ passed
 
 
 === TEST 2: send multiple requests to test the api call count
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
@@ -167,10 +159,6 @@ qr/the payload\.api_calls is: 2/
 
 
 === TEST 3: create a route that return any status code
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
@@ -216,10 +204,6 @@ passed
 
 
 === TEST 4: send multiple requests to test the api call count
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:

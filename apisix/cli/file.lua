@@ -119,18 +119,17 @@ end
 _M.resolve_conf_var = resolve_conf_var
 
 local function replace_by_reserved_env_vars(conf, overwrite_temporary_file)
-    -- TODO: support more reserved environment variables
-    -- support APISIX_DEPLOYMENT_ETCD_HOST and API7_CONTROL_PLANE_ENDPOINTS
     if not conf["deployment"] or not conf["deployment"]["etcd"] then
         return
     end
 
     local path = "/tmp/"
-    local v = getenv("API7_CONTROL_PLANE_ENDPOINTS") or getenv("APISIX_DEPLOYMENT_ETCD_HOST")
+    local v = getenv("API7_DP_MANAGER_ENDPOINTS") or getenv("API7_CONTROL_PLANE_ENDPOINTS")
+                    or getenv("APISIX_DEPLOYMENT_ETCD_HOST")
     if v then
         local val, _, err = dkjson.decode(v)
         if err or not val then
-            print("parse ${API7_CONTROL_PLANE_ENDPOINTS} failed, error:", err)
+            print("parse ${API7_DP_MANAGER_ENDPOINTS} failed, error:", err)
             return
         end
 
@@ -139,13 +138,13 @@ local function replace_by_reserved_env_vars(conf, overwrite_temporary_file)
 
     conf["deployment"]["etcd"]["tls"] = conf["deployment"]["etcd"]["tls"] or {}
 
-    local sni = getenv("API7_CONTROL_PLANE_SNI")
+    local sni = getenv("API7_DP_MANAGER_SNI") or getenv("API7_CONTROL_PLANE_SNI")
     if sni then
         conf["deployment"]["etcd"]["tls"]["sni"] = sni
     end
 
-    local cp_cert = getenv("API7_CONTROL_PLANE_CERT")
-    local cp_key = getenv("API7_CONTROL_PLANE_KEY")
+    local cp_cert = getenv("API7_DP_MANAGER_CERT") or getenv("API7_CONTROL_PLANE_CERT")
+    local cp_key = getenv("API7_DP_MANAGER_KEY") or getenv("API7_CONTROL_PLANE_KEY")
 
     if not cp_cert or not cp_key then
         return
@@ -167,7 +166,7 @@ local function replace_by_reserved_env_vars(conf, overwrite_temporary_file)
     conf["deployment"]["etcd"]["tls"]["cert"] = cert_path
     conf["deployment"]["etcd"]["tls"]["key"] = key_path
 
-    local ca = getenv("API7_CONTROL_PLANE_CA")
+    local ca = getenv("API7_DP_MANAGER_CA") or getenv("API7_CONTROL_PLANE_CA")
     if not ca then
         return
     end

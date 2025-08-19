@@ -89,10 +89,6 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1984
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -123,10 +119,6 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1984
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /apisix/collect_nginx_status {
         content_by_lua_block {
@@ -154,10 +146,6 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1984
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /apisix/collect_nginx_status {
         content_by_lua_block {
@@ -185,10 +173,6 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1984
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /apisix/collect_nginx_status {
         content_by_lua_block {
@@ -216,10 +200,6 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1984
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /apisix/collect_nginx_status {
         content_by_lua_block {
@@ -247,10 +227,6 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1984
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /apisix/collect_nginx_status {
         content_by_lua_block {
@@ -278,10 +254,6 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1984
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /apisix/collect_nginx_status {
         content_by_lua_block {
@@ -309,10 +281,6 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1984
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /apisix/collect_nginx_status {
         content_by_lua_block {
@@ -340,10 +308,6 @@ plugin_attr:
   prometheus:
     export_addr:
       port: 1984
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /apisix/collect_nginx_status {
         content_by_lua_block {

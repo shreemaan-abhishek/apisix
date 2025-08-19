@@ -275,6 +275,10 @@ env PATH; # for searching external plugin runner's binary
 env TEST_NGINX_HTML_DIR;
 env OPENSSL111_BIN;
 env OPENSSL_BIN;
+
+env API7_DP_MANAGER_TOKEN=a7ee-token;
+env API7_DP_MANAGER_ENDPOINT_DEBUG=http://127.0.0.1:1980;
+env API7_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 _EOC_
 
 

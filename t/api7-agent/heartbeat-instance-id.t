@@ -101,10 +101,6 @@ run_tests;
 __DATA__
 
 === TEST 1: instance_id rotation
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {

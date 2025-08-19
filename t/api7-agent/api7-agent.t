@@ -123,8 +123,7 @@ __DATA__
 
 === TEST 1: heartbeat failed
 --- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1234;
+env API7_DP_MANAGER_ENDPOINT_DEBUG=http://127.0.0.1:1234;
 --- config
     location /t {
         content_by_lua_block {
@@ -138,10 +137,6 @@ heartbeat failed
 
 
 === TEST 2: upload metrics success
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
@@ -162,10 +157,6 @@ upload metrics to control plane successfully
 
 
 === TEST 3: set telemetry interval
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
@@ -188,10 +179,6 @@ upload metrics to control plane successfully
 
 
 === TEST 4: upload truncated metrics success
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
@@ -218,10 +205,6 @@ upload metrics to control plane successfully
 
 
 === TEST 5: disable telemetry
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
@@ -242,9 +225,6 @@ disabled send telemetry data to control plane
 
 
 === TEST 6: fetch nginx API related metrics failed
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
@@ -266,10 +246,6 @@ fetch nginx metrics error connection refused
 
 
 === TEST 7: get new config
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
@@ -287,10 +263,6 @@ config version changed, old version: 0, new version: 1
 
 
 === TEST 8: create stream_proxy
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 apisix:
   stream_proxy:
@@ -352,10 +324,6 @@ passed
 
 
 === TEST 9: test stream route
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 apisix:
   stream_proxy:
@@ -373,10 +341,6 @@ qr/400 Bad Request/
 
 
 === TEST 10: test service discovery
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 plugin_attr:
   prometheus:
@@ -410,10 +374,6 @@ discovery: kubernetes init worker
 
 
 === TEST 11: retrieve ETCD config with extra header
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- yaml_config
 apisix:
   id: ba5fe070
@@ -433,10 +393,6 @@ conf for etcd updated, the extra header Gateway-Instance-ID: ba5fe070
 
 
 === TEST 12: request etcd with Gateway-Version header
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {
@@ -453,10 +409,6 @@ env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- extra_init_by_lua_start
     require("apisix.core.version").VERSION = "3.1.1"
     require "agent.hook";
---- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1980;
-env API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG=true;
 --- config
     location /t {
         content_by_lua_block {

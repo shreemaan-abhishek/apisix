@@ -43,8 +43,7 @@ http.request = function(req_params)
 end
 require "agent.hook";
 --- main_config
-env API7_CONTROL_PLANE_TOKEN=a7ee-token;
-env API7_CONTROL_PLANE_ENDPOINT_DEBUG=http://127.0.0.1:1234;
+env API7_DP_MANAGER_ENDPOINT_DEBUG=http://127.0.0.1:1234;
 --- config
     location /t {
         content_by_lua_block {

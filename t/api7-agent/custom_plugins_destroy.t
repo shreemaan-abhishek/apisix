@@ -1,5 +1,5 @@
 BEGIN {
-    $ENV{API7_CONTROL_PLANE_SKIP_FIRST_HEARTBEAT_DEBUG} = "true";
+    $ENV{API7_SKIP_FIRST_HEARTBEAT_DEBUG} = "true";
 }
 use t::APISIX 'no_plan';
 

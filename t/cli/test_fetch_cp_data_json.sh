@@ -26,7 +26,7 @@ sleep 3
 
 # set API7_GATEWAY_GROUP_SHORT_ID such that the prefix matches bucket name for mock-s3
 export API7_GATEWAY_GROUP_SHORT_ID="default"
-export API7_CONTROL_PLANE_TOKEN="somerandomtoken"
+export API7_DP_MANAGER_TOKEN="somerandomtoken"
 
 
 echo '
