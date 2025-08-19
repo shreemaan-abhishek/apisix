@@ -71,6 +71,8 @@ location /t {
             return
         end
 
+        ngx.sleep(1)
+
         local code, body = t('/apisix/admin/consumers',
             ngx.HTTP_PUT,
             [[{
@@ -128,9 +130,9 @@ location /t {
             return
         end
 
--- verify custom-key-auth
+        -- verify custom-key-auth
 
-    -- verify correct APIKEY
+        -- verify correct APIKEY
 
         local code, body = t("/hello", ngx.HTTP_GET, nil, nil, {
             apikey = "auth-one"
@@ -141,7 +143,7 @@ location /t {
             return
         end
 
-    -- verify incorrect APIKEY
+        -- verify incorrect APIKEY
 
         local code, body = t("/hello", ngx.HTTP_GET, nil, nil, {
             apikey = "not-auth-one"
@@ -152,11 +154,11 @@ location /t {
             return
         end
 
---------------------------------------------
+        --------------------------------------------
 
--- verify basic-auth
+        -- verify basic-auth
 
-    -- verify correct Authorization header
+        -- verify correct Authorization header
 
         local code, body = t("/hello", ngx.HTTP_GET, nil, nil, {
             Authorization = "Basic Zm9vOmJhcg=="
@@ -167,7 +169,7 @@ location /t {
             return
         end
 
-    -- verify incorrect Authorization header
+        -- verify incorrect Authorization header
 
         local code, body = t("/hello", ngx.HTTP_GET, nil, nil, {
             Authorization = "Basic wrong-token"

@@ -516,3 +516,85 @@ passed
 hello world
 passed
 {"error_msg":"404 Route Not Found"}
+
+
+
+=== TEST 14: the main watcher should be initialised once
+--- yaml_config
+apisix:
+  node_listen: 1984
+deployment:
+  role: traditional
+  role_traditional:
+    config_provider: etcd
+  admin:
+    admin_key: null
+  etcd:
+    host:
+      - "http://127.0.0.1:2379"
+    watch_timeout: 1
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.sleep(1)
+        }
+    }
+--- request
+GET /t
+--- grep_error_log eval
+qr/main etcd watcher initialised, revision=/
+--- grep_error_log_out
+main etcd watcher initialised, revision=
+main etcd watcher initialised, revision=
+
+
+
+=== TEST 15: watch revision should be upgraded when timeout occurs
+--- yaml_config
+deployment:
+  role: traditional
+  role_traditional:
+    config_provider: etcd
+  etcd:
+    host:
+      - "http://127.0.0.1:2379"
+    watch_timeout: 1
+    prefix: /apisix
+--- extra_yaml_config
+nginx_config:
+    worker_processes: 1
+--- config
+    location /t {
+        content_by_lua_block {
+            local etcd = require("resty.etcd")
+            local etcd_cli, err = etcd.new({
+                http_host = "http://127.0.0.1:2379",
+            })
+            if not etcd_cli then
+                ngx.say("failed to create etcd client: ", err)
+                return
+            end
+            ngx.sleep(2)
+            -- we will assert 4 lines of revision upgrade log because we have one worker and one privileged agent
+            for i = 1, 2 do
+               local _, err = etcd_cli:set("/apache", "apisix")
+               if err then
+                   ngx.say("failed to set key: ", err)
+                   return
+               end
+               ngx.sleep(1)
+            end
+            ngx.say("passed")
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+--- grep_error_log eval
+qr/etcd watch timeout, upgrade revision to/
+--- grep_error_log_out
+etcd watch timeout, upgrade revision to
+etcd watch timeout, upgrade revision to
+etcd watch timeout, upgrade revision to
+etcd watch timeout, upgrade revision to
