@@ -125,6 +125,10 @@ apisix:
   #  ip: 127.0.0.1
   #  port: 9090
   disable_sync_configuration_during_start: false  # safe exit. Remove this once the feature is stable
+
+  # This time will be used to distinguish whether the worker is started first time or restarted due to a crash, unit: second.
+  worker_startup_time_threshold: 60
+
   data_encryption:                # add `encrypt_fields = { $field },` in plugin schema to enable encryption
     enable: false                 # if not set, the default value is `false`.
     keyring:

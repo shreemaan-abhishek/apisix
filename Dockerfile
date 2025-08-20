@@ -2,7 +2,7 @@
 # --- refer: https://github.com/apache/apisix-docker/blob/master/debian/Dockerfile
 FROM debian:bookworm-slim AS runtime-builder
 
-ARG RUNTIME_VERSION=1.2.4
+ARG RUNTIME_VERSION=1.2.5
 
 RUN apt update && apt install -y wget gnupg ca-certificates
 RUN set -ex; \
