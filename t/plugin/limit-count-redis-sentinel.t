@@ -294,7 +294,7 @@ passed
 GET /hello
 --- error_code: 500
 --- error_log
-redis connection failed: NOAUTH Authentication required
+redis connection failed, err: NOAUTH Authentication required
 
 
 
@@ -382,3 +382,56 @@ passed
 ["GET /hello","GET /hello", "GET /hello", "GET /hello1", "GET /hello1"]
 --- error_code eval
 [200, 200, 503, 200, 503]
+
+
+
+=== TEST 11: create a limit-count-advanced with broken redis sentinels
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/hello",
+                    "plugins": {
+                        "limit-count-advanced": {
+                            "count": 2,
+                            "time_window": 2,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-sentinel",
+                            "redis_sentinels": [
+                                 {"host": "127.0.0.1", "port": 503},
+                                 {"host": "127.0.0.2", "port": 503}
+                             ],
+                             "redis_master_name": "mymaster",
+                             "redis_role": "master"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+                )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 12: send test request
+--- request
+GET /hello
+--- error_code: 500
+--- error_log
+failed to limit count: redis connection failed, err: no hosts available, previous_errors: connection refused, connection refused

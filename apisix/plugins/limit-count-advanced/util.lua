@@ -1,3 +1,4 @@
+local core = require("apisix.core")
 local redis_new = require("resty.redis").new
 local redis_sentinel = require("resty.redis.connector")
 local _M = {}
@@ -67,9 +68,15 @@ function _M.redis_cli_sentinel(conf)
         return nil, "failed to create redis client: " .. (err or "unknown error")
     end
 
-    local red, err = sentinel_client:connect()
+    -- In case of errors, returns "nil, err, previous_errors" where err is
+    -- the last error received, and previous_errors is a table of the previous errors.
+    local red, err, previous_errors = sentinel_client:connect()
     if not red then
-        return nil, "redis connection failed: " .. (err or "unknown error")
+        local err = "redis connection failed, err: " .. (err or "unknown error")
+        if previous_errors and #previous_errors > 0 then
+            err = err .. ", previous_errors: " .. core.table.concat(previous_errors, ", ")
+        end
+        return nil, err
     end
     return red, nil
 end
