@@ -204,3 +204,42 @@ Authorization: Basic cm9zZToxMjM0NTY=
 hello world
 --- error_log
 receive data plane developer_query: basic-auth, rose
+
+
+
+=== TEST 4: access success with uppercase
+--- request
+GET /hello
+--- more_headers
+Authorization: BASIC cm9zZToxMjM0NTY=
+--- error_code: 200
+--- response_body
+hello world
+--- error_log
+receive data plane developer_query: basic-auth, rose
+
+
+
+=== TEST 5: access success with lowercase
+--- request
+GET /hello
+--- more_headers
+Authorization: basic cm9zZToxMjM0NTY=
+--- error_code: 200
+--- response_body
+hello world
+--- error_log
+receive data plane developer_query: basic-auth, rose
+
+
+
+=== TEST 6: access success with mixed case
+--- request
+GET /hello
+--- more_headers
+Authorization: bASic cm9zZToxMjM0NTY=
+--- error_code: 200
+--- response_body
+hello world
+--- error_log
+receive data plane developer_query: basic-auth, rose
