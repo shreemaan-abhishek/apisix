@@ -171,7 +171,7 @@ local function parse_domain_for_node(node)
     end
 end
 
-
+-- resolves endpoint and sets it on __dns_value
 local function resolve_endpoint(instance_conf)
     local scheme, host, port
     local endpoint = core.table.try_read_attr(instance_conf, "override", "endpoint")
@@ -183,25 +183,36 @@ local function resolve_endpoint(instance_conf)
         port = tonumber(port)
     else
         local ai_driver = require("apisix.plugins.ai-drivers." .. instance_conf.provider)
-        -- built-in ai driver always use https
         scheme = "https"
         host = ai_driver.host
         port = ai_driver.port
     end
-    local node = {
+
+    local new_node = {
         host = host,
         port = port,
         scheme = scheme,
     }
-    parse_domain_for_node(node)
-    return node
+    parse_domain_for_node(new_node)
+
+    -- Compare with existing node to see if anything changed
+    local old_node = instance_conf._dns_value
+    local nodes_changed = not old_node or
+                         old_node.host ~= new_node.host
+
+    -- Only update if something changed
+    if nodes_changed then
+        instance_conf._dns_value = new_node
+        instance_conf._nodes_ver = (instance_conf._nodes_ver or 0) + 1
+        core.log.info("DNS resolution changed for instance: ", instance_conf.name,
+                     " new node: ", core.json.delay_encode(new_node))
+    end
 end
 
 
 local function get_healthchecker_name(conf, instance_name)
     return core.table.concat({plugin_name, tostring(conf), instance_name}, "#")
 end
-
 
 local function release_checkers(healthcheck_parent)
     local ai_checkers = healthcheck_parent.ai_checkers
@@ -227,25 +238,45 @@ local function create_checkers(conf)
         core.log.info("healthchecker won't be created: disabled upstream healthcheck")
         return nil
     end
-
-    if healthcheck == nil then
-        healthcheck = require("resty.healthcheck")
-    end
-
-    local healthcheck_parent = conf._meta.parent
-    if healthcheck_parent.ai_checkers and healthcheck_parent.ai_checker_conf == conf then
-        return healthcheck_parent.ai_checkers
-    end
-
     if conf.is_creating_ai_checkers then
         core.log.info("another request is creating new checker")
         return nil
     end
     conf.is_creating_ai_checkers = true
+    if healthcheck == nil then
+        healthcheck = require("resty.healthcheck")
+    end
+
+    local healthcheck_parent = conf._meta.parent
+    local ai_node_ver_changed
+    for _, ins in ipairs(conf.instances) do
+        local node_ver = ins._nodes_ver or 0
+        resolve_endpoint(ins)
+        if node_ver ~= ins._nodes_ver then
+            core.log.info("node changed for ai_instance: ", ins.name,
+                          " new node: ", core.json.delay_encode(ins._dns_value))
+            if not ai_node_ver_changed then
+                ai_node_ver_changed = {}
+            end
+            ai_node_ver_changed[ins.name] = true
+        end
+
+    end
+    if not ai_node_ver_changed and healthcheck_parent.ai_checkers then
+        conf.is_creating_ai_checkers = nil
+        return healthcheck_parent.ai_checkers
+    end
 
     local ai_checkers = core.table.new(0, #conf.instances)
 
     for _, ins in ipairs(conf.instances) do
+        if ai_node_ver_changed and not ai_node_ver_changed[ins.name] then
+            core.log.info("skip unchanged ai_instance: ", ins.name)
+            if healthcheck_parent.ai_checkers then
+                ai_checkers[ins.name] = healthcheck_parent.ai_checkers[ins.name]
+            end
+            goto continue
+        end
         if ins.checks then
             core.log.info("create new healthcheck instance for ai_instance: ", ins.name,
             " checks: ", core.json.delay_encode(ins.checks, true))
@@ -273,18 +304,26 @@ local function create_checkers(conf)
             end
             ai_checkers[ins.name] = checker
         end
+        ::continue::
     end
 
     if healthcheck_parent.ai_checkers then
-        local ok, err = pcall(core.config_util.cancel_clean_handler, healthcheck_parent,
-                                              healthcheck_parent.ai_checkers_idx, true)
-        if not ok then
-            core.log.error("cancel clean handler error: ", err)
+        for name, checker in pairs(healthcheck_parent.ai_checkers) do
+            if ai_node_ver_changed and not ai_node_ver_changed[name] then
+                goto continue
+            end
+            core.log.info("clearing checker for ", name)
+            checker:clear()
+            checker:stop()
+            ::continue::
         end
     end
 
     for _, ins in ipairs(conf.instances) do
-        local node = resolve_endpoint(ins)
+        if ai_node_ver_changed and not ai_node_ver_changed[ins.name] then
+            goto continue
+        end
+        local node = ins._dns_value
         local host = ins.checks and ins.checks.active and ins.checks.active.host
         local port = ins.checks and ins.checks.active and ins.checks.active.port
         local checker = ai_checkers[ins.name]
@@ -295,6 +334,7 @@ local function create_checkers(conf)
                         port or node.port, " err: ", err)
             end
         end
+        ::continue::
     end
 
     healthcheck_parent.clean_handlers = healthcheck_parent.clean_handlers or {}
@@ -312,7 +352,6 @@ local function create_checkers(conf)
     end
 
     healthcheck_parent.ai_checkers = ai_checkers
-    healthcheck_parent.ai_checkers_idx = check_idx
     healthcheck_parent.ai_checker_conf = conf
 
     conf.is_creating_ai_checkers = nil
@@ -337,7 +376,7 @@ local function fetch_health_instances(conf, checkers)
             local host = ins.checks and ins.checks.active and ins.checks.active.host
             local port = ins.checks and ins.checks.active and ins.checks.active.port
 
-            local node = resolve_endpoint(ins)
+            local node = ins._dns_value
             local ok, err = checker:get_target_status(node.host, port or node.port, host)
             if ok then
                 transform_instances(new_instances, ins)
