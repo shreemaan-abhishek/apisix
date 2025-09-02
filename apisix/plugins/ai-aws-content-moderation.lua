@@ -14,8 +14,12 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
+require("resty.aws.config") -- to read env vars before initing aws module
+
 local core = require("apisix.core")
 local aws = require("resty.aws")
+local aws_instance
+
 local http = require("resty.http")
 local fetch_secrets = require("apisix.secret").fetch_secrets
 
@@ -96,7 +100,9 @@ function _M.rewrite(conf, ctx)
 
     local comprehend = conf.comprehend
 
-    local aws_instance = aws()
+    if not aws_instance then
+        aws_instance = aws()
+    end
     local credentials = aws_instance:Credentials({
         accessKeyId = comprehend.access_key_id,
         secretAccessKey = comprehend.secret_access_key,
@@ -127,7 +133,7 @@ function _M.rewrite(conf, ctx)
         core.log.error("failed to send request to ", endpoint, ": ", err)
         return HTTP_INTERNAL_SERVER_ERROR, err
     end
-    core.log.warn("dibag: ", core.json.encode(res))
+
     local results = res.body and res.body.ResultList
     if type(results) ~= "table" or core.table.isempty(results) then
         return HTTP_INTERNAL_SERVER_ERROR, "failed to get moderation results from response"
