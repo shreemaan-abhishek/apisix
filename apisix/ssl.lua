@@ -18,7 +18,9 @@ local core = require("apisix.core")
 local ngx_ssl = require("ngx.ssl")
 local secret = require("apisix.secret")
 local ngx_ssl_client = require("ngx.ssl.clienthello")
+local ffi = require("ffi")
 
+local C = ffi.C
 local ngx_encode_base64 = ngx.encode_base64
 local ngx_decode_base64 = ngx.decode_base64
 local aes = require("resty.aes")
@@ -28,6 +30,10 @@ local type = type
 local ipairs = ipairs
 local ngx_sub = ngx.re.sub
 
+ffi.cdef[[
+unsigned long ERR_peek_error(void);
+void ERR_clear_error(void);
+]]
 
 local cert_cache = core.lrucache.new {
     ttl = 3600, count = 1024,
@@ -191,6 +197,12 @@ local function aes_decrypt_pkey(origin, field)
         local decrypted = aes_cbc_with_iv:decrypt(decoded_key)
         if decrypted then
             return decrypted
+        end
+
+        if C.ERR_peek_error() then
+            -- clean up the error queue of OpenSSL to prevent
+            -- normal requests from being interfered with.
+            C.ERR_clear_error()
         end
     end
 
