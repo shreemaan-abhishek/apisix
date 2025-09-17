@@ -122,6 +122,9 @@ function _M.http_init_worker()
     if not ok then
         error("failed to init worker event: " .. err)
     end
+
+    core.lrucache.init_worker()
+
     local discovery = require("apisix.discovery.init").discovery
     if discovery and discovery.init_worker then
         discovery.init_worker()
@@ -1085,6 +1088,8 @@ function _M.stream_init_worker()
     math.randomseed(seed)
     -- for testing only
     core.log.info("random stream test in [1, 10000]: ", math.random(1, 10000))
+
+    core.lrucache.init_worker()
 
     if core.config.init_worker then
         local ok, err = core.config.init_worker()
