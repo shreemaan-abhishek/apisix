@@ -7,3 +7,6 @@
 [submodule "lua-resty-aws-s3"]
 	path = lua-resty-aws-s3
 	url = https://github.com/api7/lua-resty-aws-s3.git
+[submodule "OpenAPI2MCP"]
+	path = OpenAPI2MCP
+	url = git@github.com:api7/OpenAPI2MCP.git

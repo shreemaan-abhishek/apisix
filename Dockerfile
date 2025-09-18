@@ -1,5 +1,33 @@
 # --- Form apisix-docker ---
 # --- refer: https://github.com/apache/apisix-docker/blob/master/debian/Dockerfile
+
+# OpenAPI2MCP Node.js builder stage
+FROM node:18-slim AS openapi2mcp-builder
+
+# Install pnpm
+RUN npm install -g pnpm
+
+WORKDIR /app
+
+# Copy package files
+COPY ./OpenAPI2MCP/package.json ./OpenAPI2MCP/pnpm-lock.yaml ./
+
+# Install only production dependencies
+RUN pnpm install --prod --frozen-lockfile
+
+# Copy source code
+COPY ./OpenAPI2MCP/src ./src/
+COPY ./OpenAPI2MCP/tsconfig.json ./
+
+# Install dev dependencies for build
+RUN pnpm install --frozen-lockfile
+
+# Build the project
+RUN pnpm run build
+
+# Remove dev dependencies after build
+RUN pnpm prune --prod
+
 FROM debian:bookworm-slim AS runtime-builder
 
 ARG RUNTIME_VERSION=1.2.5
@@ -57,6 +85,18 @@ FROM ubuntu:24.04
 COPY --from=runtime-builder /usr/local/openresty /usr/local/openresty
 COPY --from=apisix-builder /usr/local/apisix /usr/local/apisix
 COPY --from=apisix-builder /usr/bin/apisix /usr/bin/apisix
+
+# Install Node.js runtime and copy OpenAPI2MCP
+RUN apt update && apt install -y curl && \
+    curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt install -y nodejs && \
+    apt clean && \
+    rm -rf /var/lib/apt/lists/*
+
+# Copy OpenAPI2MCP built files
+COPY --from=openapi2mcp-builder /app/dist /usr/local/openapi2mcp/dist/
+COPY --from=openapi2mcp-builder /app/node_modules /usr/local/openapi2mcp/node_modules/
+COPY --from=openapi2mcp-builder /app/package.json /usr/local/openapi2mcp/
 
 ENV PATH=$PATH:/usr/local/openresty/luajit/bin:/usr/local/openresty/nginx/sbin:/usr/local/openresty/bin
 
@@ -127,6 +167,11 @@ RUN apt update && apt upgrade -y \
     && ENV_OPENSSL_PREFIX=/usr/local/openresty/openssl3 make deps \
     && go clean -cache -modcache && rm -rf /usr/local/go \
     && SUDO_FORCE_REMOVE=yes apt-get -y purge --auto-remove --allow-remove-essential luarocks sudo gcc unzip make git wget golang-go \
-    && chown -R apisix:apisix /usr/local/apisix
+    && chown -R apisix:apisix /usr/local/apisix \
+    && chown -R apisix:apisix /usr/local/openapi2mcp
+
+ENV NODE_ENV=production
+ENV TRANSPORT_TYPE=sse
+ENV SSE_PORT=3000
 
 USER apisix

@@ -126,6 +126,7 @@ traffic-split
 redirect
 response-rewrite
 soap
+openapi-to-mcp
 oas-validator
 degraphql
 kafka-proxy

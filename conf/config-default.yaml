@@ -527,6 +527,7 @@ plugins:                          # plugin list (sorted by priority)
   - grpc-transcode                 # priority: 506
   - grpc-web                       # priority: 505
   - soap                           # priority: 504
+  - openapi-to-mcp                 # priority: 503
   - public-api                     # priority: 501
   - prometheus                     # priority: 500
   - datadog                        # priority: 495

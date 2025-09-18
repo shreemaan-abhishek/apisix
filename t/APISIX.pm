@@ -787,6 +787,14 @@ _EOC_
             }
         }
 
+        location \@disable_proxy_buffering {
+            proxy_pass      \$upstream_scheme://apisix_backend\$upstream_uri;
+            proxy_buffering off;
+            access_by_lua_block {
+                apisix.disable_proxy_buffering_access_phase()
+            }
+        }
+
         location / {
             set \$upstream_mirror_host        '';
             set \$upstream_mirror_uri         '';
