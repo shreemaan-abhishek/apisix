@@ -66,8 +66,6 @@ install_module() {
     # ${1} apisix home dir
     VAR_APISIX_HOME="${VAR_CUR_HOME}/${1:-workbench}"
 
-    cp -av "${VAR_CUR_HOME}/api7-soap-proxy" "${VAR_APISIX_HOME}"
-
     # copy ci utils script
     cp -av "${VAR_CUR_HOME}/ci" "${VAR_APISIX_HOME}"
 

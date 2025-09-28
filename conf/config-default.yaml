@@ -520,14 +520,14 @@ plugins:                          # plugin list (sorted by priority)
   - traffic-split                  # priority: 966
   - redirect                       # priority: 900
   - response-rewrite               # priority: 899
+  - soap                           # priority: 554
+  - openapi-to-mcp                 # priority: 540
   - oas-validator                  # priority: 510
   - degraphql                      # priority: 509
   - kafka-proxy                    # priority: 508
   #- dubbo-proxy                   # priority: 507
   - grpc-transcode                 # priority: 506
   - grpc-web                       # priority: 505
-  - soap                           # priority: 504
-  - openapi-to-mcp                 # priority: 503
   - public-api                     # priority: 501
   - prometheus                     # priority: 500
   - datadog                        # priority: 495

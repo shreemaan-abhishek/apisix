@@ -406,10 +406,8 @@ services:
       - apisix_net
 
   soap-proxy:
+    image: api7/soap-proxy:1.0.0
     hostname: soap-proxy
-    build:
-      context: .
-      dockerfile: ci/pod/soap-proxy/Dockerfile
     restart: always
     ports:
       - "15001:5000"
