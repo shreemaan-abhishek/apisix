@@ -74,18 +74,13 @@ install_vault_cli () {
 }
 
 install_nodejs () {
-    NODEJS_PREFIX="/usr/local/node"
-    NODEJS_VERSION="16.13.1"
-    wget -q https://nodejs.org/dist/v${NODEJS_VERSION}/node-v${NODEJS_VERSION}-linux-x64.tar.xz
-    tar -xvf node-v${NODEJS_VERSION}-linux-x64.tar.xz
-    rm -f /usr/local/bin/node
-    rm -f /usr/local/bin/npm
-    mv node-v${NODEJS_VERSION}-linux-x64 ${NODEJS_PREFIX}
-    ln -s ${NODEJS_PREFIX}/bin/node /usr/local/bin/node
-    ln -s ${NODEJS_PREFIX}/bin/npm /usr/local/bin/npm
-
-    npm config set registry https://registry.npmjs.org/
+    curl -fsSL https://raw.githubusercontent.com/tj/n/master/bin/n | bash -s install --cleanup lts
+    export PNPM_HOME="/pnpm"
+    export PATH="$PNPM_HOME:$PATH"
+    corepack enable pnpm
+    pnpm setup
 }
+
 
 set_coredns() {
     # test a domain name is configured as upstream

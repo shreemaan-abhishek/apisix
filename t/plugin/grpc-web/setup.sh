@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
@@ -17,7 +16,7 @@
 # limitations under the License.
 #
 
-. ./t/cli/common.sh
+set -ex
 
 pnpm install -g tsx
 
@@ -27,35 +26,6 @@ pnpx @bufbuild/buf generate --debug
 
 popd
 
-echo '
-apisix:
-  worker_startup_time_threshold: 3
-' > conf/config.yaml
+CGO_ENABLED=0 go build -o grpc-web-server server.go
 
-make run
-
-sleep 5
-
-MASTER_PID=$(cat logs/nginx.pid)
-
-worker_pids=$(pgrep -P "$MASTER_PID" -f "nginx: worker process" || true)
-
-if [ -n "$worker_pids" ]; then
-    pid=$(echo "$worker_pids" | shuf -n 1)
-    echo "killing worker $pid (master $MASTER_PID)"
-    kill "$pid"
-else
-    echo "failed: no worker process found for master $MASTER_PID"
-    exit 1
-fi
-
-sleep 2
-
-if ! grep 'master process has been running for a long time, reloading the full configuration from etcd for this new worker' logs/error.log; then
-    echo "failed: could not detect new worker be started"
-    exit 1
-fi
-
-echo "passed: load full configuration for new worker"
-
-make stop
+./grpc-web-server > grpc-web-server.log 2>&1 || (cat grpc-web-server.log && exit 1)&
