@@ -24,6 +24,12 @@ local str_format  = string.format
 local schema = {
     type = "object",
     properties = {
+        transport = {
+            description = "The transport mechanisms for client-server communication",
+            type = "string",
+            default = "sse",
+            enum = {"sse", "streamable_http"},
+        },
         openapi_url = {
             description = "URL of the OpenAPI specification document",
             type = "string",
@@ -114,31 +120,53 @@ function _M.access(conf, ctx)
     ctx.var.upstream_port = mcp_server_node.port
     upstream.set(ctx, upstream_key, ctx.conf_version, up_conf)
 
-    -- for message endpoint we just pass the request as is
-    if ctx.var.method ~= "GET" then
-        return
-    end
-
-    -- for sse endpoint, we need to rewrite the request to /sse with query parameters
-    ngx.ctx.disable_proxy_buffering = true
-    local query = str_format("base_url=%s&openapi_spec=%s&message_path=%s",
-        core.utils.uri_safe_encode(conf.base_url),
-        core.utils.uri_safe_encode(conf.openapi_url),
-        core.utils.uri_safe_encode(ctx.curr_req_matched._path)
-    )
-    for key, value in pairs(conf.headers) do
-        local resolved_value, err = core.utils.resolve_var(value, ctx.var)
-        if err then
-            core.log.warn("failed to resolve variable for header, key: ", key,
-                                ", value: ", value, ", error: ", err)
-            resolved_value = value
+    if conf.transport == "sse" then
+        -- for message endpoint we just pass the request as is
+        if ctx.var.method ~= "GET" then
+            return
         end
-        query = str_format("%s&headers.%s=%s", query,
-                        core.utils.uri_safe_encode(key),
-                        core.utils.uri_safe_encode(resolved_value))
-    end
 
-    ctx.var.upstream_uri = "/sse?" .. query
+        -- for sse endpoint, we need to rewrite the request to /sse with query parameters
+        ngx.ctx.disable_proxy_buffering = true
+        local query = str_format("base_url=%s&openapi_spec=%s&message_path=%s",
+            core.utils.uri_safe_encode(conf.base_url),
+            core.utils.uri_safe_encode(conf.openapi_url),
+            core.utils.uri_safe_encode(ctx.curr_req_matched._path)
+        )
+        for key, value in pairs(conf.headers) do
+            local resolved_value, err = core.utils.resolve_var(value, ctx.var)
+            if err then
+                core.log.warn("failed to resolve variable for header, key: ", key,
+                                    ", value: ", value, ", error: ", err)
+                resolved_value = value
+            end
+            query = str_format("%s&headers.%s=%s", query,
+                            core.utils.uri_safe_encode(key),
+                            core.utils.uri_safe_encode(resolved_value))
+        end
+
+        ctx.var.upstream_uri = "/.api7_mcp/sse?" .. query
+
+    elseif conf.transport == "streamable_http" then
+        ngx.ctx.disable_proxy_buffering = true
+        core.request.set_header(ctx, "x-openapi2mcp-base-url", conf.base_url)
+        core.request.set_header(ctx, "x-openapi2mcp-openapi-spec", conf.openapi_url)
+        for key, value in pairs(conf.headers) do
+            local resolved_value, err = core.utils.resolve_var(value, ctx.var)
+            if err then
+                core.log.warn("failed to resolve variable for header, key: ", key,
+                                    ", value: ", value, ", error: ", err)
+                resolved_value = value
+            end
+            core.request.set_header(ctx, str_format("x-openapi2mcp-header-%s", key), resolved_value)
+        end
+
+        ctx.var.upstream_uri = "/.api7_mcp/mcp_stateless"
+
+    else
+        core.log.error("Invalid MCP transport: ", conf.transport)
+        return 500, { message = "Invalid MCP transport"}
+    end
 end
 
 

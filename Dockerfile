@@ -158,7 +158,6 @@ RUN apt update && apt upgrade -y \
     && chown -R apisix:apisix /usr/local/openapi2mcp
 
 ENV NODE_ENV=production
-ENV TRANSPORT_TYPE=sse
 ENV SSE_PORT=3000
 
 USER apisix

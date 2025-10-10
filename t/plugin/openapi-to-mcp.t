@@ -26,12 +26,27 @@ add_block_preprocessor(sub {
 
     my $extra_init_by_lua = <<_EOC_;
     local server = require("lib.server")
-    server.sse = function()
+    server.mcp_mock = function()
         ngx.log(ngx.INFO, "mock mcp server: ", ngx.var.request_method, " ", ngx.var.request_uri)
+
+        local headers = ngx.req.get_headers()
+        local keys = {}
+        for k in pairs(headers) do
+            if k:sub(1, 13) == "x-openapi2mcp" then
+                table.insert(keys, k)
+            end
+        end
+        table.sort(keys)
+        for _, key in ipairs(keys) do
+            ngx.log(ngx.INFO, key, ": ", headers[key])
+        end
+
         ngx.exit(200)
     end
 
-    server.mcp = server.sse
+    server.mcp = server.mcp_mock
+    server._api7_mcp_sse = server.mcp_mock
+    server._api7_mcp_mcp_stateless = server.mcp_mock
 _EOC_
 
     $block->set_value("extra_init_by_lua", $extra_init_by_lua);
@@ -138,7 +153,7 @@ plugin_attr:
 --- request
 GET /mcp
 --- error_log
-mock mcp server: GET /sse?base_url=https://petstore.swagger.io&openapi_spec=https://petstore.swagger.io/v2/swagger.json&message_path=/mcp&headers.Authorization=test-api-key
+mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore.swagger.io&openapi_spec=https://petstore.swagger.io/v2/swagger.json&message_path=/mcp&headers.Authorization=test-api-key
 
 
 
@@ -151,3 +166,109 @@ plugin_attr:
 POST /mcp
 --- error_log
 mock mcp server: POST /mcp
+
+
+
+=== TEST 6: create a route with openapi-to-mcp plugin that using streamable http transport
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/mcp",
+                    "plugins": {
+                        "openapi-to-mcp": {
+                            "transport": "streamable_http",
+                            "base_url": "https://petstore.swagger.io",
+                            "headers": {
+                                "Authorization": "test-api-key"
+                            },
+                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 7: send tools/list request should be proxied to stateless endpoint of mcp server
+--- yaml_config
+plugin_attr:
+  openapi-to-mcp:
+    port: 1980
+--- request
+POST /mcp
+{"method":"tools/list","jsonrpc":"2.0","id":1}
+--- error_log
+mock mcp server: POST /.api7_mcp/mcp_stateless
+x-openapi2mcp-base-url: https://petstore.swagger.io
+x-openapi2mcp-header-authorization: test-api-key
+x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json
+
+
+
+=== TEST 8: openapi-to-mcp's headers can use variables
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/mcp",
+                    "plugins": {
+                        "openapi-to-mcp": {
+                            "transport": "streamable_http",
+                            "base_url": "https://petstore.swagger.io",
+                            "headers": {
+                                "Authorization": "${arg_username}-${http_apikey}"
+                            },
+                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 9: confirm that variables in headers are correctly replaced
+--- yaml_config
+plugin_attr:
+  openapi-to-mcp:
+    port: 1980
+--- request
+POST /mcp?username=alice
+{"method":"tools/list","jsonrpc":"2.0","id":1}
+--- more_headers
+apikey: user-key
+--- error_log
+mock mcp server: POST /.api7_mcp/mcp_stateless
+x-openapi2mcp-base-url: https://petstore.swagger.io
+x-openapi2mcp-header-authorization: alice-user-key
+x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json
