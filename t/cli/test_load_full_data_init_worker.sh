@@ -19,14 +19,6 @@
 
 . ./t/cli/common.sh
 
-pnpm install -g tsx
-
-pushd a6
-
-pnpx @bufbuild/buf generate --debug
-
-popd
-
 echo '
 apisix:
   worker_startup_time_threshold: 3
