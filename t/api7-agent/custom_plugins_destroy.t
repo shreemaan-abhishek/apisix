@@ -127,7 +127,7 @@ return _M
                 return
             end
             ngx.sleep(1)
-            assert(core.etcd.delete("/plugins")) 
+            local _, err = core.etcd.set(key, val)
             if err then
                 ngx.say(err)
                 return

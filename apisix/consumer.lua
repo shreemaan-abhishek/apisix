@@ -141,7 +141,6 @@ local function plugin_consumer()
                 -- is 'username' field in admin
                 consumer.consumer_name = consumer.id
                 consumer.auth_conf = config
-                core.log.info("consumer:", core.json.delay_encode(consumer))
                 core.table.insert(plugins[name].nodes, consumer)
             end
         end
@@ -204,7 +203,6 @@ local function create_consume_cache(consumers_conf, key_attr)
     local consumer_names = {}
 
     for _, consumer in ipairs(consumers_conf.nodes) do
-        core.log.info("consumer node: ", core.json.delay_encode(consumer))
         local new_consumer = core.table.clone(consumer)
         new_consumer.auth_conf = secret.fetch_secrets(new_consumer.auth_conf)
         consumer_names[new_consumer.auth_conf[key_attr]] = new_consumer

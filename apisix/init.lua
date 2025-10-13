@@ -300,8 +300,14 @@ local function parse_domain_in_route(route)
 
     route.dns_value = core.table.deepcopy(route.value, { shallows = { "self.upstream.parent"}})
     route.dns_value.upstream.nodes = new_nodes
+    -- remove plugin before logging to avoid logging sensitive info
+    local route_log = core.table.deepcopy(route)
+    route_log.value.plugins = nil
+    route_log.value.auth_conf = nil
+    route_log.dns_value.plugins = nil
+    route_log.dns_value.auth_conf = nil
     core.log.info("parse route which contain domain: ",
-                  core.json.delay_encode(route, true))
+                core.json.delay_encode(route_log, true))
     return route
 end
 

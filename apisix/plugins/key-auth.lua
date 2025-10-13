@@ -121,8 +121,6 @@ function _M.rewrite(conf, ctx)
             return 401, { message = "Invalid user authorization"}
         end
     end
-
-    core.log.info("consumer: ", core.json.delay_encode(consumer))
     consumer_mod.attach_consumer(ctx, consumer, consumer_conf)
     core.log.info("hit key-auth rewrite")
 end

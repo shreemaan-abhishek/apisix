@@ -104,6 +104,23 @@ do
     end
 end
 
+-- remove value field from etcd response to avoid log sensitive data
+local function redact_etcd_response(res)
+    if res and res.result and res.result.events then
+        local res_copy = table.deepcopy(res)
+        for _, event in ipairs(res_copy.result.events) do
+            if event.kv and event.kv.value then
+                event.kv.value = "[REDACTED]"
+            end
+            if event.prev_kv and event.prev_kv.value then
+                event.prev_kv.value = "[REDACTED]"
+            end
+        end
+        return res_copy
+    end
+    return res
+end
+
 
 local function cancel_watch(http_cli)
     local res, err = watch_ctx.cli:watchcancel(http_cli)
@@ -118,7 +135,7 @@ end
 -- append res to the queue and notify pending watchers
 local function produce_res(res, err)
     if log_level >= NGX_INFO then
-        log.info("append res: ", inspect(res), ", err: ", inspect(err))
+        log.info("append res: ", inspect(redact_etcd_response(res)), ", err: ", inspect(err))
     end
     insert_tab(watch_ctx.res, {res=res, err=err})
     for _, sema in pairs(watch_ctx.sema) do
@@ -212,7 +229,7 @@ local function do_run_watch(premature)
     while true do
         local res, err = res_func()
         if log_level >= NGX_INFO then
-            log.info("res_func: ", inspect(res))
+            log.info("res_func: ", inspect(redact_etcd_response(res)))
         end
 
         if not res then
@@ -456,7 +473,7 @@ local function http_waitdir(self, etcd_cli, key, modified_index, timeout)
 
             if res2 then
                 if log_level >= NGX_INFO then
-                    log.info("http_waitdir: ", inspect(res2))
+                    log.info("http_waitdir: ", inspect(redact_etcd_response(res2)))
                 end
                 return res2
             end
@@ -485,6 +502,16 @@ local function http_waitdir(self, etcd_cli, key, modified_index, timeout)
     end
 end
 
+
+local function is_bulk_operation(dir_res)
+    if not dir_res or not dir_res.body or not dir_res.body.node then
+        return false
+    end
+    if #dir_res.body.node > 1 then
+        return true
+    end
+    return false
+end
 
 local function waitdir(self)
     local etcd_cli = self.etcd_cli
@@ -684,8 +711,9 @@ local function sync_data(self)
 
     local dir_res, err = waitdir(self)
     log.info("waitdir key: ", self.key, " prev_index: ", self.prev_index + 1)
-    log.info("res: ", json.delay_encode(dir_res, true), ", err: ", err)
-
+    if is_bulk_operation(dir_res) then
+        log.info("etcd events sent in bulk")
+    end
     if not dir_res then
         if err == "compacted" then
             self.need_reload = true

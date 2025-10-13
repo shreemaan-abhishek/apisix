@@ -61,6 +61,4 @@ qr/request_id: "abctesting"/
 --- grep_error_log_out
 request_id: "abctesting"
 request_id: "abctesting"
-request_id: "abctesting"
-request_id: "abctesting"
 --- error_code: 502

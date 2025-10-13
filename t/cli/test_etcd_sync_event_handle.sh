@@ -109,7 +109,7 @@ cat logs/error.log | grep "watchdir err: " || (echo "Log case 1 unexpected"; exi
 ##   }
 ## }
 ## After check, it only appears when watch recovers and returns events in bulk.
-cat logs/error.log | grep "}, {" || (echo "failed: Log case 2 unexpected"; exit 1)
+cat logs/error.log | grep "etcd events sent in bulk" || (echo "failed: Log case 2 unexpected"; exit 1)
 cat logs/error.log | grep "failed to check item data" || (echo "failed: Log case 3 unexpected"; exit 1)
 
 # cleanup
