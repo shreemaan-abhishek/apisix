@@ -23,7 +23,7 @@ jobs:
       - name: Set image tag
         id: version
         run: |
-          VERSION=$(cat ./apisix/core/version.lua | grep -o 'VERSION = "[^"]*"' | awk -F'"' '{print $2}')
+          VERSION=$(cat ./apisix/core/version.lua | grep -o 'VERSION = "[^"]*"' | awk -F'"' '{print $2}' | tr '+' '_')
           echo "GATEWAY_VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Login to Registry
