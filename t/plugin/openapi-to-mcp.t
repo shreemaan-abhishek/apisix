@@ -47,6 +47,7 @@ add_block_preprocessor(sub {
     server.mcp = server.mcp_mock
     server._api7_mcp_sse = server.mcp_mock
     server._api7_mcp_mcp_stateless = server.mcp_mock
+    server.hello_mcp = server.mcp_mock
 _EOC_
 
     $block->set_value("extra_init_by_lua", $extra_init_by_lua);
@@ -272,3 +273,58 @@ mock mcp server: POST /.api7_mcp/mcp_stateless
 x-openapi2mcp-base-url: https://petstore.swagger.io
 x-openapi2mcp-header-authorization: alice-user-key
 x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json
+
+
+
+=== TEST 10: use sse tranport with path_prefix and strip_path_prefix
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/services/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "path_prefix": "/hello",
+                    "strip_path_prefix": true,
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/mcp",
+                    "plugins": {
+                        "openapi-to-mcp": {
+                            "transport": "sse",
+                            "base_url": "https://petstore.swagger.io",
+                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                        }
+                    },
+                    "service_id": 1
+                }]]
+            )
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 11: confirm sse message request that send with path_prefix to MCP server
+--- yaml_config
+plugin_attr:
+  openapi-to-mcp:
+    port: 1980
+--- request
+POST /hello/mcp?sessionID=a332916c-7206-4a60-a9c2-b7ab9ee4e5ed
+{"method":"tools/list","jsonrpc":"2.0","id":1}
+--- error_log
+mock mcp server: POST /hello/mcp?sessionID=a332916c-7206-4a60-a9c2-b7ab9ee4e5ed

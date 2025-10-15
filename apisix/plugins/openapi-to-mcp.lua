@@ -20,6 +20,7 @@ local plugin      = require("apisix.plugin")
 local ngx         = ngx
 local pairs       = pairs
 local str_format  = string.format
+local ngx_req_set_uri = ngx.req.set_uri
 
 local schema = {
     type = "object",
@@ -123,6 +124,13 @@ function _M.access(conf, ctx)
     if conf.transport == "sse" then
         -- for message endpoint we just pass the request as is
         if ctx.var.method ~= "GET" then
+            -- MCP Server will validate message path should be `curr_req_matched._path`,
+            -- that should be original request path before `strip_path_prefix` is applied,
+            -- so we need to revert `strip_path_prefix` changes for request uri
+            if ctx.var.uri_before_strip then
+                ctx.var.uri = ctx.var.uri_before_strip
+                ngx_req_set_uri(ctx.var.uri_before_strip)
+            end
             return
         end
 
