@@ -36,7 +36,7 @@ script() {
 
     # run the test case in an empty folder
     mkdir tmp && cd tmp
-    cp -r ../utils ./
+    cp -R ../utils ./
 
     # install APISIX by luarocks
     luarocks install $APISIX_MAIN > build.log 2>&1 || (cat build.log && exit 1)
