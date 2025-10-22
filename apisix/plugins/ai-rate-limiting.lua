@@ -16,8 +16,10 @@
 --
 local require = require
 local setmetatable = setmetatable
+local getmetatable = getmetatable
 local ipairs = ipairs
 local type = type
+local expr = require("resty.expr.v1")
 local core = require("apisix.core")
 local limit_count = require("apisix.plugins.limit-count.init")
 
@@ -27,10 +29,15 @@ local instance_limit_schema = {
     type = "object",
     properties = {
         name = {type = "string"},
+        expr = {type = "array" },
         limit = {type = "integer", minimum = 1},
         time_window = {type = "integer", minimum = 1}
     },
-    required = {"name", "limit", "time_window"}
+    required = {"limit", "time_window"},
+    oneOf = {
+        {required = {"name"}},
+        {required = {"expr"}},
+    }
 }
 
 local schema = {
@@ -84,7 +91,21 @@ local limit_conf_cache = core.lrucache.new({
 
 
 function _M.check_schema(conf)
-    return core.schema.check(schema, conf)
+    local ok, err = core.schema.check(schema, conf)
+    if not ok then
+        return false, err
+    end
+
+    for _, ins in ipairs(conf.instances or {}) do
+        if ins.expr then
+            local ok, err = expr.new(ins.expr)
+            if not ok then
+                return false, "failed to validate the 'expr' expression: " .. err
+            end
+        end
+    end
+
+    return true
 end
 
 
@@ -122,6 +143,7 @@ end
 
 
 local function fetch_limit_conf_kvs(conf)
+    -- use `conf.limit` as the global rate limit for instances that not found in `conf.instances`
     local mt = {
         __index = function(t, k)
             if not conf.limit then
@@ -136,7 +158,9 @@ local function fetch_limit_conf_kvs(conf)
     local limit_conf_kvs = setmetatable({}, mt)
     local conf_instances = conf.instances or {}
     for _, limit_conf in ipairs(conf_instances) do
-        limit_conf_kvs[limit_conf.name] = transform_limit_conf(conf, limit_conf)
+        if limit_conf.name then
+            limit_conf_kvs[limit_conf.name] = transform_limit_conf(conf, limit_conf)
+        end
     end
     return limit_conf_kvs
 end
@@ -145,7 +169,36 @@ end
 function _M.access(conf, ctx)
     local ai_instance_name = ctx.picked_ai_instance_name
     if not ai_instance_name then
+        core.log.warn("ai-rate-limiting plugin must be used with the ai-proxy[-multi] plugin")
         return
+    end
+
+    for i, ins in ipairs(conf.instances or {}) do
+        if ins.expr then
+            if not getmetatable(ins) then
+                setmetatable(ins, {__index = {}})
+            end
+            local cache_data = getmetatable(ins).__index
+
+            if not ins._expr_obj then
+                cache_data._expr_obj = expr.new(ins.expr)
+            end
+            local matched = ins._expr_obj:eval(ctx.var)
+            if matched then
+                core.log.info("expr matched instance: ", core.json.delay_encode(ins))
+                if not ins._limit_conf then
+                    cache_data._limit_conf = transform_limit_conf(conf, {
+                        name = "EXPR-" .. i,
+                        limit = ins.limit,
+                        time_window = ins.time_window,
+                    })
+                end
+                ctx.ai_rate_limiting_matched_instance = ins
+                local code, msg = limit_count.rate_limit(ins._limit_conf, ctx, plugin_name, 1, true)
+                ctx.ai_rate_limiting = code and true or false
+                return code, msg
+            end
+        end
     end
 
     local limit_conf_kvs = limit_conf_cache(conf, nil, fetch_limit_conf_kvs, conf)
@@ -218,6 +271,13 @@ function _M.log(conf, ctx)
     local used_tokens = get_token_usage(conf, ctx)
     if not used_tokens then
         core.log.error("failed to get token usage for llm service")
+        return
+    end
+
+    if ctx.ai_rate_limiting_matched_instance then
+        core.log.info("matched expr instance, used tokens: ", used_tokens)
+        local limit_conf = ctx.ai_rate_limiting_matched_instance._limit_conf
+        limit_count.rate_limit(limit_conf, ctx, plugin_name, used_tokens)
         return
     end
 
