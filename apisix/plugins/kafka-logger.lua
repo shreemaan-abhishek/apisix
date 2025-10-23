@@ -61,7 +61,7 @@ local schema = {
                             mechanism = {
                                 type = "string",
                                 default = "PLAIN",
-                                enum = {"PLAIN"},
+                                enum = {"PLAIN", "SCRAM-SHA-256", "SCRAM-SHA-512"},
                             },
                             user = { type = "string", description = "user" },
                             password =  { type = "string", description = "password" },
