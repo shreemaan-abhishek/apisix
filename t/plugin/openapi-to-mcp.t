@@ -328,3 +328,63 @@ POST /hello/mcp?sessionID=a332916c-7206-4a60-a9c2-b7ab9ee4e5ed
 {"method":"tools/list","jsonrpc":"2.0","id":1}
 --- error_log
 mock mcp server: POST /hello/mcp?sessionID=a332916c-7206-4a60-a9c2-b7ab9ee4e5ed
+
+
+
+=== TEST 12: sse request should be working when no headers in plugin config
+--- yaml_config
+plugin_attr:
+  openapi-to-mcp:
+    port: 1980
+--- request
+GET /hello/mcp
+--- error_log
+mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore.swagger.io&openapi_spec=https://petstore.swagger.io/v2/swagger.json&message_path=/hello/mcp
+
+
+
+=== TEST 13: streamable_http without headers
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/mcp",
+                    "plugins": {
+                        "openapi-to-mcp": {
+                            "transport": "streamable_http",
+                            "base_url": "https://petstore.swagger.io",
+                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 14: mcp request should be working when no headers in plugin config
+--- yaml_config
+plugin_attr:
+  openapi-to-mcp:
+    port: 1980
+--- request
+POST /mcp
+{"method":"tools/list","jsonrpc":"2.0","id":1}
+--- error_log
+mock mcp server: POST /.api7_mcp/mcp_stateless
+x-openapi2mcp-base-url: https://petstore.swagger.io
+x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json

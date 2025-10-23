@@ -141,7 +141,7 @@ function _M.access(conf, ctx)
             core.utils.uri_safe_encode(conf.openapi_url),
             core.utils.uri_safe_encode(ctx.curr_req_matched._path)
         )
-        for key, value in pairs(conf.headers) do
+        for key, value in pairs(conf.headers or {}) do
             local resolved_value, err = core.utils.resolve_var(value, ctx.var)
             if err then
                 core.log.warn("failed to resolve variable for header, key: ", key,
@@ -159,7 +159,7 @@ function _M.access(conf, ctx)
         ngx.ctx.disable_proxy_buffering = true
         core.request.set_header(ctx, "x-openapi2mcp-base-url", conf.base_url)
         core.request.set_header(ctx, "x-openapi2mcp-openapi-spec", conf.openapi_url)
-        for key, value in pairs(conf.headers) do
+        for key, value in pairs(conf.headers or {}) do
             local resolved_value, err = core.utils.resolve_var(value, ctx.var)
             if err then
                 core.log.warn("failed to resolve variable for header, key: ", key,
