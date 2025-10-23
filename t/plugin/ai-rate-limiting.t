@@ -238,29 +238,7 @@ __DATA__
                             limit = 30,
                             time_window = 60,
                         }
-                    },
-                },
-                {
-                    limit = 30,
-                    time_window = 60,
-                    instances = {
-                        {
-                            expr = {{}},
-                            limit = 30,
-                            time_window = 60,
-                        }
-                    },
-                },
-                {
-                    limit = 30,
-                    time_window = 60,
-                    instances = {
-                        {
-                            expr = {{"post_arg.model", "==", "qwen3-72b"}},
-                            limit = 30,
-                            time_window = 60,
-                        }
-                    },
+                    },   
                 }
             }
             local core = require("apisix.core")
@@ -281,13 +259,11 @@ property "limit" is required when "time_window" is set
 property "time_window" is required when "limit" is set
 property "rejected_code" validation failed: expected 199 to be at least 200
 property "limit_strategy" validation failed: matches none of the enum values
-property "instances" validation failed: failed to validate item 2: value should match only one schema, but matches none
+property "instances" validation failed: failed to validate item 2: property "name" is required
 property "limit" is required when "time_window" is set
 property "time_window" is required when "limit" is set
 passed
 passed
-passed
-failed to validate the 'expr' expression: rule too short
 passed
 done
 
@@ -1069,90 +1045,3 @@ passed
 Authorization: Bearer token
 --- error_code eval
 [200, 200, 200, 200, 200, 200, 200, 503, 503]
-
-
-
-=== TEST 21: ai-rate-limiting with expr
---- config
-    location /t {
-        content_by_lua_block {
-            local t = require("lib.test_admin").test
-            local code, body = t('/apisix/admin/routes/1',
-                 ngx.HTTP_PUT,
-                 [[{
-                    "uri": "/ai",
-                    "plugins": {
-                        "ai-proxy-multi": {
-                            "fallback_strategy": "instance_health_and_rate_limiting",
-                            "instances": [
-                                {
-                                    "name": "openai",
-                                    "provider": "openai",
-                                    "weight": 1,
-                                    "priority": 1,
-                                    "auth": {
-                                        "header": {
-                                            "Authorization": "Bearer token"
-                                        }
-                                    },
-                                    "override": {
-                                        "endpoint": "http://localhost:16724"
-                                    }
-                                }
-                            ],
-                            "ssl_verify": false
-                        },
-                        "ai-rate-limiting": {
-                            "limit": 30,
-                            "time_window": 10,
-                            "instances": [
-                                {
-                                    "expr": [ ["post_arg.model", "==", "gpt3"] ],
-                                    "limit": 10,
-                                    "time_window": 10
-                                },
-                                {
-                                    "expr": [ ["post_arg.model", "==", "gpt4"] ],
-                                    "limit": 20,
-                                    "time_window": 10
-                                }
-                            ]
-                        }
-                    },
-                    "upstream": {
-                        "type": "roundrobin",
-                        "nodes": {
-                            "canbeanything.com": 1
-                        }
-                    }
-                }]]
-            )
-
-            if code >= 300 then
-                ngx.status = code
-            end
-            ngx.say(body)
-        }
-    }
---- response_body
-passed
-
-
-
-=== TEST 22: gpt3 allows 1 requests, gpt4 allows 2 requests, others allows 3 requests
---- pipelined_requests eval
-[
-    "POST /ai\n" . "{ \"model\": \"gpt3\", \"messages\": [ { \"role\": \"user\", \"content\": \"What is 1+1?\"} ] }",
-    "POST /ai\n" . "{ \"model\": \"gpt3\", \"messages\": [ { \"role\": \"user\", \"content\": \"What is 1+1?\"} ] }",
-    "POST /ai\n" . "{ \"model\": \"gpt4\", \"messages\": [ { \"role\": \"user\", \"content\": \"What is 1+1?\"} ] }",
-    "POST /ai\n" . "{ \"model\": \"gpt4\", \"messages\": [ { \"role\": \"user\", \"content\": \"What is 1+1?\"} ] }",
-    "POST /ai\n" . "{ \"model\": \"gpt4\", \"messages\": [ { \"role\": \"user\", \"content\": \"What is 1+1?\"} ] }",
-    "POST /ai\n" . "{ \"model\": \"gpt5\", \"messages\": [ { \"role\": \"user\", \"content\": \"What is 1+1?\"} ] }",
-    "POST /ai\n" . "{ \"model\": \"gpt5\", \"messages\": [ { \"role\": \"user\", \"content\": \"What is 1+1?\"} ] }",
-    "POST /ai\n" . "{ \"model\": \"gpt5\", \"messages\": [ { \"role\": \"user\", \"content\": \"What is 1+1?\"} ] }",
-    "POST /ai\n" . "{ \"model\": \"gpt5\", \"messages\": [ { \"role\": \"user\", \"content\": \"What is 1+1?\"} ] }",
-]
---- more_headers
-Content-type: application/json
---- error_code eval
-[200, 503, 200, 200, 503, 200, 200, 200, 503]
