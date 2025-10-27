@@ -149,6 +149,8 @@ apisix:
     secret:
       ttl: 300 # seconds
       count: 512
+      neg_ttl: 60
+      neg_count: 512
 
 nginx_config:                     # config for render the template to generate nginx.conf
   #user: root                     # specifies the execution user of the worker process.

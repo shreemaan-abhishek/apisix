@@ -30,10 +30,25 @@ apisix:
 deployment:
     role: data_plane
     role_data_plane:
-        config_provider: json
+        config_provider: yaml
 _EOC_
 
     $block->set_value("yaml_config", $yaml_config);
+
+    if (!$block->apisix_yaml) {
+        my $routes = <<_EOC_;
+routes:
+  -
+    uri: /hello
+    upstream:
+        nodes:
+            "127.0.0.1:1980": 1
+        type: roundrobin
+#END
+_EOC_
+
+        $block->set_value("apisix_yaml", $routes);
+    }
 
 });
 
@@ -42,28 +57,13 @@ run_tests();
 __DATA__
 
 === TEST 1: validate secret/vault: wrong schema
---- apisix_json
-{
-  "routes": [
-    {
-      "uri": "/hello",
-      "upstream": {
-        "nodes": {
-          "127.0.0.1:1980": 1
-        },
-        "type": "roundrobin"
-      }
-    }
-  ],
-  "secrets": [
-    {
-      "id": "vault/1",
-      "prefix": "kv/apisix",
-      "token": "root",
-      "uri": "127.0.0.1:8200"
-    }
-  ]
-}
+--- apisix_yaml
+secrets:
+  - id: vault/1
+    prefix: kv/apisix
+    token: root
+    uri: 127.0.0.1:8200
+#END
 --- config
     location /t {
         content_by_lua_block {
@@ -82,28 +82,13 @@ property "uri" validation failed: failed to match pattern "^[^\\/]+:\\/\\/([\\da
 
 
 === TEST 2: validate secrets: manager not exits
---- apisix_json
-{
-  "routes": [
-    {
-      "uri": "/hello",
-      "upstream": {
-        "nodes": {
-          "127.0.0.1:1980": 1
-        },
-        "type": "roundrobin"
-      }
-    }
-  ],
-  "secrets": [
-    {
-      "id": "hhh/1",
-      "prefix": "kv/apisix",
-      "token": "root",
-      "uri": "127.0.0.1:8200"
-    }
-  ]
-}
+--- apisix_yaml
+secrets:
+  - id: hhh/1
+    prefix: kv/apisix
+    token: root
+    uri: 127.0.0.1:8200
+#END
 --- config
     location /t {
         content_by_lua_block {
@@ -122,28 +107,13 @@ secret manager not exits
 
 
 === TEST 3: load config normal
---- apisix_json
-{
-  "routes": [
-    {
-      "uri": "/hello",
-      "upstream": {
-        "nodes": {
-          "127.0.0.1:1980": 1
-        },
-        "type": "roundrobin"
-      }
-    }
-  ],
-  "secrets": [
-    {
-      "id": "vault/1",
-      "prefix": "kv/apisix",
-      "token": "root",
-      "uri": "http://127.0.0.1:8200"
-    }
-  ]
-}
+--- apisix_yaml
+secrets:
+  - id: vault/1
+    prefix: kv/apisix
+    token: root
+    uri: http://127.0.0.1:8200
+#END
 --- config
     location /t {
         content_by_lua_block {
@@ -177,28 +147,13 @@ Success! Data written to: kv/apisix/apisix-key
 
 
 === TEST 5: secret.fetch_by_uri: start with $secret://
---- apisix_json
-{
-  "routes": [
-    {
-      "uri": "/hello",
-      "upstream": {
-        "nodes": {
-          "127.0.0.1:1980": 1
-        },
-        "type": "roundrobin"
-      }
-    }
-  ],
-  "secrets": [
-    {
-      "id": "vault/1",
-      "prefix": "kv/apisix",
-      "token": "root",
-      "uri": "http://127.0.0.1:8200"
-    }
-  ]
-}
+--- apisix_yaml
+secrets:
+  - id: vault/1
+    prefix: kv/apisix
+    token: root
+    uri: http://127.0.0.1:8200
+#END
 --- config
     location /t {
         content_by_lua_block {
@@ -311,28 +266,13 @@ no secret conf, secret_uri: $secret://vault/2/bar
 
 
 === TEST 12: secret.fetch_by_uri, no sub key value
---- apisix_json
-{
-  "routes": [
-    {
-      "uri": "/hello",
-      "upstream": {
-        "nodes": {
-          "127.0.0.1:1980": 1
-        },
-        "type": "roundrobin"
-      }
-    }
-  ],
-  "secrets": [
-    {
-      "id": "vault/1",
-      "prefix": "kv/apisix",
-      "token": "root",
-      "uri": "http://127.0.0.1:8200"
-    }
-  ]
-}
+--- apisix_yaml
+secrets:
+  - id: vault/1
+    prefix: kv/apisix
+    token: root
+    uri: http://127.0.0.1:8200
+#END
 --- config
     location /t {
         content_by_lua_block {
@@ -377,7 +317,7 @@ qr/retrieve secrets refs/
 
 
 
-=== TEST 14: fetch_secrets env: cache (fetch data should be only called once and next call return from cache)
+=== TEST 14: fetch_secrets env: cache
 --- main_config
 env secret=apisix;
 --- config
