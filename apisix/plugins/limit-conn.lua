@@ -23,8 +23,18 @@ local plugin_name = "limit-conn"
 local schema = {
     type = "object",
     properties = {
-        conn = {type = "integer", exclusiveMinimum = 0},
-        burst = {type = "integer",  minimum = 0},
+        conn = {
+            oneOf = {
+                {type = "integer", exclusiveMinimum = 0},
+                {type = "string"},
+            },
+        },
+        burst = {
+            oneOf = {
+                {type = "integer", minimum = 0},
+                {type = "string"},
+            },
+        },
         default_conn_delay = {type = "number", exclusiveMinimum = 0},
         only_use_default_delay = {type = "boolean", default = false},
         key = {type = "string"},

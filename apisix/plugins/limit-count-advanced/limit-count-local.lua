@@ -92,12 +92,12 @@ function _M.new(plugin_name, limit, window, window_type)
     return setmetatable(self, mt)
 end
 
-function _M.incoming(self, key, cost)
+function _M.incoming(self, key, cost, commit)
     if self.window_type == "sliding" then
         return self.limit_count:incoming(key, cost)
     end
 
-    local delay, remaining = self.limit_count:incoming(key, true, cost)
+    local delay, remaining = self.limit_count:incoming(key, commit, cost)
     local reset
 
     if remaining == self.limit - cost then
