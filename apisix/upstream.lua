@@ -26,6 +26,7 @@ local tostring = tostring
 local ipairs = ipairs
 local pairs = pairs
 local pcall = pcall
+local str_byte = string.byte
 local ngx_var = ngx.var
 local is_http = ngx.config.subsystem == "http"
 local upstreams
@@ -484,10 +485,16 @@ function _M.upstreams()
 end
 
 
-function _M.check_schema(conf)
+local function check_schema(conf)
+    for _, node in ipairs(conf.nodes or {}) do
+        if core.utils.parse_ipv6(node.host) and str_byte(node.host, 1) ~= str_byte("[") then
+            return false, "IPv6 address must be enclosed with '[' and ']'"
+        end
+    end
     return core.schema.check(core.schema.upstream, conf)
 end
 
+_M.check_schema = check_schema
 
 local function get_chash_key_schema(hash_on)
     if not hash_on then
@@ -516,7 +523,7 @@ end
 
 local function check_upstream_conf(in_dp, conf)
     if not in_dp then
-        local ok, err = core.schema.check(core.schema.upstream, conf)
+        local ok, err = check_schema(conf)
         if not ok then
             return false, "invalid configuration: " .. err
         end
@@ -559,6 +566,12 @@ local function check_upstream_conf(in_dp, conf)
         -- encrypt the key in the admin
         if conf.tls and conf.tls.client_key then
             conf.tls.client_key = apisix_ssl.aes_encrypt_pkey(conf.tls.client_key)
+        end
+    else
+        for i, node in ipairs(conf.nodes or {}) do
+            if core.utils.parse_ipv6(node.host) and str_byte(node.host, 1) ~= str_byte("[") then
+                conf.nodes[i].host = "[" .. node.host .. "]"
+            end
         end
     end
 
