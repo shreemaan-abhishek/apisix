@@ -17,6 +17,7 @@
 local tonumber = tonumber
 local type = type
 local tostring = tostring
+local ipairs = ipairs
 local limit_conn_new = require("resty.limit.conn").new
 local core = require("apisix.core")
 local is_http = ngx.config.subsystem == "http"
@@ -30,44 +31,80 @@ end
 local _M = {}
 
 
-local function create_limit_obj(ctx, conf)
-    core.log.info("create new limit-conn plugin instance")
-
-    local conn = conf.conn
-    if type(conn) == "string" then
+local function resolve_var(ctx, value)
+    if type(value) == "string" then
         local err, _
-        conn, err, _ = core.utils.resolve_var(conn, ctx.var)
+        value, err, _ = core.utils.resolve_var(value, ctx.var)
         if err then
-            return nil, "could not resolve vars in conn: " .. err
+            return nil, "could not resolve var for value: " .. value .. ", err: " .. err
         end
-        conn = tonumber(conn)
-        if not conn then
-            return nil, "resolved conn is not a number: " .. tostring(conn)
+        value = tonumber(value)
+        if not value then
+            return nil, "resolved value is not a number: " .. tostring(value)
         end
     end
-
-    local burst = conf.burst
-    if type(burst) == "string" then
-        local err, _
-        burst, err, _ = core.utils.resolve_var(burst, ctx.var)
-        if err then
-            return nil, "could not resolve vars in burst: " .. err
-        end
-        burst = tonumber(burst)
-        if not burst then
-            return nil, "resolved burst is not a number: " .. tostring(burst)
-        end
-    end
-
-    core.log.info("limit conn: ", conn, ", burst: ", burst)
-
-    return limit_conn_new(shdict_name, conn, burst, conf.default_conn_delay)
+    return value
 end
 
 
-function _M.increase(conf, ctx)
-    core.log.info("ver: ", ctx.conf_version)
-    local lim, err = create_limit_obj(ctx, conf)
+local function create_limit_obj(rule, default_conn_delay)
+    core.log.info("create new limit-conn plugin instance, rule: ", core.json.delay_encode(rule))
+
+    return limit_conn_new(shdict_name, rule.conn, rule.burst, default_conn_delay)
+end
+
+
+local function get_rules(ctx, conf)
+    if not conf.rules then
+        local conn, err = resolve_var(ctx, conf.conn)
+        if err then
+            return nil, err
+        end
+        local burst, err2 = resolve_var(ctx, conf.burst)
+        if err2 then
+            return nil, err2
+        end
+        return {
+            {
+                conn = conn,
+                burst = burst,
+                key = conf.key,
+                key_type = conf.key_type,
+            }
+        }
+    end
+
+    local rules = {}
+    for _, rule in ipairs(conf.rules) do
+        local conn, err = resolve_var(ctx, rule.conn)
+        if err then
+            goto CONTINUE
+        end
+        local burst, err2 = resolve_var(ctx, rule.burst)
+        if err2 then
+            goto CONTINUE
+        end
+
+        local key, _, n_resolved = core.utils.resolve_var(rule.key, ctx.var)
+        if n_resolved == 0 then
+            goto CONTINUE
+        end
+        core.table.insert(rules, {
+            conn = conn,
+            burst = burst,
+            key_type = "constant",
+            key = key,
+        })
+
+        ::CONTINUE::
+    end
+    return rules
+end
+
+
+local function run_limit_conn(conf, rule, ctx)
+    local lim, err = create_limit_obj(rule, conf.default_conn_delay)
+
     if not lim then
         core.log.error("failed to instantiate a resty.limit.conn object: ", err)
         if conf.allow_degradation then
@@ -76,9 +113,9 @@ function _M.increase(conf, ctx)
         return 500
     end
 
-    local conf_key = conf.key
+    local conf_key = rule.key
     local key
-    if conf.key_type == "var_combination" then
+    if rule.key_type == "var_combination" then
         local err, n_resolved
         key, err, n_resolved = core.utils.resolve_var(conf_key, ctx.var)
         if err then
@@ -88,6 +125,8 @@ function _M.increase(conf, ctx)
         if n_resolved == 0 then
             key = nil
         end
+    elseif rule.key_type == "constant" then
+        key = conf_key
     else
         key = ctx.var[conf_key]
     end
@@ -132,6 +171,27 @@ function _M.increase(conf, ctx)
 
     if delay >= 0.001 then
         sleep(delay)
+    end
+end
+
+
+function _M.increase(conf, ctx)
+    core.log.info("ver: ", ctx.conf_version)
+
+    local rules, err = get_rules(ctx, conf)
+    if not rules or #rules == 0 then
+        core.log.error("failed to get limit conn rules: ", err)
+        if conf.allow_degradation then
+            return
+        end
+        return 500
+    end
+
+    for _, rule in ipairs(rules) do
+        local code, msg = run_limit_conn(conf, rule, ctx)
+        if code then
+            return code, msg
+        end
     end
 end
 

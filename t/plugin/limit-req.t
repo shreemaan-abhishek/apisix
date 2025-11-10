@@ -55,29 +55,7 @@ done
 
 
 
-=== TEST 2: wrong value of key
---- config
-    location /t {
-        content_by_lua_block {
-            local plugin = require("apisix.plugins.limit-conn")
-            local ok, err = plugin.check_schema({burst = 0, rejected_code = 503, key = 'remote_addr'})
-            if not ok then
-                ngx.say(err)
-            end
-
-            ngx.say("done")
-        }
-    }
---- request
-GET /t
---- response_body_like eval
-qr/property "(conn|default_conn_delay)" is required
-done
-/
-
-
-
-=== TEST 3: add plugin
+=== TEST 2: add plugin
 --- config
     location /t {
         content_by_lua_block {
@@ -117,7 +95,7 @@ passed
 
 
 
-=== TEST 4: not exceeding the burst
+=== TEST 3: not exceeding the burst
 --- pipelined_requests eval
 ["GET /hello", "GET /hello", "GET /hello", "GET /hello"]
 --- error_code eval
@@ -125,7 +103,7 @@ passed
 
 
 
-=== TEST 5: update plugin
+=== TEST 4: update plugin
 --- config
     location /t {
         content_by_lua_block {
@@ -164,7 +142,7 @@ passed
 
 
 
-=== TEST 6: exceeding the burst
+=== TEST 5: exceeding the burst
 --- pipelined_requests eval
 ["GET /hello", "GET /hello", "GET /hello", "GET /hello"]
 --- error_code eval
@@ -172,7 +150,7 @@ passed
 
 
 
-=== TEST 7: wrong type
+=== TEST 6: wrong type
 --- config
     location /t {
         content_by_lua_block {
@@ -212,7 +190,7 @@ GET /t
 
 
 
-=== TEST 8: disable plugin
+=== TEST 7: disable plugin
 --- config
     location /t {
         content_by_lua_block {
@@ -245,7 +223,7 @@ passed
 
 
 
-=== TEST 9: exceeding the burst
+=== TEST 8: exceeding the burst
 --- pipelined_requests eval
 ["GET /hello", "GET /hello", "GET /hello", "GET /hello"]
 --- error_code eval
@@ -253,7 +231,7 @@ passed
 
 
 
-=== TEST 10: set route (key: server_addr)
+=== TEST 9: set route (key: server_addr)
 --- config
     location /t {
         content_by_lua_block {
@@ -293,7 +271,7 @@ passed
 
 
 
-=== TEST 11: default rejected_code
+=== TEST 10: default rejected_code
 --- config
     location /t {
         content_by_lua_block {
@@ -332,7 +310,7 @@ passed
 
 
 
-=== TEST 12: consumer binds the limit-req plugin and `key` is `consumer_name`
+=== TEST 11: consumer binds the limit-req plugin and `key` is `consumer_name`
 --- config
     location /t {
         content_by_lua_block {
@@ -368,7 +346,7 @@ passed
 
 
 
-=== TEST 13: route add "key-auth" plugin
+=== TEST 12: route add "key-auth" plugin
 --- config
     location /t {
         content_by_lua_block {
@@ -403,7 +381,7 @@ passed
 
 
 
-=== TEST 14: not exceeding the burst
+=== TEST 13: not exceeding the burst
 --- pipelined_requests eval
 ["GET /hello", "GET /hello", "GET /hello"]
 --- more_headers
@@ -413,7 +391,7 @@ apikey: auth-jack
 
 
 
-=== TEST 15: update the limit-req plugin
+=== TEST 14: update the limit-req plugin
 --- config
     location /t {
         content_by_lua_block {
@@ -447,7 +425,7 @@ passed
 
 
 
-=== TEST 16: exceeding the burst
+=== TEST 15: exceeding the burst
 --- pipelined_requests eval
 ["GET /hello", "GET /hello", "GET /hello", "GET /hello"]
 --- more_headers
@@ -457,7 +435,7 @@ apikey: auth-jack
 
 
 
-=== TEST 17: key is consumer_name
+=== TEST 16: key is consumer_name
 --- config
     location /t {
         content_by_lua_block {
@@ -496,7 +474,7 @@ passed
 
 
 
-=== TEST 18: get "consumer_name" is empty
+=== TEST 17: get "consumer_name" is empty
 --- request
 GET /hello
 --- response_body
@@ -506,7 +484,7 @@ The value of the configured key is empty, use client IP instead
 
 
 
-=== TEST 19: delete consumer
+=== TEST 18: delete consumer
 --- config
     location /t {
         content_by_lua_block {
@@ -524,7 +502,7 @@ passed
 
 
 
-=== TEST 20: delete route
+=== TEST 19: delete route
 --- config
     location /t {
         content_by_lua_block {
@@ -542,7 +520,7 @@ passed
 
 
 
-=== TEST 21: check_schema failed (the `rate` attribute is equal to 0)
+=== TEST 20: check_schema failed (the `rate` attribute is equal to 0)
 --- config
     location /t {
         content_by_lua_block {
