@@ -211,7 +211,7 @@ end
 
 
 local function get_healthchecker_name(conf, instance_name)
-    return core.table.concat({plugin_name, tostring(conf), instance_name}, "#")
+    return core.table.concat({plugin_name, plugin.conf_version(conf), instance_name}, "#")
 end
 
 local function release_checkers(healthcheck_parent)
