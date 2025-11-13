@@ -17,7 +17,7 @@
 
 use t::APISIX 'no_plan';
 
-log_level("info");
+log_level("debug");
 repeat_each(1);
 no_long_string();
 no_root_location();
@@ -353,6 +353,8 @@ passed
 --- timeout: 10
 --- response_body
 passed
+--- error_log
+ai-proxy-multi#/apisix/routes/1#openai-gpt4
 
 
 
@@ -536,6 +538,8 @@ passed
 --- timeout: 10
 --- response_body
 passed
+--- error_log
+ai-proxy-multi#/apisix/services/1#openai-gpt4
 
 
 

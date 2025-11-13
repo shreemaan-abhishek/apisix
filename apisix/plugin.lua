@@ -791,7 +791,7 @@ local function merge_consumer_route(route_conf, consumer_conf, consumer_group_co
     end
 
     local new_route_conf = core.table.deepcopy(route_conf,
-                            { shallows = {"self.value.upstream.parent"}})
+        { shallows = {"self.value.upstream.parent"}, shallow_prefix = "self.value.plugins" })
 
     if consumer_group_conf then
         for name, conf in pairs(consumer_group_conf.value.plugins) do

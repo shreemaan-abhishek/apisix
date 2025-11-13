@@ -210,8 +210,8 @@ local function resolve_endpoint(instance_conf)
 end
 
 
-local function get_healthchecker_name(conf, instance_name)
-    return core.table.concat({plugin_name, plugin.conf_version(conf), instance_name}, "#")
+local function get_healthchecker_name(key, instance_name)
+    return core.table.concat({plugin_name, key, instance_name}, "#")
 end
 
 local function release_checkers(healthcheck_parent)
@@ -293,7 +293,7 @@ local function create_checkers(conf)
                         ins.checks.active.http_path, core.string.encode_args(ins.auth.query))
             end
             local checker, err = healthcheck.new({
-                name = get_healthchecker_name(conf, ins.name),
+                name = get_healthchecker_name(conf._meta.parent.key, ins.name),
                 shm_name = "upstream-healthcheck",
                 checks = ins.checks,
             })
