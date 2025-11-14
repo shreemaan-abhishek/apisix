@@ -81,6 +81,9 @@ install_nodejs () {
     pnpm setup
 }
 
+install_azure_cli () {
+    curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
+}
 
 set_coredns() {
     # test a domain name is configured as upstream

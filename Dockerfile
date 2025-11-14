@@ -121,6 +121,7 @@ STOPSIGNAL SIGQUIT
 # --- apisix-docker end ---
 COPY ./lua-resty-openapi-validate /usr/local/apisix/lua-resty-openapi-validate
 COPY ./lua-resty-aws-s3 /usr/local/apisix/lua-resty-aws-s3
+COPY ./lua-resty-azure-blob /usr/local/apisix/lua-resty-azure-blob
 
 COPY --chown=apisix:apisix ./apisix /usr/local/apisix/apisix
 COPY --chown=apisix:apisix ./agent /usr/local/apisix/agent
@@ -131,6 +132,7 @@ COPY --chown=apisix:apisix ./conf/config-default.yaml /usr/local/apisix/conf/con
 COPY --chown=apisix:apisix ./ci/utils/api7-ljbc.sh /usr/local/apisix/api7-ljbc.sh
 COPY --chown=apisix:apisix ./ci/utils/install-lua-resty-openapi-validate.sh /usr/local/apisix/ci/utils/install-lua-resty-openapi-validate.sh
 COPY --chown=apisix:apisix ./ci/utils/install-lua-resty-aws-s3.sh /usr/local/apisix/ci/utils/install-lua-resty-aws-s3.sh
+COPY --chown=apisix:apisix ./ci/utils/install-lua-resty-azure-blob.sh /usr/local/apisix/ci/utils/install-lua-resty-azure-blob.sh
 COPY --chown=apisix:apisix ./ci/utils/linux-install-luarocks.sh /usr/local/apisix/linux-install-luarocks.sh
 COPY --chown=apisix:apisix ./Makefile /usr/local/apisix/Makefile
 COPY --chown=apisix:apisix ./api7-master-0.rockspec /usr/local/apisix/api7-master-0.rockspec

@@ -447,9 +447,29 @@ local deployment_schema = {
                         },
                         required = {"access_key", "secret_key", "resource_bucket",
                                     "config_bucket", "region",}
-                    }
+                    },
+                    azure_blob = {
+                        type = "object",
+                        properties = {
+                            account_name = { type = "string" },
+                            account_key = { type = "string" },
+                            resource_container = { type = "string" },
+                            config_container = { type = "string" },
+                            endpoint = {
+                                type = "string",
+                                pattern = [[^https?://]]
+                            }
+                        },
+                        required = {
+                            "account_name", "account_key",
+                            "resource_container", "config_container",
+                        }
+                    },
                 },
-                required = {"aws_s3"}
+                oneOf = {
+                    { required = {"aws_s3"} },
+                    { required = {"azure_blob"} },
+                },
             }
         },
         required = {"role_data_plane"}

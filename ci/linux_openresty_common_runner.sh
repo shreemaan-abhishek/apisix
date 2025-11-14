@@ -59,6 +59,9 @@ do_install() {
     # install nodejs
     install_nodejs
 
+    # install azure cli
+    install_azure_cli
+
     # install common jest test suite
     pushd t
     pnpm install

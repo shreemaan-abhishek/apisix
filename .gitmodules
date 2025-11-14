@@ -7,3 +7,6 @@
 [submodule "OpenAPI2MCP"]
 	path = OpenAPI2MCP
 	url = git@github.com:api7/OpenAPI2MCP.git
+[submodule "lua-resty-azure-blob"]
+	path = lua-resty-azure-blob
+	url = https://github.com/api7/lua-resty-azure-blob.git

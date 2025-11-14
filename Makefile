@@ -123,6 +123,7 @@ deps:
 	fi
 	./ci/utils/install-lua-resty-openapi-validate.sh
 	./ci/utils/install-lua-resty-aws-s3.sh
+	./ci/utils/install-lua-resty-azure-blob.sh
 
 .PHONY: build-image-pre
 build-image-pre:

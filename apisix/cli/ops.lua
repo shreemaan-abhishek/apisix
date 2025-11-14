@@ -138,6 +138,112 @@ local function get_lua_path(conf)
     return ""
 end
 
+local fallback_cp
+
+do
+    local function aws_s3(conf, gw_id)
+        local s3 = require("resty.s3")
+        local res, err = s3.get_object(
+            conf.resource_bucket, gw_id, conf.region,
+            conf.access_key, conf.secret_key, conf.endpoint
+        )
+        if not res then
+            util.die("failed to get resource data from s3: ", err)
+        end
+
+        local config_res, err = s3.get_object(
+            conf.config_bucket, gw_id, conf.region,
+            conf.access_key, conf.secret_key, conf.endpoint
+        )
+        if not config_res then
+            util.die("failed to get config data from s3: ", err)
+        end
+
+        return {
+            resource_data = res,
+            config_data = config_res
+        }
+    end
+
+    local function azure_blob(conf, gw_id)
+        local azure = require("resty.azblob")
+
+        local res, err = azure.get_object(
+            conf.account_name, conf.account_key,
+            conf.resource_container, gw_id, conf.endpoint
+        )
+        if not res then
+            util.die("failed to get resource data from azure blob: ", err)
+        end
+
+        local config_res, err = azure.get_object(
+            conf.account_name, conf.account_key,
+            conf.config_container, gw_id, conf.endpoint
+        )
+        if not config_res then
+            util.die("failed to get config data from azure blob: ", err)
+        end
+
+        return {
+            resource_data = res,
+            config_data = config_res
+        }
+    end
+
+    function fallback_cp(conf, gw_id, is_json)
+        if not conf then
+            return nil
+        end
+
+        local fetch_func
+        local cp_conf
+        if conf.aws_s3 then
+            fetch_func = aws_s3
+            cp_conf = conf.aws_s3
+        elseif conf.azure_blob then
+            fetch_func = azure_blob
+            cp_conf = conf.azure_blob
+        else
+            util.die("unsupported fallback_cp type")
+            return nil
+        end
+
+        if not gw_id or gw_id == "" then
+            util.die("failed to parse gateway group id from control plane token")
+        end
+
+        local fetch_data = fetch_func(cp_conf, gw_id)
+
+        if fetch_data.resource_data then
+            local success, err
+            if is_json then
+                success, err = util.write_file(
+                    profile:json_path("apisix"),
+                    fetch_data.resource_data
+                )
+            else
+                success, err = util.write_file(
+                    profile:yaml_path("apisix"),
+                    fetch_data.resource_data
+                )
+            end
+            if not success then
+                util.die("failed to write to apisix config file: ", err)
+            end
+        end
+
+        if fetch_data.config_data then
+            local success, err = util.write_file(
+                constants.DP_CONF_FILE,
+                fetch_data.config_data
+            )
+            if not success then
+                util.die("failed to write to dp config file: ", err)
+            end
+        end
+    end
+end
+
 
 local function init(env)
     if env.is_root_path then
@@ -169,42 +275,10 @@ local function init(env)
     local standalone_json = yaml_conf.deployment.config_provider == "json"
     local standalone_yaml = yaml_conf.deployment.config_provider == "yaml"
     local gw_id = getenv("API7_GATEWAY_GROUP_SHORT_ID")
-    local ha_conf
-    if  yaml_conf.deployment.fallback_cp then
-        ha_conf = yaml_conf.deployment.fallback_cp.aws_s3
-    end
 
-    if (standalone_json or standalone_yaml) and gw_id and gw_id ~= "" and ha_conf then
-        if not gw_id or gw_id == "" then
-            util.die("failed to parse gateway group id from control plane token")
-        end
-
-        local s3 = require("resty.s3")
-        local res, err = s3.get_object(ha_conf.resource_bucket, gw_id, ha_conf.region,
-                                       ha_conf.access_key, ha_conf.secret_key, ha_conf.endpoint)
-        if not res then
-            util.die("failed to get resource data from s3: ", err)
-        end
-        local success, err
-        if standalone_json then
-            success, err = util.write_file(profile:json_path("apisix"), res)
-        else
-            success, err = util.write_file(profile:yaml_path("apisix"), res)
-        end
-        if not success then
-            util.die("failed to write to apisix config file: ", err)
-        end
-
-        res, err = s3.get_object(ha_conf.config_bucket, gw_id, ha_conf.region, ha_conf.access_key,
-                                 ha_conf.secret_key, ha_conf.endpoint)
-        if not res then
-            util.die("failed to get config data from s3: ", err)
-        end
-
-        success, err = util.write_file(constants.DP_CONF_FILE, res)
-        if not success then
-            util.die("failed to write to dp config file: ", err)
-        end
+    if (standalone_json or standalone_yaml) and gw_id and gw_id ~= "" and
+       yaml_conf.deployment.fallback_cp then
+        fallback_cp(yaml_conf.deployment.fallback_cp, gw_id, standalone_json)
     end
 
     -- check the Admin API token
@@ -351,8 +425,11 @@ Please modify "admin_key" in conf/config.yaml .
 
     local status_server_addr
     if yaml_conf.apisix.status then
-        status_server_addr = validate_and_get_listen_addr("status port", "127.0.0.1",
-                             yaml_conf.apisix.status.ip, 7085, yaml_conf.apisix.status.port)
+        status_server_addr = validate_and_get_listen_addr(
+            "status port", "127.0.0.1",
+            yaml_conf.apisix.status.ip, 7085,
+            yaml_conf.apisix.status.port
+        )
     end
 
     -- listen in admin use a separate port, support specific IP, compatible with the original style
