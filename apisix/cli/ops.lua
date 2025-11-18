@@ -469,7 +469,8 @@ Please modify "admin_key" in conf/config.yaml .
 
     local ip_port_to_check = {}
 
-    local function listen_table_insert(listen_table, scheme, ip, port, enable_http2, enable_ipv6)
+    local function listen_table_insert(listen_table, scheme, ip, port,
+                                enable_http2, enable_ipv6, backlog)
         if type(ip) ~= "string" then
             util.die(scheme, " listen ip format error, must be string", "\n")
         end
@@ -487,7 +488,7 @@ Please modify "admin_key" in conf/config.yaml .
 
         if ip_port_to_check[addr] == nil then
             table_insert(listen_table,
-                    {ip = ip, port = port, enable_http2 = enable_http2})
+                    {ip = ip, port = port, enable_http2 = enable_http2, backlog = backlog})
             ip_port_to_check[addr] = scheme
         end
 
@@ -497,7 +498,7 @@ Please modify "admin_key" in conf/config.yaml .
 
             if ip_port_to_check[addr] == nil then
                 table_insert(listen_table,
-                        {ip = ip, port = port, enable_http2 = enable_http2})
+                        {ip = ip, port = port, enable_http2 = enable_http2, backlog = backlog})
                 ip_port_to_check[addr] = scheme
             end
         end
@@ -507,17 +508,18 @@ Please modify "admin_key" in conf/config.yaml .
     -- listen in http, support multiple ports and specific IP, compatible with the original style
     if type(yaml_conf.apisix.node_listen) == "number" then
         listen_table_insert(node_listen, "http", "0.0.0.0", yaml_conf.apisix.node_listen,
-                false, yaml_conf.apisix.enable_ipv6)
+                false, yaml_conf.apisix.enable_ipv6, nil)
     elseif type(yaml_conf.apisix.node_listen) == "table" then
         for _, value in ipairs(yaml_conf.apisix.node_listen) do
             if type(value) == "number" then
                 listen_table_insert(node_listen, "http", "0.0.0.0", value,
-                        false, yaml_conf.apisix.enable_ipv6)
+                        false, yaml_conf.apisix.enable_ipv6, nil)
             elseif type(value) == "table" then
                 local ip = value.ip
                 local port = value.port
                 local enable_ipv6 = false
                 local enable_http2 = value.enable_http2
+                local backlog = value.backlog
 
                 if ip == nil then
                     ip = "0.0.0.0"
@@ -535,7 +537,7 @@ Please modify "admin_key" in conf/config.yaml .
                 end
 
                 listen_table_insert(node_listen, "http", ip, port,
-                        enable_http2, enable_ipv6)
+                        enable_http2, enable_ipv6, backlog)
             end
         end
     end
@@ -548,6 +550,7 @@ Please modify "admin_key" in conf/config.yaml .
         local port = value.port
         local enable_ipv6 = false
         local enable_http2 = value.enable_http2
+        local backlog = value.backlog
 
         if ip == nil then
             ip = "0.0.0.0"
@@ -565,7 +568,7 @@ Please modify "admin_key" in conf/config.yaml .
         end
 
         listen_table_insert(ssl_listen, "https", ip, port,
-                enable_http2, enable_ipv6)
+                enable_http2, enable_ipv6, backlog)
     end
 
     yaml_conf.apisix.ssl.listen = ssl_listen
