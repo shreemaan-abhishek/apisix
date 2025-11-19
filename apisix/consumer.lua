@@ -244,7 +244,12 @@ do
         local consumer, err = agent_api7.developer_query({
             plugin_name = plugin_name,
             key_value = key_value,
-            service_id = ctx.service_id
+            service_id = ctx.service_id or "",
+            -- we need these fields to query right subscription from dpm in multiple portals case,
+            -- because same service can be published to different portals with different api
+            -- products, so `service_id` alone is not enough to identify a unique subscription.
+            portal_id = ctx.portal_id,
+            api_product_id = ctx.api_product_id or "",
         })
         if not consumer then
             return nil, nil, err

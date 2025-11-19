@@ -4,19 +4,46 @@ local require = require
 local pairs = pairs
 local type  = type
 local ipairs = ipairs
+local setmetatable = setmetatable
 
+local expr    = require("resty.expr.v1")
 local plugin = require("apisix.plugin")
 local key_auth = require("apisix.plugins.key-auth")
 local basic_auth = require("apisix.plugins.basic-auth")
+local oidc = require("apisix.plugins.portal-auth.oidc")
 
-local schema = {
+local auth_methods = {
+    oidc = oidc.auth,
+}
+
+local auth_rule_schema = {
     type = "object",
     title = "work with route or service object",
     properties = {
+        portal_id = {
+            type = "string",
+            minLength = 1,
+            maxLength = 256,
+            default = "default",
+        },
         api_product_id = {
             type = "string",
             minLength = 1,
             maxLength = 256,
+        },
+        case = {
+            type = "array",
+            items = {
+                anyOf = {
+                    {
+                        type = "array",
+                    },
+                    {
+                        type = "string",
+                    },
+                }
+            },
+            minItems = 1,
         },
         auth_plugins = {
             type = "array",
@@ -32,6 +59,21 @@ local schema = {
                         type = "object",
                         properties = { ["basic-auth"] = basic_auth.schema },
                         required = { "basic-auth" }
+                    },
+                    {
+                        type = "object",
+                        properties = {
+                            oidc = {
+                                type = "object",
+                                properties = {
+                                    discovery = {
+                                        type = "string",
+                                    },
+                                },
+                                required = { "discovery" }
+                            }
+                        },
+                        required = { "oidc" }
                     }
                 }
             },
@@ -39,6 +81,23 @@ local schema = {
         }
     },
     required = { "auth_plugins" },
+}
+
+local schema = {
+    oneOf = {
+        auth_rule_schema,
+        {
+            type = "object",
+            properties = {
+                rules = {
+                    type = "array",
+                    minItems = 1,
+                    items = auth_rule_schema,
+                },
+            },
+            required = { "rules" }
+        }
+    }
 }
 
 
@@ -58,7 +117,23 @@ local _M = {
 }
 
 function _M.check_schema(conf)
-    return core.schema.check(schema, conf)
+    local ok, err = core.schema.check(schema, conf)
+    if not ok then
+        return false, err
+    end
+    if not conf.rules then
+        return true
+    end
+
+    for idx, rule in ipairs(conf.rules) do
+        if rule.case then
+            local _, err2 = expr.new(rule.case)
+            if err2 then
+                return false, "failed to validate the " .. idx  .. "th case: " .. err2
+            end
+        end
+    end
+    return true
 end
 
 
@@ -66,9 +141,14 @@ local function execute_auth_plugins(auth_plugins, ctx)
     local errors = {}
     for _, auth_plugin in pairs(auth_plugins) do
         for auth_plugin_name, auth_plugin_conf in pairs(auth_plugin) do
-            local auth = plugin.get(auth_plugin_name)
             -- returns 401 HTTP status code if authentication failed, otherwise returns nothing.
-            local auth_code, err = auth.rewrite(auth_plugin_conf, ctx)
+            local auth_code, err
+            if auth_methods[auth_plugin_name] then
+                auth_code, err = auth_methods[auth_plugin_name](auth_plugin_conf, ctx)
+            else
+                local auth = plugin.get(auth_plugin_name)
+                auth_code, err = auth.rewrite(auth_plugin_conf, ctx)
+            end
             if auth_code == nil then
                 core.log.info(auth_plugin_name, " succeed to authenticate the request")
                 return true
@@ -108,11 +188,39 @@ function _M.log(conf, ctx)
 end
 
 function _M.rewrite(conf, ctx)
-    if conf.api_product_id then
-        ctx.api_product_id = conf.api_product_id
+    local matched_auth_rule
+    if not conf.rules then
+        matched_auth_rule = conf
+    else
+        for _, rule in ipairs(conf.rules) do
+            local matched = true
+            if rule.case then
+                if not rule._expr then
+                    core.log.debug("compiling case expression for portal auth rule, case: ",
+                                        core.json.delay_encode(rule.case, true))
+                    local caseExpr, _  = expr.new(rule.case)
+                    setmetatable(rule, {__index = {
+                        _expr = caseExpr,
+                    }})
+                end
+                matched = rule._expr:eval(ctx.var)
+            end
+            if matched then
+                matched_auth_rule = rule
+                break
+            end
+        end
     end
 
-    local succeed, errors = execute_auth_plugins(conf.auth_plugins, ctx)
+    if not matched_auth_rule then
+        core.log.info("no matching auth rule found")
+        return
+    end
+
+    ctx.api_product_id = matched_auth_rule.api_product_id
+    ctx.portal_id = matched_auth_rule.portal_id
+
+    local succeed, errors = execute_auth_plugins(matched_auth_rule.auth_plugins, ctx)
     if succeed then
         local consumer = ctx.consumer
         if consumer.labels then
@@ -129,6 +237,7 @@ function _M.rewrite(conf, ctx)
         end
         core.request.set_header(ctx, "X-API7-Portal-Credential-Id", consumer.credential_id)
         core.request.set_header(ctx, "X-API7-Portal-Request-Id", ctx.var.apisix_request_id)
+        core.request.set_header(ctx, "X-API7-Portal-Portal-Id", ctx.portal_id)
         return
     end
 

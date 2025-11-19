@@ -702,7 +702,9 @@ function _M.developer_query(self, query)
     local cache_key = table.concat({
         query.plugin_name,
         query.key_value,
-        query.service_id
+        query.service_id,
+        query.portal_id,
+        query.api_product_id,
     }, "/")
 
     core.log.debug("developer_query cache_key: ", cache_key)
