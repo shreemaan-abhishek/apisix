@@ -390,6 +390,7 @@ receive data plane developer_query: key-auth, auth-one
                 [[{
                     "plugins": {
                         "portal-auth":{
+                            "portal_id": "portal_12345",
                             "api_product_id": "5c7d2ccf-08e3-43b9-956f-6e0f58de6142",
                             "auth_plugins": [
                                 {
@@ -492,6 +493,7 @@ GET /log_request
 authkey: auth-one
 --- error_code: 200
 --- error_log
+x-api7-portal-portal-id: portal_12345
 x-api7-portal-api-product-id: 5c7d2ccf-08e3-43b9-956f-6e0f58de6142
 x-api7-portal-application-id: 1e0388e9-05cf-4f96-965c-3bdff2c81769
 x-api7-portal-credential-id: 05ade19c-44ac-4d87-993c-c877dbce5d34
@@ -518,7 +520,7 @@ qr/x-api7-portal-request-id: [0-9a-f-]+,/
 --- error_code eval
 [401, 401, 200]
 --- response_body_like eval
-[".*Authorization Failed.*", ".*Authorization Failed.*", ".*apisix_http_status\{code=\"401\",route=\"1\",route_id=\"1\",matched_uri=\"\/log_request\",matched_host=\"\",service=\"1\",service_id=\"1\",consumer=\"\",.*api_product_id=\"5c7d2ccf-08e3-43b9-956f-6e0f58de6142\".*\} 2.*"]
+[".*Authorization Failed.*", ".*Authorization Failed.*", ".*apisix_http_status\\{code=\"401\",route=\"1\",route_id=\"1\",matched_uri=\"\/log_request\",matched_host=\"\",service=\"1\",service_id=\"1\",consumer=\"\",.*portal_id=\"portal_12345\",api_product_id=\"5c7d2ccf-08e3-43b9-956f-6e0f58de6142\".*\} 2.*"]
 
 
 
@@ -530,4 +532,4 @@ authkey: auth-one
 --- error_code eval
 [200, 200, 200]
 --- response_body_like eval
-[".*", ".*", ".*apisix_http_status\{code=\"200\",route=\"1\",route_id=\"1\",matched_uri=\"\/log_request\",matched_host=\"\",service=\"1\",service_id=\"1\",consumer=\"developer_test\",.*api_product_id=\"5c7d2ccf-08e3-43b9-956f-6e0f58de6142\".*\} 2.*"]
+[".*", ".*", ".*apisix_http_status\\{code=\"200\",route=\"1\",route_id=\"1\",matched_uri=\"\/log_request\",matched_host=\"\",service=\"1\",service_id=\"1\",consumer=\"developer_test\",.*portal_id=\"portal_12345\",api_product_id=\"5c7d2ccf-08e3-43b9-956f-6e0f58de6142\".*\} 2.*"]

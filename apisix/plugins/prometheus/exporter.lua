@@ -135,34 +135,34 @@ local metric_label_map = {
     shared_dict_free_space_bytes = {"name", "gateway_group_id", "instance_id"},
     status = {"code", "route", "route_id", "matched_uri", "matched_host",
           "service", "service_id", "consumer", "node",
-          "gateway_group_id", "instance_id", "api_product_id",
+          "gateway_group_id", "instance_id", "portal_id", "api_product_id",
           "request_type", "request_llm_model", "llm_model",
          },
     latency = {"type", "route", "route_id", "service", "service_id", "consumer",
-           "node", "gateway_group_id", "instance_id", "api_product_id",
+           "node", "gateway_group_id", "instance_id", "portal_id", "api_product_id",
            "request_type", "request_llm_model", "llm_model",
           },
     bandwidth = {"type", "route", "route_id", "service", "service_id", "consumer",
-            "node", "gateway_group_id", "instance_id", "api_product_id",
+            "node", "gateway_group_id", "instance_id", "portal_id", "api_product_id",
             "request_type", "request_llm_model", "llm_model",
           },
     llm_latency = {"route", "route_id", "service", "service_id", "consumer",
-             "node", "gateway_group_id", "instance_id", "api_product_id",
+             "node", "gateway_group_id", "instance_id", "portal_id", "api_product_id",
              "request_type", "request_llm_model", "llm_model",
             },
     llm_prompt_tokens = {"route", "route_id", "matched_uri", "matched_host",
               "service", "service_id", "consumer", "node",
-              "gateway_group_id", "instance_id", "api_product_id",
+              "gateway_group_id", "instance_id", "portal_id", "api_product_id",
               "request_type", "request_llm_model", "llm_model",
               },
     llm_completion_tokens = {"route", "route_id", "matched_uri", "matched_host",
               "service", "service_id", "consumer", "node",
-              "gateway_group_id", "instance_id", "api_product_id",
+              "gateway_group_id", "instance_id", "portal_id", "api_product_id",
               "request_type", "request_llm_model", "llm_model",
           },
     llm_active_connections = {"route", "route_id", "matched_uri", "matched_host",
               "service", "service_id", "consumer", "node",
-              "gateway_group_id", "instance_id", "api_product_id",
+              "gateway_group_id", "instance_id", "portal_id", "api_product_id",
               "request_type", "request_llm_model", "llm_model",
           },
 }
@@ -405,6 +405,7 @@ function _M.http_log(conf, ctx)
     local consumer_name = ctx.consumer_name or ""
     local gateway_group_id = get_gateway_group_id()
     local instance_id = core.id.get()
+    local portal_id = ctx.portal_id or ""
     local api_product_id = ctx.api_product_id or ""
 
     local matched_route = ctx.matched_route and ctx.matched_route.value
@@ -432,8 +433,8 @@ function _M.http_log(conf, ctx)
     metrics.status:inc(1,
         append_tables(get_enabled_label_values_for_metric("status", disabled_label_metric_map,
         vars.status, route, route_id, matched_uri, matched_host,
-        service, service_id, consumer_name, balancer_ip, gateway_group_id,
-        instance_id, api_product_id, vars.request_type, vars.request_llm_model, vars.llm_model),
+        service, service_id, consumer_name, balancer_ip, gateway_group_id, instance_id,
+        portal_id, api_product_id, vars.request_type, vars.request_llm_model, vars.llm_model),
         extra_labels("http_status", ctx)))
 
     local latency, upstream_latency, apisix_latency = latency_details(ctx)
@@ -442,7 +443,7 @@ function _M.http_log(conf, ctx)
     metrics.latency:observe(latency,
         append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
         "request", route, route_id, service, service_id, consumer_name,
-        balancer_ip, gateway_group_id, instance_id, api_product_id,
+        balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
         vars.request_type, vars.request_llm_model, vars.llm_model),
         latency_extra_label_values))
 
@@ -450,7 +451,7 @@ function _M.http_log(conf, ctx)
         metrics.latency:observe(upstream_latency,
             append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
             "upstream", route, route_id, service, service_id, consumer_name,
-            balancer_ip, gateway_group_id, instance_id, api_product_id,
+            balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
             vars.request_type, vars.request_llm_model, vars.llm_model),
             latency_extra_label_values))
     end
@@ -458,7 +459,7 @@ function _M.http_log(conf, ctx)
     metrics.latency:observe(apisix_latency,
         append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
         "apisix", route, route_id, service, service_id, consumer_name,
-        balancer_ip, gateway_group_id, instance_id, api_product_id,
+        balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
         vars.request_type, vars.request_llm_model, vars.llm_model),
         latency_extra_label_values))
 
@@ -467,14 +468,14 @@ function _M.http_log(conf, ctx)
     metrics.bandwidth:inc(vars.request_length,
         append_tables(get_enabled_label_values_for_metric("bandwidth", disabled_label_metric_map,
         "ingress", route, route_id, service, service_id, consumer_name,
-        balancer_ip, gateway_group_id, instance_id, api_product_id,
+        balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
         vars.request_type, vars.request_llm_model, vars.llm_model),
         bandwidth_extra_label_values))
 
     metrics.bandwidth:inc(vars.bytes_sent,
         append_tables(get_enabled_label_values_for_metric("bandwidth", disabled_label_metric_map,
         "egress", route, route_id, service, service_id, consumer_name,
-        balancer_ip, gateway_group_id, instance_id, api_product_id,
+        balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
         vars.request_type, vars.request_llm_model, vars.llm_model),
         bandwidth_extra_label_values))
 
@@ -484,7 +485,7 @@ function _M.http_log(conf, ctx)
             append_tables(get_enabled_label_values_for_metric("llm_latency",
                 disabled_label_metric_map,
             route, route_id, service, service_id, consumer_name,
-            balancer_ip, gateway_group_id, instance_id, api_product_id,
+            balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
             vars.request_type, vars.request_llm_model, vars.llm_model),
             extra_labels("llm_latency", ctx)))
     end
@@ -494,7 +495,7 @@ function _M.http_log(conf, ctx)
             append_tables(get_enabled_label_values_for_metric("llm_prompt_tokens",
             disabled_label_metric_map, route, route_id, matched_uri,
             matched_host, service, service_id, consumer_name, balancer_ip,
-            gateway_group_id, instance_id, api_product_id,
+            gateway_group_id, instance_id, portal_id, api_product_id,
             vars.request_type, vars.request_llm_model, vars.llm_model),
             extra_labels("llm_prompt_tokens", ctx)))
     end
@@ -503,7 +504,7 @@ function _M.http_log(conf, ctx)
             append_tables(get_enabled_label_values_for_metric("llm_completion_tokens",
             disabled_label_metric_map, route, route_id, matched_uri,
             matched_host, service, service_id, consumer_name, balancer_ip,
-            gateway_group_id, instance_id, api_product_id,
+            gateway_group_id, instance_id, portal_id, api_product_id,
             vars.request_type, vars.request_llm_model, vars.llm_model),
             extra_labels("llm_completion_tokens", ctx)))
     end
@@ -856,6 +857,7 @@ local function inc_llm_active_connections(ctx, value)
     local consumer_name = ctx.consumer_name or ""
     local gateway_group_id = get_gateway_group_id()
     local instance_id = core.id.get()
+    local portal_id = ctx.portal_id or ""
     local api_product_id = ctx.api_product_id or ""
 
     local matched_route = ctx.matched_route and ctx.matched_route.value
@@ -880,7 +882,7 @@ local function inc_llm_active_connections(ctx, value)
         append_tables(get_enabled_label_values_for_metric("llm_active_connections",
         disabled_label_metric_map, route_name, route_id, matched_uri,
         matched_host, service_name, service_id, consumer_name, balancer_ip,
-        gateway_group_id, instance_id, api_product_id,
+        gateway_group_id, instance_id, portal_id, api_product_id,
         vars.request_type, vars.request_llm_model, vars.llm_model),
         extra_labels("llm_active_connections", ctx)))
 end
