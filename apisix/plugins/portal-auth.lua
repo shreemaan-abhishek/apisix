@@ -166,7 +166,7 @@ end
 
 function _M.log(conf, ctx)
     local consumer = ctx.consumer
-    if consumer and consumer.labels then
+    if consumer and consumer.labels and consumer.labels.subscription_id then
         local subscription_id = consumer.labels.subscription_id
         local developer_id = consumer.labels.developer_id
         local application_id = consumer.labels.application_id

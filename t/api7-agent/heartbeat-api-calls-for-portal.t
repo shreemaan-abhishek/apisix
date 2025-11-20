@@ -1,7 +1,7 @@
 use t::APISIX 'no_plan';
 
 repeat_each(1);
-log_level('debug');
+log_level('info');
 no_long_string();
 no_root_location();
 
@@ -18,7 +18,6 @@ _EOC_
     server.api_dataplane_heartbeat = function()
         ngx.req.read_body()
         local data = ngx.req.get_body_data()
-        ngx.log(ngx.NOTICE, "receive data plane heartbeat: ", data)
 
         local json_decode = require("toolkit.json").decode
         local payload = json_decode(data)
@@ -35,67 +34,61 @@ _EOC_
             end
         end
 
-        local resp_payload = {
-            config = {
-                config_version = 1,
-                config_payload = {
-                    apisix = {
-                        ssl = {
-                            key_encrypt_salt = {"1234567890abcdef"}
-                        },
-                        data_encryption = {
-                            enable = true,
-                            keyring = {"umse0chsxjqpjgdxp6xyvflyixqnkqwb"}
-                        }
-                    }
-                }
-            }
-        }
-
-        local core = require("apisix.core")
-        ngx.say(core.json.encode(resp_payload))
+        ngx.say("{}")
     end
 
     server.api_dataplane_developer_query = function()
-        local headers = ngx.req.get_headers()
-        for k, v in pairs(headers) do
-            ngx.log(ngx.INFO, "consumer_query api receive header [", k, ": ", v,"]")
-        end
-
         local plugin_name = ngx.var.arg_plugin_name
         local key_value = ngx.var.arg_key_value
         local service_id = ngx.var.arg_service_id
 
         ngx.log(ngx.INFO, "receive data plane developer_query: ", plugin_name, ", ", key_value, ", ", service_id)
-        if plugin_name ~= "basic-auth" or key_value ~= "rose" then
-            return ngx.exit(404)
+        local payload
+        if plugin_name == "basic-auth" and key_value == "rose" then
+            payload = {
+                credential_id = "05ade19c-44ac-4d87-993c-c877dbce5d34",
+                consumer_name = "rose",
+                username = "rose",
+                labels = {
+                    application_id = "1e0388e9-05cf-4f96-965c-3bdff2c81769",
+                    developer_id = "1a758cf0-4166-48bf-9349-b0b06c4e590b",
+                    developer_username = "rose",
+                    -- with subscription
+                    subscription_id = "6e8954e6-c95e-40cc-b778-688efd65a90b",
+                    api_product_id = "5c7d2ccf-08e3-43b9-956f-6e0f58de6142",
+                },
+                auth_conf = {
+                    username = "rose",
+                    password = "123456"
+                },
+                modifiedIndex = 111
+            }
+        elseif plugin_name == "key-auth" and key_value == "jack" then
+            payload = {
+                credential_id = "05ade19c-44ac-4d87-993c-c877dbce5d34",
+                consumer_name = "jack",
+                username = "jack",
+                labels = {
+                    application_id = "1e0388e9-05cf-4f96-965c-3bdff2c81769",
+                    developer_id = "1a758cf0-4166-48bf-9349-b0b06c4e590b",
+                    developer_username = "developer_test",
+                    -- without subscription
+                },
+                plugins = {
+                    ["fault-injection"] = {
+                        abort = {
+                            http_status = 403,
+                            body = "No any subscription yet",
+                        },
+                    },
+                },
+                modifiedIndex = 111
+            }
+        else
+            ngx.exit(404)
         end
 
         local core = require("apisix.core")
-        local payload = {
-            credential_id = "05ade19c-44ac-4d87-993c-c877dbce5d34",
-            consumer_name = "developer_test",
-            username = "developer_test",
-            labels = {
-                application_id = "1e0388e9-05cf-4f96-965c-3bdff2c81769",
-                api_product_id = "5c7d2ccf-08e3-43b9-956f-6e0f58de6142",
-                developer_id = "1a758cf0-4166-48bf-9349-b0b06c4e590b",
-                subscription_id = "6e8954e6-c95e-40cc-b778-688efd65a90b",
-                developer_username = "developer_test",
-            },
-            plugins = {
-                ["consumer-restriction"] = {
-                    type = "route_id",
-                    whitelist = {"1"},
-                    ["rejected_code"] = 403
-                },
-            },
-            auth_conf = {
-                username = "rose",
-                password = "123456"
-            },
-            modifiedIndex = 111
-        }
         ngx.say(core.json.encode(payload))
     end
 
@@ -138,7 +131,7 @@ __DATA__
                     "methods": ["GET"],
                     "upstream": {
                         "nodes": {
-                            "127.0.0.1:1981": 1
+                            "127.0.0.1:1980": 1
                         },
                         "type": "roundrobin"
                     },
@@ -147,22 +140,14 @@ __DATA__
                             "auth_plugins": [
                                 {
                                     "basic-auth": {}
+                                },
+                                {
+                                    "key-auth": {}
                                 }
                             ]
-                        },
-                        "serverless-post-function": {
-                            "phase": "rewrite",
-                            "functions": ["
-                                return function(conf, ctx)
-                                    local core = require(\"apisix.core\")
-                                    local uri = ctx.var.uri
-                                    local status = tonumber(string.sub(uri, -3))
-                                    return core.response.exit(status)
-                                end
-                            "]
                         }
                     },
-                    "uri": "/status/*"
+                    "uri": "/specific_status"
                 }]]
                 )
 
@@ -180,26 +165,45 @@ passed
 
 
 
-=== TEST 2: request routes with basic-auth
---- timeout: 30
+=== TEST 2: request routes with basic-auth and key-auth
 --- config
     location /t {
         content_by_lua_block {
             local http = require "resty.http"
             local httpc = http.new()
+
+            -- developer that using basic-auth has subscription
             for _, code in ipairs({200, 200, 200, 200, 401, 401, 401, 500, 500, 503}) do
-                local resp = httpc:request_uri("http://127.0.0.1:" .. ngx.var.server_port .. "/status/" .. tostring(code), { headers = { ["Authorization"] = "Basic cm9zZToxMjM0NTY=" } })
+                local resp = httpc:request_uri("http://127.0.0.1:" .. ngx.var.server_port .. "/specific_status",
+                        { headers = { ["Authorization"] = "Basic cm9zZToxMjM0NTY=", ["x-test-upstream-status"] = code } })
                 if resp.status ~= code then
                     ngx.status = 400
                     ngx.say("failed to request /status/" .. tostring(code))
                     return
                 end
             end
-            ngx.sleep(11)
+
+            -- developer that using key-auth don't has subscription
+            for i = 1, 5 do
+                local resp = httpc:request_uri("http://127.0.0.1:" .. ngx.var.server_port .. "/specific_status",
+                        { headers = { ["apikey"] = "jack" }, ["x-test-upstream-status"] = 200 })
+                if resp.status ~= 403 then
+                    ngx.say("expect 403, got " .. tostring(resp.status))
+                    return
+                end
+                if resp.body ~= "No any subscription yet" then
+                    ngx.say("got a unexpect body: " .. tostring(resp.body))
+                    return
+                end
+            end
+
+            ngx.sleep(3)
             ngx.status = 200
             ngx.say("passed")
         }
     }
+--- response_body
+passed
 --- error_log
 developer_id: 1a758cf0-4166-48bf-9349-b0b06c4e590b
 api_product_id: 5c7d2ccf-08e3-43b9-956f-6e0f58de6142
@@ -210,3 +214,5 @@ subscription_id: 6e8954e6-c95e-40cc-b778-688efd65a90b
 401:3
 500:2
 503:1
+--- no_error_log
+[error]
