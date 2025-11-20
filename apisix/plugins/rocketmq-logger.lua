@@ -138,6 +138,11 @@ local function send_rocketmq_data(conf, log_message, prod)
 end
 
 
+function _M.access(conf, ctx)
+    log_util.collect_req_body(conf, ctx)
+end
+
+
 function _M.body_filter(conf, ctx)
     log_util.collect_body(conf, ctx)
 end

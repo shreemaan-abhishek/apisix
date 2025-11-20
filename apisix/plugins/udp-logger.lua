@@ -117,6 +117,11 @@ local function send_udp_data(conf, log_message)
 end
 
 
+function _M.access(conf, ctx)
+    log_util.collect_req_body(conf, ctx)
+end
+
+
 function _M.body_filter(conf, ctx)
     log_util.collect_body(conf, ctx)
 end

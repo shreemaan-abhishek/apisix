@@ -269,10 +269,12 @@ function _M.body_filter(conf, ctx)
     log_util.collect_body(conf, ctx)
 end
 
-function _M.access(conf)
+
+function _M.access(conf, ctx)
     -- fetch_and_update_es_version will call ES server only the first time
     -- so this should not amount to considerable overhead
     fetch_and_update_es_version(conf)
+    log_util.collect_req_body(conf, ctx)
 end
 
 

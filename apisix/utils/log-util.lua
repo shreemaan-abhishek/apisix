@@ -14,6 +14,7 @@ local ngx_update_time = ngx.update_time
 local req_get_body_data = ngx.req.get_body_data
 local is_http = ngx.config.subsystem == "http"
 local req_get_body_file = ngx.req.get_body_file
+local req_read_body     = ngx.req.read_body
 local MAX_REQ_BODY      = 524288      -- 512 KiB
 local MAX_RESP_BODY     = 524288      -- 512 KiB
 local io                = io
@@ -66,19 +67,21 @@ local function gen_log_format(format)
     return log_format
 end
 
-local function get_custom_format_log(ctx, format, max_req_body_bytes)
+local function get_custom_format_log(ctx, format, max_req_body_bytes, include_req_body)
     local log_format = lru_log_format(format or "", nil, gen_log_format, format)
     local entry = core.table.new(0, core.table.nkeys(log_format))
     for k, var_attr in pairs(log_format) do
         if var_attr[1] then
             local key = var_attr[2]
             if key == "request_body" then
-                local max_req_body_bytes = max_req_body_bytes or MAX_REQ_BODY
-                local req_body, err = get_request_body(max_req_body_bytes)
-                if err then
-                    core.log.error("fail to get request body: ", err)
-                else
-                    entry[k] = req_body
+                if include_req_body then
+                    local max_req_body_bytes = max_req_body_bytes or MAX_REQ_BODY
+                    local req_body, err = get_request_body(max_req_body_bytes)
+                    if err then
+                        core.log.error("fail to get request body: ", err)
+                    else
+                        entry[k] = req_body
+                    end
                 end
             else
                 entry[k] = ctx.var[var_attr[2]]
@@ -243,7 +246,7 @@ function _M.get_log_entry(plugin_name, conf, ctx)
     if conf.log_format or has_meta_log_format then
         customized = true
         entry = get_custom_format_log(ctx, conf.log_format or metadata.value.log_format,
-                                      conf.max_req_body_bytes)
+                                      conf.max_req_body_bytes, conf.include_req_body)
     else
         if is_http then
             entry = get_full_log(ngx, conf)
@@ -299,6 +302,33 @@ function _M.check_log_schema(conf)
         end
     end
     return true, nil
+end
+
+
+function _M.collect_req_body(conf, ctx)
+    if conf.include_req_body then
+        local should_read_body = true
+        if conf.include_req_body_expr then
+            if not conf.request_expr then
+                local request_expr, err = expr.new(conf.include_req_body_expr)
+                if not request_expr then
+                    core.log.error('generate request expr err ', err)
+                    return
+                end
+                conf.request_expr = request_expr
+            end
+
+            local result = conf.request_expr:eval(ctx.var)
+
+            if not result then
+                should_read_body = false
+            end
+        end
+        if should_read_body then
+            ctx.log_collect_req_body = true
+            req_read_body()
+        end
+    end
 end
 
 

@@ -673,6 +673,7 @@ _EOC_
         listen 1982;
         listen 5044;
 
+        client_max_body_size 10m; 
 _EOC_
 
     if (defined $block->upstream_server_config) {
