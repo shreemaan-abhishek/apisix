@@ -33,10 +33,10 @@ local mt = {
 local script = core.string.compress_script([=[
     local ttl = redis.call('pttl', KEYS[1])
     if ttl < 0 then
-        redis.call('set', KEYS[1], ARGV[1] - ARGV[3], 'EX', ARGV[2])
-        return {ARGV[1] - ARGV[3], ARGV[2] * 1000}
+        redis.call('set', KEYS[1], ARGV[3], 'EX', ARGV[2])
+        return {ARGV[3], ARGV[2] * 1000}
     end
-    return {redis.call('incrby', KEYS[1], 0 - ARGV[3]), ttl}
+    return {redis.call('incrby', KEYS[1], ARGV[3]), ttl}
 ]=])
 
 
@@ -115,7 +115,7 @@ function _M.incoming(self, key, cost)
         return nil, err, ttl
     end
 
-    local remaining = res[1]
+    local remaining = limit - res[1]
     ttl = res[2] / 1000.0
 
     if remaining < 0 then

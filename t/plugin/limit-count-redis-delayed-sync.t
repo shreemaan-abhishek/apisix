@@ -377,6 +377,9 @@ passed
             local json = require "t.toolkit.json"
             local http = require "resty.http"
             local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/status"
+
+            local count = 200 -- the count set in plugin configuratoin above
+
             for i = 1, 5 do
                 local httpc = http.new()
                 local res, err = httpc:request_uri(uri)
@@ -384,7 +387,7 @@ passed
                     ngx.say(err)
                     return
                 end
-                assert(tonumber(res.headers["X-RateLimit-Remaining"]) == 200 - i)
+                assert(tonumber(res.headers["X-RateLimit-Remaining"]) == count - i)
                 ngx.sleep(0.5)
             end
 
@@ -406,12 +409,13 @@ passed
                 ngx.say("redis don't have the key")
                 return
             end
-            local count, err = red:get(res[1])
+            local consumed, err = red:get(res[1])
             if err then
                 ngx.say("failed to get key from redis: ", err)
                 return
             end
-            ngx.say(count)
+            local remaining = count - consumed
+            ngx.say(remaining)
         }
     }
 --- response_body
