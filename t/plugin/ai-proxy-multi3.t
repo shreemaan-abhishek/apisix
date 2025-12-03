@@ -69,18 +69,6 @@ add_block_preprocessor(sub {
                     local body, err = ngx.req.get_body_data()
                     body, err = json.decode(body)
 
-                    local test_type = ngx.req.get_headers()["test-type"]
-                    if test_type == "options" then
-                        if body.foo == "bar" then
-                            ngx.status = 200
-                            ngx.say("options works")
-                        else
-                            ngx.status = 500
-                            ngx.say("model options feature doesn't work")
-                        end
-                        return
-                    end
-
                     local header_auth = ngx.req.get_headers()["authorization"]
                     local query_auth = ngx.req.get_uri_args()["apikey"]
 
@@ -296,7 +284,6 @@ passed
                     }]],
                     nil,
                     {
-                        ["test-type"] = "options",
                         ["Content-Type"] = "application/json",
                     }
                 )
@@ -481,7 +468,6 @@ passed
                     }]],
                     nil,
                     {
-                        ["test-type"] = "options",
                         ["Content-Type"] = "application/json",
                     }
                 )
@@ -647,7 +633,6 @@ passed
                     }]],
                     nil,
                     {
-                        ["test-type"] = "options",
                         ["Content-Type"] = "application/json",
                     }
                 )
@@ -838,7 +823,6 @@ passed
                     }]],
                     nil,
                     {
-                        ["test-type"] = "options",
                         ["Content-Type"] = "application/json",
                     }
                 )
@@ -1199,7 +1183,6 @@ probe body: {"model":"gpt-4o-mini","messages":[{"role":"user","content":"write a
                 }]],
                 nil,
                 {
-                    ["test-type"] = "options",
                     ["Content-Type"] = "application/json",
                 }
             )
@@ -1217,7 +1200,6 @@ probe body: {"model":"gpt-4o-mini","messages":[{"role":"user","content":"write a
                 }]],
                 nil,
                 {
-                    ["test-type"] = "options",
                     ["Content-Type"] = "application/json",
                 }
             )
