@@ -40,7 +40,7 @@ sudo apt-get install -y openresty-pcre-dev openresty-zlib-dev build-essential gc
 
 SSL_LIB_VERSION=${SSL_LIB_VERSION-openssl}
 ENABLE_FIPS=${ENABLE_FIPS:-"false"}
-APISIX_RUNTIME=${APISIX_RUNTIME:-"1.2.5"}
+APISIX_RUNTIME=${APISIX_RUNTIME:-"1.2.7"}
 OPENRESTY_PREFIX=${OPENRESTY_PREFIX:-"/usr/local/openresty"}
 BUILD_LATEST=${BUILD_LATEST:-"latest"}
 OPENRESTY_VERSION=${OPENRESTY_VERSION:-"default"}

@@ -20,6 +20,7 @@ local shared_dict_store = require("apisix.plugins.limit-count-advanced.sliding-w
                                   .. "store.shared-dict")
 
 local ngx = ngx
+local type = type
 local ngx_now = ngx.now
 local assert = assert
 local setmetatable = setmetatable
@@ -97,16 +98,21 @@ function _M.incoming(self, key, cost, commit)
         return self.limit_count:incoming(key, cost)
     end
 
-    local delay, remaining = self.limit_count:incoming(key, commit, cost)
+    local delay, consumed_or_err = self.limit_count:incoming(key, commit, cost)
     local reset
 
-    if remaining == self.limit - cost then
+    local remaining_or_err = consumed_or_err
+    if type(consumed_or_err) == "number" then
+        remaining_or_err = self.limit - consumed_or_err
+    end
+
+    if remaining_or_err == self.limit - cost then
         reset = set_endtime(self, key, self.window)
     else
         reset = read_reset(self, key)
     end
 
-    return delay, remaining, reset
+    return delay, remaining_or_err, reset
 end
 
 return _M
