@@ -22,9 +22,10 @@ local sliding_window = require("apisix.plugins.limit-count-advanced.sliding-wind
 local sliding_window_store = require("apisix.plugins.limit-count-advanced."
                                      .. "sliding-window.store.redis")
 local limit_count_local = require("apisix.plugins.limit-count-advanced.limit-count-local")
+local util = require("apisix.plugins.limit-count-advanced.util")
 
+local timer_at = ngx.timer.at
 local setmetatable = setmetatable
-local tostring = tostring
 local ipairs = ipairs
 
 local _M = {}
@@ -33,16 +34,6 @@ local _M = {}
 local mt = {
     __index = _M
 }
-
-
-local script = core.string.compress_script([=[
-    local ttl = redis.call('pttl', KEYS[1])
-    if ttl < 0 then
-        redis.call('set', KEYS[1], ARGV[3], 'EX', ARGV[2])
-        return {ARGV[3], ARGV[2] * 1000}
-    end
-    return {redis.call('incrby', KEYS[1], ARGV[3]), ttl}
-]=])
 
 
 local function new_redis_cluster(conf)
@@ -130,31 +121,26 @@ function _M.incoming_delayed(self, key, cost, syncer_id)
     return 0, remaining, reset
 end
 
-function _M.incoming(self, key, cost)
+function _M.incoming(self, key, cost, commit)
     if self.window_type == "sliding" then
         return self.limit_count:incoming(key, cost)
     end
 
-    local red = self.red_cli
-    local limit = self.limit
-    local window = self.window
-    key = self.plugin_name .. tostring(key)
-
-    local ttl = 0
-    local res, err = red:eval(script, 1, key, limit, window, cost or 1)
-
-    if err then
-        return nil, err, ttl
-    end
-
-    local remaining = limit - res[1]
-    ttl = res[2] / 1000.0
-
-    if remaining < 0 then
-        return nil, "rejected", ttl
-    end
-    return 0, remaining, ttl
+    return util.redis_incoming(self, key, commit, cost)
 end
 
+function _M.log_phase_incoming(self, key, cost, commit)
+    local ok, err = timer_at(0, function ()
+        local delay, err = self:incoming(key, cost, commit)
+        if not delay then
+            if err ~= "rejected" then
+                core.log.error("failed to sync limit count in log phase: ", err)
+            end
+        end
+    end)
+    if not ok then
+        core.log.error("failed to schedule timer: ", err)
+    end
+end
 
 return _M

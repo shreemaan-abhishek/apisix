@@ -4,24 +4,16 @@ local sliding_window_store = require("apisix.plugins.limit-count-advanced."
                                      .. "sliding-window.store.redis")
 local limit_count_local = require("apisix.plugins.limit-count-advanced.limit-count-local")
 local redis_cli_sentinel = require("apisix.plugins.limit-count-advanced.util").redis_cli_sentinel
+local util = require("apisix.plugins.limit-count-advanced.util")
+local timer_at = ngx.timer.at
 local core = require("apisix.core")
 local assert = assert
 local setmetatable = setmetatable
-local tostring = tostring
 local _M = {}
 
 local mt = {
     __index = _M
 }
-
-local script = core.string.compress_script([=[
-    local ttl = redis.call('pttl', KEYS[1])
-    if ttl < 0 then
-        redis.call('set', KEYS[1], ARGV[1] - ARGV[3], 'EX', ARGV[2])
-        return {ARGV[1] - ARGV[3], ARGV[2] * 1000}
-    end
-    return {redis.call('incrby', KEYS[1], 0 - ARGV[3]), ttl}
-]=])
 
 
 function _M.new(plugin_name, limit, window, conf)
@@ -73,7 +65,7 @@ function _M.incoming_delayed(self, key, cost, syncer_id)
 end
 
 
-function _M.incoming(self, key, cost)
+function _M.incoming(self, key, cost, commit)
     if self.window_type == "sliding" then
         return self.limit_count:incoming(key, cost)
     end
@@ -83,21 +75,23 @@ function _M.incoming(self, key, cost)
     if not red then
         return nil, err, 0
     end
+    self.red_cli = red
+    return util.redis_incoming(self, key, commit, cost)
+end
 
-    local ttl = 0
-    key = self.plugin_name .. tostring(key)
-    local res, err = red:eval(script, 1, key, self.limit, self.window, cost or 1)
-    if err then
-        return nil, err, ttl
+
+function _M.log_phase_incoming(self, key, cost, commit)
+    local ok, err = timer_at(0, function ()
+        local delay, err = self:incoming(key, cost, commit)
+        if not delay then
+            if err ~= "rejected" then
+                core.log.error("failed to sync limit count in log phase: ", err)
+            end
+        end
+    end)
+    if not ok then
+        core.log.error("failed to schedule timer: ", err)
     end
-
-    local remaining = res[1]
-    ttl = res[2] / 1000.0
-
-    if remaining < 0 then
-        return nil, "rejected", ttl
-    end
-    return 0, remaining, ttl
 end
 
 return _M

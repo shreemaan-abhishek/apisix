@@ -3,6 +3,18 @@ local redis_new = require("resty.redis").new
 local redis_sentinel = require("resty.redis.connector")
 local _M = {}
 
+local tostring = tostring
+
+local commit_script = core.string.compress_script([=[
+    assert(tonumber(ARGV[3]) >= 0, "cost must be at least 0")
+    local ttl = redis.call('ttl', KEYS[1])
+    if ttl < 0 then
+        redis.call('set', KEYS[1], ARGV[3], 'EX', ARGV[2])
+        return {ARGV[3], ARGV[2] * 1000}
+    end
+    return {redis.call('incrby', KEYS[1], ARGV[3]), ttl}
+]=])
+
 
 function _M.redis_cli(conf)
     local red = redis_new()
@@ -80,4 +92,36 @@ function _M.redis_cli_sentinel(conf)
     end
     return red, nil
 end
+
+
+function _M.redis_incoming(self, key, commit, cost)
+    if self.window_type == "sliding" then
+        return self.limit_count:incoming(key, cost)
+    end
+
+    local red = self.red_cli
+    if not red then
+        return nil, "redis client not initialized", 0
+    end
+
+    local limit = self.limit
+    local window = self.window
+    key = self.plugin_name .. tostring(key)
+
+    local res, err = red:eval(commit_script, 1, key, limit, window, commit and cost or 0)
+    if err then
+        return nil, err, 0
+    end
+
+    local remaining = limit - res[1] - (commit and 0 or cost)
+    local ttl = res[2] / 1000.0
+
+    if remaining < 0 then
+        return nil, "rejected", ttl
+    end
+
+    return 0, remaining, ttl
+end
+
+
 return _M

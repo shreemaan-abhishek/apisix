@@ -266,6 +266,7 @@ local metadata_schema = {
 local schema_copy = core.table.deepcopy(schema)
 
 local _M = {
+    policy_to_additional_properties = policy_to_additional_properties,
     schema = schema,
     metadata_schema = metadata_schema,
 }
@@ -301,6 +302,13 @@ local function gen_group_key(conf)
             conf.redis_cluster_name,
             conf.redis_username,
             conf.redis_password
+        )
+    elseif conf.policy == "redis-sentinel" then
+        table_insert_tail(keys,
+            conf.redis_master_name,
+            conf.redis_role,
+            conf.sentinel_username,
+            conf.sentinel_password
         )
     end
     return tab_concat(keys, "_")
@@ -532,12 +540,19 @@ local function run_rate_limit(conf, rule, ctx, name, cost, dry_run)
     key = gen_limit_key(conf, ctx, key)
     core.log.info("limit key: ", key)
 
+    local phase = get_phase()
+    local is_log_phase = phase == "log"
+
+    local commit = not dry_run
     local delay, remaining, reset
     if not conf.policy or conf.policy == "local" then
-        delay, remaining, reset = lim:incoming(key, cost, not dry_run)
+        delay, remaining, reset = lim:incoming(key, cost, commit)
     else
         local enable_delayed_sync = (conf.sync_interval ~= NO_DELAYED_SYNC)
-        if enable_delayed_sync then
+        if is_log_phase then
+            lim:log_phase_incoming(key, cost, commit)
+            return
+        elseif enable_delayed_sync then
             local extra_key
             if conf._vid then
                 extra_key = conf.policy .. '#' .. conf._vid
@@ -547,7 +562,7 @@ local function run_rate_limit(conf, rule, ctx, name, cost, dry_run)
             local plugin_instance_id = core.lrucache.plugin_ctx_id(ctx, extra_key)
             delay, remaining, reset = lim:incoming_delayed(key, cost, plugin_instance_id)
         else
-            delay, remaining, reset = lim:incoming(key, cost)
+            delay, remaining, reset = lim:incoming(key, cost, commit)
         end
     end
 
@@ -560,8 +575,7 @@ local function run_rate_limit(conf, rule, ctx, name, cost, dry_run)
     core.log.debug("metadata: ", core.json.delay_encode(metadata))
 
     local set_limit_headers = construct_rate_limiting_headers(conf, name, rule, metadata)
-    local phase = get_phase()
-    local set_header = phase ~= "log"
+    local set_header = not is_log_phase
 
     if not delay then
         local err = remaining
