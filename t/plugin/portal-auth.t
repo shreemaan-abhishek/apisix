@@ -467,3 +467,148 @@ passed
 --- error_log
 receive data plane developer_query: oidc, course_management, prod, prod-httpbin
 Insufficient scopes in access token
+
+
+
+=== TEST 12: configure limit-count-advanced along with portal-auth
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "methods": ["GET"],
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1981": 1
+                        },
+                        "type": "roundrobin"
+                    },
+                    "plugins":{
+                        "portal-auth": {
+                            "rules": [
+                                {
+                                    "portal_id": "prod",
+                                    "api_product_id": "prod-httpbin",
+                                    "case": [ ["http_host", "==", "prod.httpbin.dev"] ],
+                                    "auth_plugins": [
+                                        {
+                                            "oidc": {
+                                                "discovery": "http://127.0.0.1:8080/realms/University/.well-known/openid-configuration"
+                                            }
+                                        }
+                                    ]
+                                }
+                            ]
+                        },
+                        "limit-count-advanced": {
+                            "rejected_code": 503,
+                            "rejected_msg" : "rejected",
+                            "rules": [
+                                {
+                                    "key": "${external_user.preferred_username}",
+                                    "count": 2,
+                                    "time_window": 5
+                                }
+                            ]
+                        }
+                    },
+                    "uri": "/hello",
+                    "labels": {
+                        "portal:dcr:require_any_scopes": "phone address"
+                    }
+                }]]
+                )
+
+            if code <= 201 then
+                ngx.status = 200
+            end
+
+            ngx.say(body)
+        }
+    }
+--- request
+GET /t
+--- response_body
+passed
+
+
+
+=== TEST 13: request with two different consumers through portal auth
+--- config
+    location /t {
+        content_by_lua_block {
+            local core = require("apisix.core")
+            local util = require("apisix.cli.util")
+            local json_decode = require("toolkit.json").decode
+            local http = require "resty.http"
+            local httpc = http.new()
+
+            local get_token = function(scope, username)
+                local uri = "http://127.0.0.1:8080/realms/University/protocol/openid-connect/token"
+                local res, err = httpc:request_uri(uri, {
+                        method = "POST",
+                        body = core.string.encode_args({
+                            grant_type = "password",
+                            client_id = "course_management",
+                            client_secret = "d1ec69e9-55d2-4109-a3ea-befa071579d5",
+                            username = username,
+                            password = "123456",
+                            scope = scope,
+                        }),
+                        headers = {
+                            ["Content-Type"] = "application/x-www-form-urlencoded"
+                        }
+                    })
+
+                if not res then
+                    ngx.say("failed to request keycloak, err: ", err)
+                    ngx.exit(500)
+                end
+
+                if res.status ~= 200 then
+                    ngx.say("failed to get access token, status: ", res.status, ", body: ", res.body)
+                    ngx.exit(500)
+                end
+
+                local body = json_decode(res.body)
+                return body["access_token"]
+            end
+
+            local send_request = function(token, code, body)
+                local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
+                local res, err = httpc:request_uri(uri, {
+                    method = "GET",
+                    headers = {
+                        ["Host"] = "prod.httpbin.dev",
+                        ["Authorization"] = "Bearer " .. token
+                    }
+                 })
+
+                if not res then
+                    ngx.say(err)
+                    ngx.exit(res.status)
+                end
+
+                if res.status ~= code then
+                    ngx.say("unexpected response, status: ", res.status, ", body: ", res.body)
+                    ngx.exit(res.status)
+                end
+            end
+
+            send_request(get_token("phone address", "teacher@gmail.com"), 200)
+            send_request(get_token("phone address", "teacher@gmail.com"), 200)
+            send_request(get_token("phone address", "student@gmail.com"), 200)
+            send_request(get_token("phone address", "teacher@gmail.com"), 503)
+            send_request(get_token("phone address", "student@gmail.com"), 200)
+            send_request(get_token("phone address", "student@gmail.com"), 503)
+
+            ngx.say("passed")
+        }
+    }
+--- error_code: 200
+--- response_body
+passed
+--- error_log eval
+qr/limit key: route&consumer1&course_management:\d+:teacher\@gmail.com/

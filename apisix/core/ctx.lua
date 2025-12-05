@@ -34,6 +34,7 @@ local multipart    = require("multipart")
 local gq_parse     = require("graphql").parse
 local setmetatable = setmetatable
 local sub_str      = string.sub
+local str_find     = string.find
 local ngx          = ngx
 local ngx_var      = ngx.var
 local re_gsub      = ngx.re.gsub
@@ -284,6 +285,8 @@ do
                 error("invalid argument, expect string value", 2)
             end
 
+            local first_period_idx = str_find(key, ".", 1, true)
+
             local val
             local method = var_methods[key]
             if method then
@@ -371,6 +374,18 @@ do
                         current = current[part]
                     end
                     val = current
+                end
+            elseif first_period_idx then
+                local part1 = sub_str(key, 1, first_period_idx - 1)
+                local part2 = sub_str(key, first_period_idx + 1)
+
+                local data = t._ctx[part1]
+                local results = jp.query(data, "$." .. part2)
+
+                if #results == 0 then
+                    val = nil
+                else
+                    val = results[1]
                 end
             else
                 local getter = apisix_var_names[key]
