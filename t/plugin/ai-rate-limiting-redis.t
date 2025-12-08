@@ -615,3 +615,76 @@ GET /t
 passed
 --- error_log
 failed to get rate limit rules
+
+
+
+=== TEST 11: set invalid DB index with Redis Sentinel policy
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                ngx.HTTP_PUT,
+                [[{
+                    "uri": "/ai",
+                    "plugins": {
+                        "ai-proxy": {
+                            "provider": "openai",
+                            "auth": {
+                                "header": {
+                                    "Authorization": "Bearer token"
+                                }
+                            },
+                            "options": {
+                                "model": "gpt-4"
+                            },
+                            "override": {
+                                "endpoint": "http://localhost:16724"
+                            },
+                            "ssl_verify": false
+                        },
+                        "ai-rate-limiting": {
+                            "limit": 30,
+                            "time_window": 60,
+                            "rejected_code": 503,
+                            "key": "remote_addr",
+                            "policy": "redis-sentinel",
+                            "redis_sentinels": [
+                                {"host": "127.0.0.1", "port": 26379}
+                            ],
+                            "redis_master_name": "mymaster",
+                            "redis_role": "master",
+                            "redis_database": 1000
+                        }
+                    },
+                    "upstream": {
+                        "type": "roundrobin",
+                        "nodes": {
+                            "canbeanything.com": 1
+                        }
+                    }
+                }]]
+            )
+
+            if code >= 300 then
+                ngx.status = code
+            end
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 12: request to trigger error with invalid DB index
+--- pipelined_requests eval
+[
+    "POST /ai\n" . "{ \"messages\": [ { \"role\": \"system\", \"content\": \"You are a mathematician\" }, { \"role\": \"user\", \"content\": \"What is 1+1?\"} ] }",
+]
+--- more_headers
+Authorization: Bearer token
+--- error_code eval
+[500]
+--- error_log
+err: ERR DB index is out of range

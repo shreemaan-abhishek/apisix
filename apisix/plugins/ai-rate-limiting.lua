@@ -234,7 +234,7 @@ local function transform_limit_conf(plugin_conf, instance_conf, instance_name)
         limit_conf.redis_connect_timeout = plugin_conf.redis_connect_timeout
         limit_conf.redis_read_timeout = plugin_conf.redis_read_timeout
         limit_conf.redis_keepalive_timeout = plugin_conf.redis_keepalive_timeout
-        limit_conf.database = plugin_conf.database
+        limit_conf.redis_database = plugin_conf.redis_database
     end
     return limit_conf
 end
