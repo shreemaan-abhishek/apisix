@@ -388,3 +388,52 @@ POST /mcp
 mock mcp server: POST /.api7_mcp/mcp_stateless
 x-openapi2mcp-base-url: https://petstore.swagger.io
 x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json
+
+
+
+=== TEST 15: create a route with openapi-to-mcp plugin
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/mcp",
+                    "plugins": {
+                        "openapi-to-mcp": {
+                            "base_url": "https://${http_variable_host}.swagger.io",
+                            "headers": {
+                                "Authorization": "test-api-key"
+                            },
+                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 16: send GET request should be proxied to sse endpoint of mcp server
+--- yaml_config
+plugin_attr:
+  openapi-to-mcp:
+    port: 1980
+--- request
+GET /mcp
+--- more_headers
+variable_host: petstore
+--- error_log
+mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore.swagger.io&openapi_spec=https://petstore.swagger.io/v2/swagger.json&message_path=/mcp&headers.Authorization=test-api-key

@@ -121,6 +121,8 @@ function _M.access(conf, ctx)
     ctx.var.upstream_port = mcp_server_node.port
     upstream.set(ctx, upstream_key, ctx.conf_version, up_conf)
 
+    local base_url = core.utils.resolve_var(conf.base_url, ctx.var)
+
     if conf.transport == "sse" then
         -- for message endpoint we just pass the request as is
         if ctx.var.method ~= "GET" then
@@ -137,7 +139,7 @@ function _M.access(conf, ctx)
         -- for sse endpoint, we need to rewrite the request to /sse with query parameters
         ngx.ctx.disable_proxy_buffering = true
         local query = str_format("base_url=%s&openapi_spec=%s&message_path=%s",
-            core.utils.uri_safe_encode(conf.base_url),
+            core.utils.uri_safe_encode(base_url),
             core.utils.uri_safe_encode(conf.openapi_url),
             core.utils.uri_safe_encode(ctx.curr_req_matched._path)
         )
@@ -157,7 +159,7 @@ function _M.access(conf, ctx)
 
     elseif conf.transport == "streamable_http" then
         ngx.ctx.disable_proxy_buffering = true
-        core.request.set_header(ctx, "x-openapi2mcp-base-url", conf.base_url)
+        core.request.set_header(ctx, "x-openapi2mcp-base-url", base_url)
         core.request.set_header(ctx, "x-openapi2mcp-openapi-spec", conf.openapi_url)
         for key, value in pairs(conf.headers or {}) do
             local resolved_value, err = core.utils.resolve_var(value, ctx.var)
