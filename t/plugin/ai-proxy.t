@@ -697,7 +697,7 @@ qr/.*text-embedding-ada-002*/
                                 }
                             },
                             "override": {
-                                "endpoint": "http://httpbin.org/post"
+                                "endpoint": "http://httpbin.local:8280/post"
                             }
                         }
                     }

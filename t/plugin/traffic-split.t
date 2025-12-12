@@ -675,7 +675,7 @@ GET /t
                         pass_host = "rewrite",
                         upstream_host = "httpbin.org",
                         nodes = {
-                          ["httpbin.org:80"] = 0
+                          ["httpbin.local:8280"] = 0
                         }
                       },
                       weight = 100000

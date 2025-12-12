@@ -97,6 +97,7 @@ jobs:
         run: |
           sudo hostnamectl set-hostname ubuntu
           sudo sh -c 'echo "127.0.1.1   $(hostname)" >> /etc/hosts'
+          sudo sh -c 'echo "127.0.0.1   httpbin.local" >> /etc/hosts'
 
       - name: Linux launch common services
         working-directory: workbench

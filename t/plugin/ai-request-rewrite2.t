@@ -124,7 +124,7 @@ __DATA__
                     "upstream": {
                         "type": "roundrobin",
                         "nodes": {
-                            "httpbin.org:80": 1
+                            "httpbin.local:8280": 1
                         }
                     }
                 }]]
@@ -208,7 +208,7 @@ override.endpoint is required for openai-compatible provider
                     "upstream": {
                         "type": "roundrobin",
                         "nodes": {
-                            "httpbin.org:80": 1
+                            "httpbin.local:8280": 1
                         }
                     }
                 }]]
@@ -256,7 +256,7 @@ passed
                     "upstream": {
                         "type": "roundrobin",
                         "nodes": {
-                            "httpbin.org:80": 1
+                            "httpbin.local:8280": 1
                         }
                     }
                 }]]

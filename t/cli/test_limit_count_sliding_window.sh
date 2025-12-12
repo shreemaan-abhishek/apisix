@@ -30,7 +30,7 @@ perform_test_with_limit_count_configuration() {
     },
     "upstream": {
       "nodes": {
-        "127.0.0.1:4901": 1
+        "127.0.0.1:8280": 1
       },
       "type": "roundrobin"
     }

@@ -117,8 +117,8 @@
       "id": "a865641d-7439-4463-a31d-d97c862c5623",
       "nodes": [
         {
-          "host": "httpbin.org",
-          "port": 80,
+          "host": "httpbin.local",
+          "port": 8280,
           "priority": 0,
           "weight": 100
         }

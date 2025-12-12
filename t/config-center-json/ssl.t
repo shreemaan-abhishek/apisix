@@ -179,7 +179,7 @@ server name: "test.com"
       "upstream": {
         "type": "roundrobin",
         "nodes": {
-          "httpbin.org:80": 1
+          "httpbin.local:8280": 1
         }
       },
       "ssl_enable": true

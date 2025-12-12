@@ -41,7 +41,7 @@ __DATA__
                     "upstream": {
                         "type": "roundrobin",
                         "nodes": {
-                        "httpbin.org:80": 1
+                        "httpbin.api7.ai:8280": 1
                         }
                     }
                 }]]
