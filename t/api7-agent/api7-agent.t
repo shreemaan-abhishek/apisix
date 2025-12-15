@@ -49,6 +49,7 @@ _EOC_
             ngx.log(ngx.ERR, "missing ports")
             return ngx.exit(400)
         end
+        core.log.info("ports in heartbeat: ", core.json.encode(payload.ports))
 
         if payload.version == "3.1.1" then
             ngx.status = 403
@@ -417,3 +418,32 @@ conf for etcd updated, the extra header Gateway-Instance-ID: ba5fe070
     }
 --- error_log
 heartbeat(): control plane access denied, error mssage: gateway version not supported
+
+
+
+=== TEST 14: ports in heartbeat should not be duplicated
+--- yaml_config
+api7ee:
+  telemetry:
+    enable: false
+apisix:
+  node_listen:
+  - port: 39080
+    ip: 127.0.0.1
+  - port: 39080
+    ip: 127.0.0.2
+  ssl:
+    enable: true
+    listen:
+    - port: 39443
+      ip: 127.0.0.1
+    - port: 39443
+      ip: 127.0.0.2
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("ok")
+        }
+    }
+--- error_log
+ports in heartbeat: [39080,39443]

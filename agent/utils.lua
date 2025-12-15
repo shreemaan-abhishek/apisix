@@ -61,19 +61,27 @@ function _M.get_listen_ports()
     local node_listen_ports = get_node_listen_ports(node_listen)
     local ssl_ports = get_ssl_ports(ssl)
 
-    local ports = {}
+    local listen_ports = {}
     if node_listen_ports ~= nil then
         for _, v in ipairs(node_listen_ports) do
-            table.insert(ports, v)
+            if not listen_ports[v] then
+                listen_ports[v] = true
+            end
         end
     end
 
     if ssl_ports ~=nil then
         for _, v in ipairs(ssl_ports) do
-            table.insert(ports, v)
+            if not listen_ports[v] then
+                listen_ports[v] = true
+            end
         end
     end
 
+    local ports = {}
+    for k, _ in pairs(listen_ports) do
+        core.table.insert(ports, k)
+    end
     return ports
 end
 
