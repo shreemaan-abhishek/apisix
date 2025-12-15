@@ -20,6 +20,7 @@ local plugin      = require("apisix.plugin")
 local ngx         = ngx
 local pairs       = pairs
 local str_format  = string.format
+local tostring = tostring
 local ngx_req_set_uri = ngx.req.set_uri
 
 local schema = {
@@ -52,6 +53,14 @@ local schema = {
                     }
                 }
             },
+        },
+        flatten_parameters = {
+            description = "Whether to flatten query and path parameters " ..
+            "in the tool inputSchema. When false (default), " ..
+            "parameters are nested under queryParameters or pathParameters. " ..
+            "When true, parameters are placed directly in properties.",
+            type = "boolean",
+            default = false,
         },
     },
     required = { "openapi_url", "base_url" },
@@ -155,6 +164,9 @@ function _M.access(conf, ctx)
                             core.utils.uri_safe_encode(resolved_value))
         end
 
+        query = str_format("%s&flatten_parameters=%s", query,
+                        tostring(conf.flatten_parameters))
+
         ctx.var.upstream_uri = "/.api7_mcp/sse?" .. query
 
     elseif conf.transport == "streamable_http" then
@@ -170,6 +182,9 @@ function _M.access(conf, ctx)
             end
             core.request.set_header(ctx, str_format("x-openapi2mcp-header-%s", key), resolved_value)
         end
+
+        core.request.set_header(ctx, "x-openapi2mcp-flatten-parameters",
+                                tostring(conf.flatten_parameters))
 
         ctx.var.upstream_uri = "/.api7_mcp/mcp_stateless"
 

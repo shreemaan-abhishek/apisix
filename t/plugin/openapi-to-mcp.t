@@ -437,3 +437,226 @@ GET /mcp
 variable_host: petstore
 --- error_log
 mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore.swagger.io&openapi_spec=https://petstore.swagger.io/v2/swagger.json&message_path=/mcp&headers.Authorization=test-api-key
+
+
+
+=== TEST 17: schema validation with flatten_parameters
+--- config
+    location /t {
+        content_by_lua_block {
+            local plugin = require("apisix.plugins.openapi-to-mcp")
+            local ok, err = plugin.check_schema({
+                base_url = "https://petstore3.swagger.io/api/v3",
+                openapi_url = "https://petstore3.swagger.io/api/v3/openapi.json",
+                flatten_parameters = true
+            })
+            if not ok then
+                ngx.say(err)
+                return
+            end
+
+            local ok, err = plugin.check_schema({
+                base_url = "https://petstore3.swagger.io/api/v3",
+                openapi_url = "https://petstore3.swagger.io/api/v3/openapi.json",
+                flatten_parameters = false
+            })
+            if not ok then
+                ngx.say(err)
+                return
+            end
+
+            ngx.say("done")
+        }
+    }
+--- response_body
+done
+
+
+
+=== TEST 18: flatten_parameters should be passed to MCP server via query parameter in sse transport
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/mcp",
+                    "plugins": {
+                        "openapi-to-mcp": {
+                            "base_url": "https://petstore3.swagger.io/api/v3",
+                            "openapi_url": "https://petstore3.swagger.io/api/v3/openapi.json",
+                            "flatten_parameters": true
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 19: verify flatten_parameters in sse transport query parameter
+--- yaml_config
+plugin_attr:
+  openapi-to-mcp:
+    port: 1980
+--- request
+GET /mcp
+--- error_log
+mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore3.swagger.io/api/v3&openapi_spec=https://petstore3.swagger.io/api/v3/openapi.json&message_path=/mcp&flatten_parameters=true
+
+
+
+=== TEST 20: flatten_parameters false should be passed to MCP server in sse transport
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/mcp",
+                    "plugins": {
+                        "openapi-to-mcp": {
+                            "base_url": "https://petstore3.swagger.io/api/v3",
+                            "openapi_url": "https://petstore3.swagger.io/api/v3/openapi.json",
+                            "flatten_parameters": false
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 21: verify flatten_parameters false in sse transport query parameter
+--- yaml_config
+plugin_attr:
+  openapi-to-mcp:
+    port: 1980
+--- request
+GET /mcp
+--- error_log
+mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore3.swagger.io/api/v3&openapi_spec=https://petstore3.swagger.io/api/v3/openapi.json&message_path=/mcp&flatten_parameters=false
+
+
+
+=== TEST 22: flatten_parameters should be passed to MCP server via header in streamable_http transport
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/mcp",
+                    "plugins": {
+                        "openapi-to-mcp": {
+                            "transport": "streamable_http",
+                            "base_url": "https://petstore3.swagger.io/api/v3",
+                            "openapi_url": "https://petstore3.swagger.io/api/v3/openapi.json",
+                            "flatten_parameters": true
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 23: verify flatten_parameters in streamable_http transport header
+--- yaml_config
+plugin_attr:
+  openapi-to-mcp:
+    port: 1980
+--- request
+POST /mcp
+{"method":"tools/list","jsonrpc":"2.0","id":1}
+--- error_log
+mock mcp server: POST /.api7_mcp/mcp_stateless
+x-openapi2mcp-base-url: https://petstore3.swagger.io/api/v3
+x-openapi2mcp-flatten-parameters: true
+x-openapi2mcp-openapi-spec: https://petstore3.swagger.io/api/v3/openapi.json
+
+
+
+=== TEST 24: flatten_parameters false in streamable_http transport
+--- config
+    location /t {
+        content_by_lua_block {
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1',
+                 ngx.HTTP_PUT,
+                 [[{
+                    "uri": "/mcp",
+                    "plugins": {
+                        "openapi-to-mcp": {
+                            "transport": "streamable_http",
+                            "base_url": "https://petstore3.swagger.io/api/v3",
+                            "openapi_url": "https://petstore3.swagger.io/api/v3/openapi.json",
+                            "flatten_parameters": false
+                        }
+                    },
+                    "upstream": {
+                        "nodes": {
+                            "127.0.0.1:1980": 1
+                        },
+                        "type": "roundrobin"
+                    }
+                }]]
+            )
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 25: verify flatten_parameters false in streamable_http transport header
+--- yaml_config
+plugin_attr:
+  openapi-to-mcp:
+    port: 1980
+--- request
+POST /mcp
+{"method":"tools/list","jsonrpc":"2.0","id":1}
+--- error_log
+mock mcp server: POST /.api7_mcp/mcp_stateless
+x-openapi2mcp-base-url: https://petstore3.swagger.io/api/v3
+x-openapi2mcp-flatten-parameters: false
+x-openapi2mcp-openapi-spec: https://petstore3.swagger.io/api/v3/openapi.json
