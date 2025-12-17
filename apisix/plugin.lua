@@ -16,7 +16,6 @@
 --
 local require       = require
 local core          = require("apisix.core")
-local config_util   = require("apisix.core.config_util")
 local enable_debug  = require("apisix.debug").enable_debug
 local wasm          = require("apisix.wasm")
 local expr          = require("resty.expr.v1")
@@ -1379,25 +1378,33 @@ function _M.run_global_rules(api_ctx, global_rules, phase_name)
             api_ctx.global_rules = global_rules
         end
 
-        local plugins = core.tablepool.fetch("plugins", 32, 0)
-        local values = global_rules.values
+        local values = global_rules.values or {}
         local route = api_ctx.matched_route
-        for _, global_rule in config_util.iterate_values(values) do
-            api_ctx.conf_type = "global_rule"
-            api_ctx.conf_version = global_rule.modifiedIndex
-            api_ctx.conf_id = global_rule.value.id
+        local global_plugins = api_ctx.global_plugins or
+                            core.tablepool.fetch("global_plugins", 4, 4)
+        for i = 1, #values do
+            local global_rule = values[i]
+            if type(global_rule) == "table" then
+                api_ctx.conf_type = "global_rule"
+                api_ctx.conf_version = global_rule.modifiedIndex
+                api_ctx.conf_id = global_rule.value.id
 
-            core.table.clear(plugins)
-            plugins = _M.filter(api_ctx, global_rule, plugins, route)
-            if phase_name == nil then
-                _M.run_plugin("rewrite", plugins, api_ctx)
-                _M.run_plugin("access", plugins, api_ctx)
-            else
-                _M.run_plugin(phase_name, plugins, api_ctx)
+                local plugins = global_plugins[i]
+                if not plugins then
+                    plugins = core.table.new(#local_plugins, 0)
+                    plugins = _M.filter(api_ctx, global_rule, plugins, route)
+                    global_plugins[i] = plugins
+                end
+                if phase_name == nil then
+                    _M.run_plugin("rewrite", plugins, api_ctx)
+                    _M.run_plugin("access", plugins, api_ctx)
+                else
+                    _M.run_plugin(phase_name, plugins, api_ctx)
+                end
             end
         end
-        core.tablepool.release("plugins", plugins)
 
+        api_ctx.global_plugins = global_plugins
         api_ctx.conf_type = orig_conf_type
         api_ctx.conf_version = orig_conf_version
         api_ctx.conf_id = orig_conf_id

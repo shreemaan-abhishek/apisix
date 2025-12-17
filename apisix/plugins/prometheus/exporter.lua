@@ -44,6 +44,7 @@ local service_fetch = require("apisix.http.service").get
 local latency_details = require("apisix.utils.log-util").latency_details_in_ms
 local xrpc = require("apisix.stream.xrpc")
 local timeout_err = "timeout"
+local unpack = unpack
 
 local shdict_name = "config"
 if ngx.config.subsystem == "stream" then
@@ -353,13 +354,12 @@ local function get_gateway_group_id()
     return gateway_group_id
 end
 
-
 local function get_enabled_label_values_for_metric(metric_name, disabled_label_metric_map, ...)
-    local label_values = { ... }
+    local label_values = gen_arr(...)
     local metric_labels = metric_label_map[metric_name]
 
     if not metric_labels then
-        return { ... }
+        return label_values
     end
 
     local disabled_labels = disabled_label_metric_map[metric_name] or {}
@@ -431,82 +431,81 @@ function _M.http_log(conf, ctx)
     end
 
     metrics.status:inc(1,
-        append_tables(get_enabled_label_values_for_metric("status", disabled_label_metric_map,
+        get_enabled_label_values_for_metric("status", disabled_label_metric_map,
         vars.status, route, route_id, matched_uri, matched_host,
         service, service_id, consumer_name, balancer_ip, gateway_group_id, instance_id,
-        portal_id, api_product_id, vars.request_type, vars.request_llm_model, vars.llm_model),
-        extra_labels("http_status", ctx)))
+        portal_id, api_product_id, vars.request_type, vars.request_llm_model, vars.llm_model,
+        unpack(extra_labels("http_status", ctx))))
 
     local latency, upstream_latency, apisix_latency = latency_details(ctx)
     local latency_extra_label_values = extra_labels("http_latency", ctx)
 
     metrics.latency:observe(latency,
-        append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
+        get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
         "request", route, route_id, service, service_id, consumer_name,
         balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
-        vars.request_type, vars.request_llm_model, vars.llm_model),
-        latency_extra_label_values))
+        vars.request_type, vars.request_llm_model, vars.llm_model,
+        unpack(latency_extra_label_values)))
 
     if upstream_latency then
         metrics.latency:observe(upstream_latency,
-            append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
+            get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
             "upstream", route, route_id, service, service_id, consumer_name,
             balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
-            vars.request_type, vars.request_llm_model, vars.llm_model),
-            latency_extra_label_values))
+            vars.request_type, vars.request_llm_model, vars.llm_model,
+            unpack(latency_extra_label_values)))
     end
 
     metrics.latency:observe(apisix_latency,
-        append_tables(get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
+        get_enabled_label_values_for_metric("latency", disabled_label_metric_map,
         "apisix", route, route_id, service, service_id, consumer_name,
         balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
-        vars.request_type, vars.request_llm_model, vars.llm_model),
-        latency_extra_label_values))
+        vars.request_type, vars.request_llm_model, vars.llm_model,
+        unpack(latency_extra_label_values)))
 
     local bandwidth_extra_label_values = extra_labels("bandwidth", ctx)
 
     metrics.bandwidth:inc(vars.request_length,
-        append_tables(get_enabled_label_values_for_metric("bandwidth", disabled_label_metric_map,
+        get_enabled_label_values_for_metric("bandwidth", disabled_label_metric_map,
         "ingress", route, route_id, service, service_id, consumer_name,
         balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
-        vars.request_type, vars.request_llm_model, vars.llm_model),
-        bandwidth_extra_label_values))
+        vars.request_type, vars.request_llm_model, vars.llm_model,
+        unpack(bandwidth_extra_label_values)))
 
     metrics.bandwidth:inc(vars.bytes_sent,
-        append_tables(get_enabled_label_values_for_metric("bandwidth", disabled_label_metric_map,
+        get_enabled_label_values_for_metric("bandwidth", disabled_label_metric_map,
         "egress", route, route_id, service, service_id, consumer_name,
         balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
-        vars.request_type, vars.request_llm_model, vars.llm_model),
-        bandwidth_extra_label_values))
+        vars.request_type, vars.request_llm_model, vars.llm_model,
+        unpack(bandwidth_extra_label_values)))
 
     local llm_time_to_first_token = vars.llm_time_to_first_token
     if llm_time_to_first_token ~= "" then
         metrics.llm_latency:observe(tonumber(llm_time_to_first_token),
-            append_tables(get_enabled_label_values_for_metric("llm_latency",
-                disabled_label_metric_map,
+            get_enabled_label_values_for_metric("llm_latency",disabled_label_metric_map,
             route, route_id, service, service_id, consumer_name,
             balancer_ip, gateway_group_id, instance_id, portal_id, api_product_id,
-            vars.request_type, vars.request_llm_model, vars.llm_model),
-            extra_labels("llm_latency", ctx)))
+            vars.request_type, vars.request_llm_model, vars.llm_model,
+            unpack(extra_labels("llm_latency", ctx))))
     end
 
     if vars.llm_prompt_tokens ~= "" then
         metrics.llm_prompt_tokens:inc(tonumber(vars.llm_prompt_tokens),
-            append_tables(get_enabled_label_values_for_metric("llm_prompt_tokens",
+            get_enabled_label_values_for_metric("llm_prompt_tokens",
             disabled_label_metric_map, route, route_id, matched_uri,
             matched_host, service, service_id, consumer_name, balancer_ip,
             gateway_group_id, instance_id, portal_id, api_product_id,
-            vars.request_type, vars.request_llm_model, vars.llm_model),
-            extra_labels("llm_prompt_tokens", ctx)))
+            vars.request_type, vars.request_llm_model, vars.llm_model,
+            unpack(extra_labels("llm_prompt_tokens", ctx))))
     end
     if vars.llm_completion_tokens ~= "" then
         metrics.llm_completion_tokens:inc(tonumber(vars.llm_completion_tokens),
-            append_tables(get_enabled_label_values_for_metric("llm_completion_tokens",
+            get_enabled_label_values_for_metric("llm_completion_tokens",
             disabled_label_metric_map, route, route_id, matched_uri,
             matched_host, service, service_id, consumer_name, balancer_ip,
             gateway_group_id, instance_id, portal_id, api_product_id,
-            vars.request_type, vars.request_llm_model, vars.llm_model),
-            extra_labels("llm_completion_tokens", ctx)))
+            vars.request_type, vars.request_llm_model, vars.llm_model,
+            unpack(extra_labels("llm_completion_tokens", ctx))))
     end
 end
 
@@ -879,12 +878,12 @@ local function inc_llm_active_connections(ctx, value)
     end
 
     metrics.llm_active_connections:inc(value,
-        append_tables(get_enabled_label_values_for_metric("llm_active_connections",
+        get_enabled_label_values_for_metric("llm_active_connections",
         disabled_label_metric_map, route_name, route_id, matched_uri,
         matched_host, service_name, service_id, consumer_name, balancer_ip,
         gateway_group_id, instance_id, portal_id, api_product_id,
         vars.request_type, vars.request_llm_model, vars.llm_model),
-        extra_labels("llm_active_connections", ctx)))
+        unpack(extra_labels("llm_active_connections", ctx)))
 end
 
 

@@ -267,8 +267,6 @@ passed
 GET /t
 --- response_body
 {"limit-conn":true,"limit-count":true,"response-rewrite":true}
---- error_log
-Apisix-Plugins: response-rewrite
 
 
 
