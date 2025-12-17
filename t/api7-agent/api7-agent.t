@@ -131,9 +131,12 @@ env API7_DP_MANAGER_ENDPOINT_DEBUG=http://127.0.0.1:1234;
             ngx.say("ok")
         }
     }
---- wait: 12
+--- must_die
 --- error_log
-heartbeat failed
+failed to send heartbeat to control plane, request http://127.0.0.1:1234/api/dataplane/heartbeat, error: connection refused
+failed to send heartbeat to control plane, request http://127.0.0.1:1234/api/dataplane/heartbeat, error: connection refused
+failed to send heartbeat to control plane, request http://127.0.0.1:1234/api/dataplane/heartbeat, error: connection refused
+failed to connect with control plane after 3 attempts, exiting...
 
 
 

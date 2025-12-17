@@ -96,7 +96,7 @@ local function send_request(url, opts)
         }, ssl)
 
         if not resp_status then
-            return nil, "request " .. url .. " error ", http_status
+            return nil, "request " .. url .. ", error: " .. http_status
         end
 
         return {
@@ -188,7 +188,7 @@ local function get_api_calls_for_portal(last_counter)
     return api_calls, api_calls_deltas
 end
 
-function _M.heartbeat(self, first)
+function _M.heartbeat(self, start_up)
     local current_time = ngx_time()
     if self.last_heartbeat_time and
             current_time - self.last_heartbeat_time < self.heartbeat_interval then
@@ -248,17 +248,21 @@ function _M.heartbeat(self, first)
     end)
     self.ongoing_heartbeat = false
     if not ok then
-        core.log.error("heartbeat error: ", res_or_err)
-        return
+        if not start_up then
+            core.log.error("heartbeat error: ", res_or_err)
+        end
+        return res_or_err
     end
     local res = res_or_err
-    if not first then
+    if not start_up then
         self.last_heartbeat_time = current_time
     end
 
     if not res then
-        core.log.error("heartbeat failed ", err)
-        return
+        if not start_up then
+            core.log.error("heartbeat failed ", err)
+        end
+        return err
     end
 
     if res.status ~= 200 then
@@ -266,14 +270,17 @@ function _M.heartbeat(self, first)
             local resp_body = utils.parse_resp(res.body)
             local resp_err_msg = resp_body and resp_body.error_msg or res.body
             local err_msg = "control plane access denied, error mssage: " .. resp_err_msg
-            if first then
-                error(err_msg)
+            if not start_up then
+                core.log.error(err_msg)
             end
-            core.log.error(err_msg)
-            return
+            return err_msg
         end
-        core.log.warn("heartbeat failed, status: " .. res.status .. ", body: ", core.json.encode(res.body))
-        return
+        local err_msg = "heartbeat failed, status: " .. res.status ..
+                                ", body: " .. core.json.encode(res.body)
+        if not start_up then
+            core.log.error(err_msg)
+        end
+        return err_msg
     end
 
     -- Reset counter only when heartbeat success.
@@ -282,8 +289,10 @@ function _M.heartbeat(self, first)
 
     local resp_body, err = utils.parse_resp(res.body)
     if not resp_body then
-        core.log.error("failed to parse response body: ", err)
-        return
+        if not start_up then
+            core.log.error("failed to parse response body: ", err)
+        end
+        return err
     end
     core.log.debug("heartbeat response: ", core.json.delay_encode(resp_body))
 
@@ -303,7 +312,7 @@ function _M.heartbeat(self, first)
         config_dict:set("config_version", config.config_version)
         config_dict:set("config_payload", core.json.encode(config.config_payload))
 
-        if not first then
+        if not start_up then
             ok, res = pcall(discovery.discovery.init_worker)
             if ok then
                 core.log.info("service discovery re-init successfully")

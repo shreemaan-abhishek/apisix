@@ -50,6 +50,9 @@ env API7_DP_MANAGER_ENDPOINT_DEBUG=http://127.0.0.1:1234;
             ngx.say("ok")
         }
     }
+--- must_die
 --- error_log
-heartbeat error:
-test panic
+failed to send heartbeat to control plane, init_by_lua:37: test panic
+failed to send heartbeat to control plane, init_by_lua:37: test panic
+failed to send heartbeat to control plane, init_by_lua:37: test panic
+failed to connect with control plane after 3 attempts, exiting...

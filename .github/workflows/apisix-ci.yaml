@@ -48,6 +48,13 @@ jobs:
       abt_branch: apisix-base/1.21.4.2.2
 
     steps:
+      - name: Fix Broken apt list
+        run: |
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo mkdir -p /var/lib/apt/lists/partial
+          sudo apt clean
+          sudo apt update
+
       - name: Check out code
         uses: actions/checkout@v3.2.0
         with:

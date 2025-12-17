@@ -268,15 +268,20 @@ local function hook()
         return
     end
 
+    local succeed = false
     for i = 1, 3 do
         local err = api7_agent:heartbeat(true)
         if err == nil then
+            succeed = true
             break
         end
 
         if err then
-            core.log.error("failed to send first heartbeat ", err)
+            core.log.error("failed to send heartbeat to control plane, ", err)
         end
+    end
+    if not succeed then
+        error("failed to connect with control plane after 3 attempts, exiting...")
     end
 end
 

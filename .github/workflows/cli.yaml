@@ -40,6 +40,13 @@ jobs:
       OPENRESTY_VERSION: default
 
     steps:
+      - name: Fix Broken apt list
+        run: |
+          sudo rm -rf /var/lib/apt/lists/*
+          sudo mkdir -p /var/lib/apt/lists/partial
+          sudo apt clean
+          sudo apt update
+
       - name: Check out code
         uses: actions/checkout@v3
         with:
