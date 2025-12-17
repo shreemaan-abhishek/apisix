@@ -736,7 +736,7 @@ _M.consumer = {
     properties = {
         username = {
             type = "string", minLength = 1, maxLength = rule_name_def.maxLength,
-            pattern = [[^[a-zA-Z0-9_\-]+$]]
+            pattern = [[^[a-zA-Z0-9_\-\/]+$]]
         },
         group_id = id_schema,
         plugins = plugins_schema,

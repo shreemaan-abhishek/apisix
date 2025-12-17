@@ -1,6 +1,31 @@
 {
   "consumers": [
     {
+      "id": "rose/credentials/542f7414-87f6-4793-a68e-99983dde9913",
+      "name": "rose",
+      "plugins": {
+        "key-auth": {
+          "key": "csdt8UPw76/SG+WlHBoFeg=="
+        }
+      }
+    },
+    {
+      "id": "rose",
+      "plugins": {
+        "limit-count": {
+          "allow_degradation": false,
+          "count": 100000000,
+          "key": "remote_addr",
+          "key_type": "var",
+          "policy": "local",
+          "rejected_code": 429,
+          "show_limit_quota_header": true,
+          "time_window": 3
+        }
+      },
+      "username": "rose"
+    },
+    {
       "plugins": {
         "basic-auth": {
           "_meta": {
@@ -145,6 +170,9 @@
     },
     {
       "name": "prometheus"
+    },
+    {
+      "name": "key-auth"
     },
     {
       "name": "3rd-party",

@@ -6,6 +6,26 @@ consumers:
             password: AhnrEYW3EWsX3dhtP1uPWg==
             username: ba
       username: ba
+
+    - id: rose/credentials/542f7414-87f6-4793-a68e-99983dde9913
+      name: rose
+      plugins:
+        key-auth:
+          key: csdt8UPw76/SG+WlHBoFeg==
+
+    - id: rose
+      username: rose
+      plugins:
+        limit-count:
+          time_window: 3
+          count: 100000000
+          key_type: var
+          allow_degradation: false
+          key: remote_addr
+          rejected_code: 429
+          show_limit_quota_header: true
+          policy: local
+
 global_rules:
     - id: api7ee-global-rule
       plugins:
@@ -142,6 +162,7 @@ plugins:
     - name: basic-auth
     - name: limit-count
     - name: prometheus
+    - name: key-auth
     - name: 3rd-party
       is_custom: true
 #END
