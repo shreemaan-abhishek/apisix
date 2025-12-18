@@ -36,6 +36,7 @@ local type  = type
 local math  = math
 local ipairs = ipairs
 local setmetatable = setmetatable
+local str_lower = string.lower
 
 
 function _M.new(opts)
@@ -197,7 +198,13 @@ local function construct_forward_headers(ext_opts_headers, ctx)
         "content-length"
     }
 
-    local headers = core.table.merge(core.request.headers(ctx), ext_opts_headers)
+    -- make header keys lower case to overwrite downstream headers correctly,
+    -- because downstream headers are lower case
+    local opts_headers_lower = {}
+    for k, v in pairs(ext_opts_headers or {}) do
+        opts_headers_lower[str_lower(k)] = v
+    end
+    local headers = core.table.merge(core.request.headers(ctx), opts_headers_lower)
     headers["Content-Type"] = "application/json"
 
     for _, h in ipairs(blacklist) do
