@@ -168,7 +168,7 @@ do
     local function azure_blob(conf, gw_id)
         local azure = require("resty.azblob")
 
-        local res, err = azure.get_object(
+        local res, err = azure.get_blob(
             conf.account_name, conf.account_key,
             conf.resource_container, gw_id, conf.endpoint
         )
@@ -176,7 +176,7 @@ do
             util.die("failed to get resource data from azure blob: ", err)
         end
 
-        local config_res, err = azure.get_object(
+        local config_res, err = azure.get_blob(
             conf.account_name, conf.account_key,
             conf.config_container, gw_id, conf.endpoint
         )
@@ -640,6 +640,11 @@ Please modify "admin_key" in conf/config.yaml .
         zipkin_set_ngx_var = yaml_conf.plugin_attr["zipkin"].set_ngx_var
     end
 
+    local is_backup_mode = false
+    if yaml_conf.deployment.fallback_cp and yaml_conf.deployment.fallback_cp.mode == "write" then
+        is_backup_mode = true
+    end
+
     -- Using template.render
     local sys_conf = {
         lua_path = env.pkg_path_org,
@@ -661,6 +666,7 @@ Please modify "admin_key" in conf/config.yaml .
         prometheus_server_addr = prometheus_server_addr,
         proxy_mirror_timeouts = proxy_mirror_timeouts,
         zipkin_set_ngx_var = zipkin_set_ngx_var,
+        is_backup_mode = is_backup_mode,
     }
 
     if not yaml_conf.apisix then

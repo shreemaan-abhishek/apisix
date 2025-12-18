@@ -241,6 +241,7 @@ stream {
         apisix.stream_init_worker()
     }
 
+    {% if not is_backup_mode then %}
     server {
         {% for _, item in ipairs(stream_proxy.tcp or {}) do %}
         listen {*item.addr*} {% if item.tls then %} ssl {% end %} {% if enable_reuseport then %} reuseport {% end %} {% if proxy_protocol and proxy_protocol.enable_tcp_pp then %} proxy_protocol {% end %};
@@ -282,6 +283,7 @@ stream {
             apisix.stream_log_phase()
         }
     }
+    {% end %}
 }
 {% end %}
 
@@ -792,6 +794,7 @@ http {
     lua_shared_dict {* cache.name *} {* cache.memory_size *};
     {% end %}
 
+    {% if not is_backup_mode then %}
     map $upstream_cache_zone $upstream_cache_zone_info {
     {% for _, cache in ipairs(proxy_cache.zones) do %}
     {% if cache.disk_path and cache.cache_levels and cache.disk_size then %}
@@ -800,7 +803,9 @@ http {
     {% end %}
     }
     {% end %}
+    {% end %}
 
+    {% if not is_backup_mode then %}
     server {
         {% for _, item in ipairs(node_listen) do %}
         listen {* item.ip *}:{* item.port *} default_server {% if item.enable_http2 then %} http2 {% end %} {% if enable_reuseport then %} reuseport {% end %} {% if item.backlog then %} backlog={* item.backlog *} {% end %};
@@ -1139,6 +1144,7 @@ http {
             grpc_pass $upstream_mirror_host;
         }
     }
+    {% end %}
     {% end %}
 
     # http end configuration snippet starts

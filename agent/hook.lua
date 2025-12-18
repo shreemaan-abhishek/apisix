@@ -181,6 +181,7 @@ package.loaded["apisix.discovery.init"] = wrapper
 local agent = require("agent.agent")
 local getenv = os.getenv
 local api7_agent
+local backup_mode = require("agent.backup_mode")
 
 local function hook()
     local local_conf = config_local.local_conf()
@@ -220,6 +221,7 @@ local function hook()
     local consumer_proxy = core.table.try_read_attr(local_conf, "api7ee", "consumer_proxy")
     local developer_proxy = core.table.try_read_attr(local_conf, "api7ee", "developer_proxy")
     local heartbeat_interval = core.table.try_read_attr(local_conf, "api7ee", "heartbeat_interval")
+    local backup_interval = core.table.try_read_attr(local_conf, "deployment", "fallback_cp", "interval")
 
     local healthcheck_report_interval = core.table.try_read_attr(local_conf, "api7ee", "healthcheck_report_interval")
     if not healthcheck_report_interval then
@@ -260,6 +262,7 @@ local function hook()
         consumer_proxy = consumer_proxy,
         developer_proxy = developer_proxy,
         heartbeat_interval = heartbeat_interval,
+        backup_interval = backup_interval or 60,
         run_id = run_id,
     })
 
@@ -290,6 +293,7 @@ hook()
 local heartbeat_timer_name = "plugin#api7-agent#heartbeat"
 local telemetry_timer_name = "plugin#api7-agent#telemetry"
 local report_healthcheck_timer_name = "plugin#api7-agent#report_healthcheck"
+local backup_configuration_timer_name = "plugin#api7-agent#backup_configuration"
 
 local heartbeat = function()
     api7_agent:heartbeat()
@@ -301,6 +305,10 @@ end
 
 local report_healthcheck = function()
     api7_agent:report_healthcheck()
+end
+
+local backup_configuration = function()
+    backup_mode.backup_configuration(api7_agent)
 end
 
 local apisix = require("apisix")
@@ -329,6 +337,9 @@ apisix.http_init_worker = function(...)
             core.log.info("disabled send telemetry data to control plane")
         end
         timers.register_timer(report_healthcheck_timer_name, report_healthcheck)
+        if ngx.config.subsystem ~= "stream" then
+            timers.register_timer(backup_configuration_timer_name, backup_configuration, true)
+        end
     else
         core.log.warn("skipped registering timer because config type: ", core.config.type)
     end

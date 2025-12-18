@@ -7,6 +7,8 @@ local http    = require("socket.http")
 local plugin  = require("apisix.plugin")
 local plugin_checker = require("apisix.plugin").plugin_checker
 local check_schema   = require("apisix.core.schema").check
+local config_local = require("apisix.core.config_local")
+
 
 local resty_http    = require("resty.http")
 local discovery     = require("agent.discovery")
@@ -58,7 +60,6 @@ local headers = {
     ["Content-Type"] = "application/json",
     [AUTH_HEADER] = control_plane_token,
 }
-
 
 local function request(req_params, conf, ssl)
     if not ssl then
@@ -223,6 +224,13 @@ function _M.heartbeat(self, start_up)
     payload.control_plane_revision = utils.get_control_plane_revision()
     payload.cores = ngx.worker.count()
     payload.instance_id = uid
+    payload.running_mode = "standard"
+
+    local local_conf = config_local.local_conf()
+    local backup_mode = core.table.try_read_attr(local_conf, "deployment", "fallback_cp", "mode")
+    if backup_mode == "write" then
+        payload.running_mode = "backup"
+    end
 
     local internal_services = discovery.list_all_services()
 
@@ -501,7 +509,6 @@ local function push_healthcheck_data(self, url, data, kind)
     core.log.info(kind, msg)
 end
 
-
 local function report_upstream_healthcheck(self)
     -- Control API in version 3.2
     -- https://apisix.apache.org/zh/docs/apisix/3.2/control-api/#get-v1healthcheck
@@ -614,7 +621,6 @@ function _M.report_healthcheck(self)
     report_upstream_healthcheck(self)
     report_service_registry_healthcheck(self)
 end
-
 
 local function check_consumer(consumer)
     local data_valid, err = check_schema(core.schema.consumer, consumer)
@@ -760,6 +766,7 @@ function _M.new(agent_conf)
         ssl_verify = agent_conf.ssl_verify,
         ssl_server_name = agent_conf.ssl_server_name,
         heartbeat_interval = agent_conf.heartbeat_interval or 10,
+        backup_interval = agent_conf.backup_interval or 60,
         telemetry = agent_conf.telemetry,
         healthcheck_report_interval = agent_conf.healthcheck_report_interval,
         http_timeout = http_timeout,

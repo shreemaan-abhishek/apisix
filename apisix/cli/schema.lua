@@ -432,6 +432,14 @@ local deployment_schema = {
             fallback_cp = {
                 type = "object",
                 properties = {
+                    mode = {
+                        enum = {"read", "write"},
+                        default = "read",
+                    },
+                    interval = {
+                        type = "integer",
+                        default = 60,
+                    },
                     aws_s3 = {
                         type = "object",
                         properties = {
