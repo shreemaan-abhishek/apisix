@@ -1368,8 +1368,7 @@ function _M.run_global_rules(api_ctx, global_rules, phase_name)
     -- Since we will set `false` in the removed resource, refer:
     -- https://github.com/apache/apisix/blob/release/3.2/apisix/core/config_etcd.lua#L716
     -- so we should use values_hash instead.
-    if global_rules and global_rules.values
-       and core.table.nkeys(global_rules.values_hash) > 0 then
+    if global_rules and #global_rules > 0 then
         local orig_conf_type = api_ctx.conf_type
         local orig_conf_version = api_ctx.conf_version
         local orig_conf_id = api_ctx.conf_id
@@ -1378,7 +1377,7 @@ function _M.run_global_rules(api_ctx, global_rules, phase_name)
             api_ctx.global_rules = global_rules
         end
 
-        local values = global_rules.values or {}
+        local values = global_rules
         local route = api_ctx.matched_route
         local global_plugins = api_ctx.global_plugins or
                             core.tablepool.fetch("global_plugins", 4, 4)
