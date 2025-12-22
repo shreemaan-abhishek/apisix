@@ -114,8 +114,6 @@ export API7_GATEWAY_GROUP_SHORT_ID="default"
 cat > conf/config.yaml <<EOF
 nginx_config:
   error_log_level: info
-  envs:
-    - API7_GATEWAY_GROUP_SHORT_ID
 apisix:
   lua_module_hook: "agent.hook"
   node_listen:

@@ -61,6 +61,7 @@ env API7_DP_MANAGER_ENDPOINTS;
 env API7_DP_MANAGER_TOKEN;
 env API7_DP_MANAGER_CERT;
 env API7_DP_MANAGER_KEY;
+env API7_GATEWAY_GROUP_SHORT_ID;
 
 {% if envs then %}
 {% for _, name in ipairs(envs) do %}
