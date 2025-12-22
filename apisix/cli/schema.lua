@@ -443,8 +443,14 @@ local deployment_schema = {
                     aws_s3 = {
                         type = "object",
                         properties = {
-                            access_key = { type = "string" },
-                            secret_key = { type = "string" },
+                            access_key = {
+                                type = "string",
+                                description = "use IAM role if not set",
+                            },
+                            secret_key = {
+                                type = "string",
+                                description = "use IAM role if not set",
+                            },
                             resource_bucket = { type = "string" },
                             config_bucket = { type = "string" },
                             region = { type = "string" },
@@ -453,14 +459,16 @@ local deployment_schema = {
                                 pattern = [[^https?://]]
                             },
                         },
-                        required = {"access_key", "secret_key", "resource_bucket",
-                                    "config_bucket", "region",}
+                        required = { "resource_bucket", "config_bucket", "region"}
                     },
                     azure_blob = {
                         type = "object",
                         properties = {
                             account_name = { type = "string" },
-                            account_key = { type = "string" },
+                            account_key = {
+                                type = "string",
+                                description = "use Workload Identity if not set",
+                            },
                             resource_container = { type = "string" },
                             config_container = { type = "string" },
                             endpoint = {
@@ -469,8 +477,7 @@ local deployment_schema = {
                             }
                         },
                         required = {
-                            "account_name", "account_key",
-                            "resource_container", "config_container",
+                            "account_name", "resource_container", "config_container",
                         }
                     },
                 },
