@@ -376,3 +376,54 @@ grpc-status: 13
 grpc-message: execpted error
 --- response_body eval
 qr/^$/
+
+
+
+=== TEST 19: set route (absolute match) with proxy-rewrite to match URI sent by the grpc web client
+--- config
+    location /t {
+        content_by_lua_block {
+
+            local config = {
+                uri = "/grpc/web/a6.RouteService/GetRoute",
+                upstream = {
+                    scheme = "grpc",
+                    type = "roundrobin",
+                    nodes = {
+                        ["127.0.0.1:50001"] = 1
+                    }
+                },
+                plugins = {
+                    ["grpc-web"] = {},
+                    ["proxy-rewrite"] = {
+                        uri = "/a6.RouteService/GetRoute",
+                        set_ngx_uri = true
+                    }
+                }
+            }
+            local t = require("lib.test_admin").test
+            local code, body = t('/apisix/admin/routes/1', ngx.HTTP_PUT, config)
+
+            if code >= 300 then
+                ngx.status = code
+                ngx.say(body)
+                return
+            end
+
+            ngx.say(body)
+        }
+    }
+--- response_body
+passed
+
+
+
+=== TEST 20: send requests
+--- exec
+pnpx tsx ./t/plugin/grpc-web/client.cts BIN UNARY
+pnpx tsx ./t/plugin/grpc-web/client.cts TEXT UNARY
+--- response_body
+Status: { code: 0, details: '', metadata: {} }
+{"name":"hello","path":"/hello"}
+Status: { code: 0, details: '', metadata: {} }
+{"name":"hello","path":"/hello"}
