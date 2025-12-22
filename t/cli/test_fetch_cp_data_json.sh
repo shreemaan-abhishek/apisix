@@ -2,6 +2,9 @@
 
 . ./t/cli/common.sh
 
+# when gateway run in fallback cp mode, it will skip the heartbeat probes without env var
+unset API7_SKIP_FIRST_HEARTBEAT_DEBUG
+
 # check etcd while enable auth
 git checkout conf/config.yaml
 

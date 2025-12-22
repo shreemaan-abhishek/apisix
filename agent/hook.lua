@@ -222,6 +222,7 @@ local function hook()
     local developer_proxy = core.table.try_read_attr(local_conf, "api7ee", "developer_proxy")
     local heartbeat_interval = core.table.try_read_attr(local_conf, "api7ee", "heartbeat_interval")
     local backup_interval = core.table.try_read_attr(local_conf, "deployment", "fallback_cp", "interval")
+    local config_provider = core.table.try_read_attr(local_conf, "deployment", "config_provider")
 
     local healthcheck_report_interval = core.table.try_read_attr(local_conf, "api7ee", "healthcheck_report_interval")
     if not healthcheck_report_interval then
@@ -267,7 +268,7 @@ local function hook()
     })
 
     local skip_first_heartbeat = getenv("API7_SKIP_FIRST_HEARTBEAT_DEBUG")
-    if skip_first_heartbeat == "true" then
+    if config_provider ~= "etcd" or skip_first_heartbeat == "true" then
         return
     end
 
