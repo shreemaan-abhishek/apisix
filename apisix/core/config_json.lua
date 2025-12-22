@@ -41,6 +41,7 @@ local tostring     = tostring
 local pcall        = pcall
 local io           = io
 local ngx          = ngx
+
 local apisix_json_path = profile:json_path("apisix")
 local created_obj  = {}
 
@@ -133,6 +134,9 @@ local function sync_data(self)
         self.values = nil
     end
 
+    local local_conf = config_local.local_conf()
+    local prefix = local_conf.etcd and local_conf.etcd.prefix
+
     if self.single_item then
         -- treat items as a single item
         self.values = new_tab(1, 0)
@@ -151,8 +155,10 @@ local function sync_data(self)
                           "] err:", err, " ,val: ", json.delay_encode(item))
             end
 
+            local credential_key = config_util.get_credential_key(self.key, item, prefix)
+
             if data_valid and self.checker then
-                data_valid, err = self.checker(item)
+                data_valid, err = self.checker(item, credential_key)
                 if not data_valid then
                     log.error("failed to check item data of [", self.key,
                               "] err:", err, " ,val: ", json.delay_encode(item))
@@ -197,8 +203,9 @@ local function sync_data(self)
                 end
             end
 
+            local credential_key = config_util.get_credential_key(self.key, item, prefix)
             if data_valid and self.checker then
-                data_valid, err = self.checker(item)
+                data_valid, err = self.checker(item, credential_key)
                 if not data_valid then
                     log.error("failed to check item data of [", self.key,
                               "] err:", err, " ,val: ", json.delay_encode(item))

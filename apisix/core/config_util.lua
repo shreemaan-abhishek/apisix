@@ -27,10 +27,24 @@ local ipairs = ipairs
 local setmetatable = setmetatable
 local tostring = tostring
 local type = type
+local re_find = ngx.re.find
 
 
 local _M = {}
 
+
+function _M.get_credential_key(key, item, prefix)
+    local credential_key
+    if key == "consumers" then
+        if item.id and re_find(item.id, [[^.+/credentials/.+$]], "jo") then
+            credential_key = prefix .. "/consumers/" .. item.id
+            item["username"] = item.id
+            item.id = nil
+        end
+    end
+
+    return credential_key
+end
 
 local function _iterate_values(self, tab)
     while true do

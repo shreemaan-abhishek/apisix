@@ -118,20 +118,6 @@ local function read_apisix_yaml(premature, pre_mtime)
 end
 
 
-local function get_credential_key(key, item, prefix)
-    local credential_key
-    if key == "consumers" then
-        if item.id and re_find(item.id, [[^.+/credentials/.+$]], "jo") then
-            credential_key = prefix .. "/consumers/" .. item.id
-            item["username"] = item.id
-            item.id = nil
-        end
-    end
-
-    return credential_key
-end
-
-
 local function sync_data(self)
     if not self.key then
         return nil, "missing 'key' arguments"
@@ -183,7 +169,7 @@ local function sync_data(self)
                           "] err:", err, " ,val: ", json.delay_encode(item))
             end
 
-            local credential_key = get_credential_key(self.key, item, prefix)
+            local credential_key = config_util.get_credential_key(self.key, item, prefix)
 
             if data_valid and self.checker then
                 data_valid, err = self.checker(item, credential_key)
@@ -231,7 +217,7 @@ local function sync_data(self)
                 end
             end
 
-            local credential_key = get_credential_key(self.key, item, prefix)
+            local credential_key = config_util.get_credential_key(self.key, item, prefix)
             if data_valid and self.checker then
                 data_valid, err = self.checker(item, credential_key)
                 if not data_valid then
