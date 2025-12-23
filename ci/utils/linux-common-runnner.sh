@@ -191,6 +191,29 @@ sed -i '/\.PHONY: stop/,/@\$(call func_echo_success_status, "\$@ -> \[ Done \]")
     chmod 777 "${VAR_APISIX_HOME}/ci/pod/otelcol-contrib/data-otlp.json"
 }
 
+start_openapi2mcp_service() {
+    # Install Node.js 22 if not available or version is too old
+    if ! command -v node &> /dev/null || [[ $(node -v | cut -d. -f1 | tr -d 'v') -lt 22 ]]; then
+        curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+        apt-get install -y nodejs
+        export PATH="/usr/bin:$PATH"
+    fi
+
+    # Build and start OpenAPI2MCP service
+    # OpenAPI2MCP submodule is in the parent directory (relative to workbench)
+    pushd ../OpenAPI2MCP
+    npm install -g pnpm
+    pnpm install --frozen-lockfile
+    pnpm run build
+    NODE_ENV=production SSE_PORT=13000 nohup node dist/index.js > /tmp/openapi2mcp.log 2>&1 &
+    popd
+
+    # Wait for OpenAPI2MCP to be ready
+    for i in {1..30}; do
+        curl -sf http://127.0.0.1:13000/health && break || sleep 1
+    done
+}
+
 start_sse_server_example() {
     # build sse_server_example
     pushd t/sse_server_example
@@ -232,6 +255,9 @@ install_deps)
     ;;
 start_sse_server_example)
     start_sse_server_example "$@"
+    ;;
+start_openapi2mcp_service)
+    start_openapi2mcp_service "$@"
     ;;
 *)
     func_echo_error_status "Unknown method: ${case_opt}"

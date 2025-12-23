@@ -24,35 +24,15 @@ no_root_location();
 add_block_preprocessor(sub {
     my ($block) = @_;
 
-    my $extra_init_by_lua = <<_EOC_;
-    local server = require("lib.server")
-    server.mcp_mock = function()
-        ngx.log(ngx.INFO, "mock mcp server: ", ngx.var.request_method, " ", ngx.var.request_uri)
-
-        local headers = ngx.req.get_headers()
-        local keys = {}
-        for k in pairs(headers) do
-            if k:sub(1, 13) == "x-openapi2mcp" then
-                table.insert(keys, k)
-            end
-        end
-        table.sort(keys)
-        for _, key in ipairs(keys) do
-            ngx.log(ngx.INFO, key, ": ", headers[key])
-        end
-
-        ngx.exit(200)
-    end
-
-    server.mcp = server.mcp_mock
-    server._api7_mcp_sse = server.mcp_mock
-    server._api7_mcp_mcp_stateless = server.mcp_mock
-    server.hello_mcp = server.mcp_mock
+    my $extra_yaml_config = $block->extra_yaml_config // <<_EOC_;
+plugin_attr:
+  openapi-to-mcp:
+    port: 13000
 _EOC_
 
-    $block->set_value("extra_init_by_lua", $extra_init_by_lua);
+    $block->set_value("extra_yaml_config", $extra_yaml_config);
 
-    if (!$block->request) {
+    if (!$block->request || !$block->exec) {
         $block->set_value("request", "GET /t");
     }
 
@@ -71,11 +51,11 @@ __DATA__
         content_by_lua_block {
             local plugin = require("apisix.plugins.openapi-to-mcp")
             local ok, err = plugin.check_schema({
-                base_url = "https://petstore.swagger.io",
+                base_url = "http://petstore3.local:8281/api/v3",
                 headers = {
                     ["Authorization"] = "test-api-key"
                 },
-                openapi_url = "https://petstore.swagger.io/v2/swagger.json"
+                openapi_url = "http://petstore3.local:8281/api/v3/openapi.json"
             })
             if not ok then
                 ngx.say(err)
@@ -96,7 +76,7 @@ done
         content_by_lua_block {
             local plugin = require("apisix.plugins.openapi-to-mcp")
             local ok, err = plugin.check_schema({
-                base_url = "https://petstore.swagger.io"
+                base_url = "http://petstore3.local:8281/api/v3"
             })
             if not ok then
                 ngx.say(err)
@@ -122,11 +102,11 @@ property "openapi_url" is required
                     "uri": "/mcp",
                     "plugins": {
                         "openapi-to-mcp": {
-                            "base_url": "https://petstore.swagger.io",
+                            "base_url": "http://petstore3.local:8281/api/v3",
                             "headers": {
                                 "Authorization": "test-api-key"
                             },
-                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                            "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json"
                         }
                     },
                     "upstream": {
@@ -147,26 +127,19 @@ passed
 
 
 === TEST 4: send GET request should be proxied to sse endpoint of mcp server
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-GET /mcp
---- error_log
-mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore.swagger.io&openapi_spec=https://petstore.swagger.io/v2/swagger.json&message_path=/mcp&headers.Authorization=test-api-key
+--- exec
+timeout 1 curl -X GET -N -sS http://localhost:1984/mcp 2>&1 | cat
+--- response_body_like
+event:\s*endpoint
+data:\s*/mcp\?sessionId=.*
 
 
 
 === TEST 5: send POST request should be proxied to message endpoint of mcp server
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-POST /mcp
---- error_log
-mock mcp server: POST /mcp
+--- exec
+timeout 1 curl -X POST -N -sS http://localhost:1984/mcp 2>&1 | cat
+--- response_body eval
+qr/\{\"jsonrpc\":\"2.0\",\"error\":\{\"code\":-32000,\"message\":\"Missing or invalid sessionId parameter\"},\"id\":null}/
 
 
 
@@ -182,11 +155,11 @@ mock mcp server: POST /mcp
                     "plugins": {
                         "openapi-to-mcp": {
                             "transport": "streamable_http",
-                            "base_url": "https://petstore.swagger.io",
+                            "base_url": "http://petstore3.local:8281/api/v3",
                             "headers": {
                                 "Authorization": "test-api-key"
                             },
-                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                            "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json"
                         }
                     },
                     "upstream": {
@@ -207,18 +180,18 @@ passed
 
 
 === TEST 7: send tools/list request should be proxied to stateless endpoint of mcp server
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-POST /mcp
-{"method":"tools/list","jsonrpc":"2.0","id":1}
---- error_log
-mock mcp server: POST /.api7_mcp/mcp_stateless
-x-openapi2mcp-base-url: https://petstore.swagger.io
-x-openapi2mcp-header-authorization: test-api-key
-x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json
+--- log_level: debug
+--- max_size: 2048000
+--- exec
+timeout 1 curl -X POST -N -sS http://localhost:1984/mcp \
+    -d '{"method":"tools/list","jsonrpc":"2.0","id":1}' \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    2>&1 | cat
+--- response_body eval
+qr/event: message\ndata: \{\"result\":\{\"tools\":.+},\"jsonrpc\":\"2.0\",\"id\":1}/
+--- error_log eval
+qr/x-openapi2mcp-header-Authorization: test-api-key/
 
 
 
@@ -234,11 +207,11 @@ x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json
                     "plugins": {
                         "openapi-to-mcp": {
                             "transport": "streamable_http",
-                            "base_url": "https://petstore.swagger.io",
+                            "base_url": "http://petstore3.local:8281/api/v3",
                             "headers": {
                                 "Authorization": "${arg_username}-${http_apikey}"
                             },
-                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                            "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json"
                         }
                     },
                     "upstream": {
@@ -259,20 +232,19 @@ passed
 
 
 === TEST 9: confirm that variables in headers are correctly replaced
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-POST /mcp?username=alice
-{"method":"tools/list","jsonrpc":"2.0","id":1}
---- more_headers
-apikey: user-key
---- error_log
-mock mcp server: POST /.api7_mcp/mcp_stateless
-x-openapi2mcp-base-url: https://petstore.swagger.io
-x-openapi2mcp-header-authorization: alice-user-key
-x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json
+--- log_level: debug
+--- max_size: 2048000
+--- exec
+timeout 1 curl -X POST -N -sS http://localhost:1984/mcp?username=alice \
+    -d '{"method":"tools/list","jsonrpc":"2.0","id":1}' \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    -H "apikey: user-key" \
+    2>&1 | cat
+--- response_body eval
+qr/event: message\ndata: \{\"result\":\{\"tools\":.+},\"jsonrpc\":\"2.0\",\"id\":1}/
+--- error_log eval
+qr/x-openapi2mcp-header-Authorization: alice-user-key/
 
 
 
@@ -302,8 +274,8 @@ x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json
                     "plugins": {
                         "openapi-to-mcp": {
                             "transport": "sse",
-                            "base_url": "https://petstore.swagger.io",
-                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                            "base_url": "http://petstore3.local:8281/api/v3",
+                            "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json"
                         }
                     },
                     "service_id": 1
@@ -319,27 +291,23 @@ passed
 
 
 === TEST 11: confirm sse message request that send with path_prefix to MCP server
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-POST /hello/mcp?sessionID=a332916c-7206-4a60-a9c2-b7ab9ee4e5ed
-{"method":"tools/list","jsonrpc":"2.0","id":1}
---- error_log
-mock mcp server: POST /hello/mcp?sessionID=a332916c-7206-4a60-a9c2-b7ab9ee4e5ed
+--- exec
+timeout 1 curl -X POST -N -sS http://localhost:1984/hello/mcp?sessionId=a332916c-7206-4a60-a9c2-b7ab9ee4e5ed \
+    -d '{"method":"tools/list","jsonrpc":"2.0","id":1}' \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    2>&1 | cat
+--- response_body eval
+qr/\{\"jsonrpc\":\"2.0\",\"error\":\{\"code\":-32000,\"message\":\"Session not found for sessionId\"},\"id\":null}/
 
 
 
 === TEST 12: sse request should be working when no headers in plugin config
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-GET /hello/mcp
---- error_log
-mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore.swagger.io&openapi_spec=https://petstore.swagger.io/v2/swagger.json&message_path=/hello/mcp
+--- exec
+timeout 1 curl -X GET -N -sS http://localhost:1984/hello/mcp 2>&1 | cat
+--- response_body_like
+event:\s*endpoint
+data:\s*/hello/mcp\?sessionId=.*
 
 
 
@@ -355,8 +323,8 @@ mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore.swagger.io&openapi
                     "plugins": {
                         "openapi-to-mcp": {
                             "transport": "streamable_http",
-                            "base_url": "https://petstore.swagger.io",
-                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                            "base_url": "http://petstore3.local:8281/api/v3",
+                            "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json"
                         }
                     },
                     "upstream": {
@@ -377,17 +345,18 @@ passed
 
 
 === TEST 14: mcp request should be working when no headers in plugin config
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-POST /mcp
-{"method":"tools/list","jsonrpc":"2.0","id":1}
---- error_log
-mock mcp server: POST /.api7_mcp/mcp_stateless
-x-openapi2mcp-base-url: https://petstore.swagger.io
-x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json
+--- log_level: debug
+--- max_size: 2048000
+--- exec
+timeout 1 curl -X POST -N -sS http://localhost:1984/mcp \
+    -d '{"method":"tools/list","jsonrpc":"2.0","id":1}' \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    2>&1 | cat
+--- response_body eval
+qr/event: message\ndata: \{\"result\":\{\"tools\":.+},\"jsonrpc\":\"2.0\",\"id\":1}/
+--- no_error_log eval
+qr/x-openapi2mcp-header-authorization/
 
 
 
@@ -402,11 +371,11 @@ x-openapi2mcp-openapi-spec: https://petstore.swagger.io/v2/swagger.json
                     "uri": "/mcp",
                     "plugins": {
                         "openapi-to-mcp": {
-                            "base_url": "https://${http_variable_host}.swagger.io",
+                            "base_url": "http://${http_variable_host}/api/v3",
                             "headers": {
                                 "Authorization": "test-api-key"
                             },
-                            "openapi_url": "https://petstore.swagger.io/v2/swagger.json"
+                            "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json"
                         }
                     },
                     "upstream": {
@@ -427,16 +396,16 @@ passed
 
 
 === TEST 16: send GET request should be proxied to sse endpoint of mcp server
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-GET /mcp
---- more_headers
-variable_host: petstore
---- error_log
-mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore.swagger.io&openapi_spec=https://petstore.swagger.io/v2/swagger.json&message_path=/mcp&headers.Authorization=test-api-key
+--- log_level: debug
+--- exec
+timeout 1 curl -X GET -N -sS http://localhost:1984/mcp \
+    -H "variable_host: petstore.local:8281"
+    2>&1 | cat
+--- response_body_like
+event:\s*endpoint
+data:\s*/mcp\?sessionId=.*
+--- error_log eval
+qr/\?base_url=http:\/\/petstore.local:8281\/api\/v3/
 
 
 
@@ -446,8 +415,8 @@ mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore.swagger.io&openapi
         content_by_lua_block {
             local plugin = require("apisix.plugins.openapi-to-mcp")
             local ok, err = plugin.check_schema({
-                base_url = "https://petstore3.swagger.io/api/v3",
-                openapi_url = "https://petstore3.swagger.io/api/v3/openapi.json",
+                base_url = "http://petstore3.local:8281/api/v3",
+                openapi_url = "http://petstore3.local:8281/api/v3/openapi.json",
                 flatten_parameters = true
             })
             if not ok then
@@ -456,8 +425,8 @@ mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore.swagger.io&openapi
             end
 
             local ok, err = plugin.check_schema({
-                base_url = "https://petstore3.swagger.io/api/v3",
-                openapi_url = "https://petstore3.swagger.io/api/v3/openapi.json",
+                base_url = "http://petstore3.local:8281/api/v3",
+                openapi_url = "http://petstore3.local:8281/api/v3/openapi.json",
                 flatten_parameters = false
             })
             if not ok then
@@ -484,8 +453,8 @@ done
                     "uri": "/mcp",
                     "plugins": {
                         "openapi-to-mcp": {
-                            "base_url": "https://petstore3.swagger.io/api/v3",
-                            "openapi_url": "https://petstore3.swagger.io/api/v3/openapi.json",
+                            "base_url": "http://petstore3.local:8281/api/v3",
+                            "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json",
                             "flatten_parameters": true
                         }
                     },
@@ -507,14 +476,14 @@ passed
 
 
 === TEST 19: verify flatten_parameters in sse transport query parameter
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-GET /mcp
---- error_log
-mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore3.swagger.io/api/v3&openapi_spec=https://petstore3.swagger.io/api/v3/openapi.json&message_path=/mcp&flatten_parameters=true
+--- log_level: debug
+--- exec
+timeout 1 curl -X GET -N -sS http://localhost:1984/mcp 2>&1 | cat
+--- response_body_like
+event:\s*endpoint
+data:\s*/mcp\?sessionId=.*
+--- error_log eval
+qr/&flatten_parameters=true/
 
 
 
@@ -529,8 +498,8 @@ mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore3.swagger.io/api/v3
                     "uri": "/mcp",
                     "plugins": {
                         "openapi-to-mcp": {
-                            "base_url": "https://petstore3.swagger.io/api/v3",
-                            "openapi_url": "https://petstore3.swagger.io/api/v3/openapi.json",
+                            "base_url": "http://petstore3.local:8281/api/v3",
+                            "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json",
                             "flatten_parameters": false
                         }
                     },
@@ -552,14 +521,14 @@ passed
 
 
 === TEST 21: verify flatten_parameters false in sse transport query parameter
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-GET /mcp
---- error_log
-mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore3.swagger.io/api/v3&openapi_spec=https://petstore3.swagger.io/api/v3/openapi.json&message_path=/mcp&flatten_parameters=false
+--- log_level: debug
+--- exec
+timeout 1 curl -X GET -N -sS http://localhost:1984/mcp 2>&1 | cat
+--- response_body_like
+event:\s*endpoint
+data:\s*/mcp\?sessionId=.*
+--- error_log_like
+qr/&flatten_parameters=false/
 
 
 
@@ -575,8 +544,8 @@ mock mcp server: GET /.api7_mcp/sse?base_url=https://petstore3.swagger.io/api/v3
                     "plugins": {
                         "openapi-to-mcp": {
                             "transport": "streamable_http",
-                            "base_url": "https://petstore3.swagger.io/api/v3",
-                            "openapi_url": "https://petstore3.swagger.io/api/v3/openapi.json",
+                            "base_url": "http://petstore3.local:8281/api/v3",
+                            "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json",
                             "flatten_parameters": true
                         }
                     },
@@ -598,18 +567,15 @@ passed
 
 
 === TEST 23: verify flatten_parameters in streamable_http transport header
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-POST /mcp
-{"method":"tools/list","jsonrpc":"2.0","id":1}
---- error_log
-mock mcp server: POST /.api7_mcp/mcp_stateless
-x-openapi2mcp-base-url: https://petstore3.swagger.io/api/v3
-x-openapi2mcp-flatten-parameters: true
-x-openapi2mcp-openapi-spec: https://petstore3.swagger.io/api/v3/openapi.json
+--- max_size: 2048000
+--- exec
+timeout 1 curl -X POST -N -sS http://localhost:1984/mcp \
+    -d '{"method":"tools/list","jsonrpc":"2.0","id":1}' \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    2>&1 | cat
+--- response_body eval
+qr/(?s)^(?:(?!queryParameters).)*$/
 
 
 
@@ -625,8 +591,8 @@ x-openapi2mcp-openapi-spec: https://petstore3.swagger.io/api/v3/openapi.json
                     "plugins": {
                         "openapi-to-mcp": {
                             "transport": "streamable_http",
-                            "base_url": "https://petstore3.swagger.io/api/v3",
-                            "openapi_url": "https://petstore3.swagger.io/api/v3/openapi.json",
+                            "base_url": "http://petstore3.local:8281/api/v3",
+                            "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json",
                             "flatten_parameters": false
                         }
                     },
@@ -648,15 +614,36 @@ passed
 
 
 === TEST 25: verify flatten_parameters false in streamable_http transport header
---- yaml_config
-plugin_attr:
-  openapi-to-mcp:
-    port: 1980
---- request
-POST /mcp
-{"method":"tools/list","jsonrpc":"2.0","id":1}
---- error_log
-mock mcp server: POST /.api7_mcp/mcp_stateless
-x-openapi2mcp-base-url: https://petstore3.swagger.io/api/v3
-x-openapi2mcp-flatten-parameters: false
-x-openapi2mcp-openapi-spec: https://petstore3.swagger.io/api/v3/openapi.json
+--- max_size: 2048000
+--- exec
+timeout 1 curl -X POST -N -sS http://localhost:1984/mcp \
+    -d '{"method":"tools/list","jsonrpc":"2.0","id":1}' \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    2>&1 | cat
+--- response_body eval
+qr/queryParameters/
+
+
+
+=== TEST 26: verify mcp tools call works
+--- exec
+timeout 1 curl -X POST -N -sS http://localhost:1984/mcp \
+    -d '{
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+      "name": "findPetsByStatus",
+      "arguments": {
+        "queryParameters": {
+          "status": "pending"
+          }
+        }
+      },
+      "id": 1
+    }' \
+    -H "Content-Type: application/json" \
+    -H "Accept: application/json, text/event-stream" \
+    2>&1 | cat
+--- response_body eval
+qr/\\"status\\": \\"pending\\"/s

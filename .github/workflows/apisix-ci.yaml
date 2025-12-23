@@ -128,6 +128,7 @@ jobs:
           sudo hostnamectl set-hostname ubuntu
           sudo sh -c 'echo "127.0.1.1   $(hostname)" >> /etc/hosts'
           sudo sh -c 'echo "127.0.0.1   httpbin.local" >> /etc/hosts'
+          sudo sh -c 'echo "127.0.0.1   petstore3.local" >> /etc/hosts'
 
       - name: Linux launch common services
         run: |
@@ -136,6 +137,7 @@ jobs:
           sudo ./ci/init-common-test-service.sh
           sudo ./ci/utils/linux-common-runnner.sh install_deps
           sudo ./ci/utils/linux-common-runnner.sh start_sse_server_example
+          sudo ./ci/utils/linux-common-runnner.sh start_openapi2mcp_service
 
       - name: Cache images
         id: cache-images
