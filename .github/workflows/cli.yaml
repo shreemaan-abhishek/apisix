@@ -71,17 +71,12 @@ jobs:
         run: |
           sed -i 's/lua_module_hook/#lua_module_hook/' conf/config-default.yaml
 
-      - name: Install lua-resty-openapi-validate
+      - name: Install dependent services
         run: |
           ./ci/utils/install-lua-resty-openapi-validate.sh
-
-      - name: Install lua-resty-aws-s3
-        run: |
           ./ci/utils/install-lua-resty-aws-s3.sh
-
-      - name: Install lua-resty-azure-blob
-        run: |
           ./ci/utils/install-lua-resty-azure-blob.sh
+          ./ci/utils/linux-common-runnner.sh start_mock_heartbeat_server
 
       - name: Modify the files
         run: |

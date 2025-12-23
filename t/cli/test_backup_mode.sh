@@ -55,16 +55,21 @@ verify_requests() {
     echo "Verifying requests for $desc..."
     
     # first request
-    curl -s -o /dev/null -w "%{http_code}" -ufoo:bar http://127.0.0.1:9080/get | grep 200 \
-    || (echo "failed: request to route created from standalone config ($desc) - 1st attempt"; exit 1)
+    curl -ik -s -o /dev/null -w "%{http_code}" \
+      --resolve "test.com:9443:127.0.0.1" "https://test.com:9443/get" \
+      -ufoo:bar | grep 200 \
+      || (echo "failed: request to route on https endpoint"; exit 1)
 
     # second request
     curl -s -o /dev/null -w "%{http_code}" -ufoo:bar http://127.0.0.1:9080/get | grep 200 \
-    || (echo "failed: request to route created from standalone config ($desc) - 2nd attempt"; exit 1)
+    || (echo "failed: request to route created from backup data ($desc) - 2nd attempt"; exit 1)
 
     # third request will exceed the rate limiting rule and fail
     curl -s -o /dev/null -w "%{http_code}" -ufoo:bar http://127.0.0.1:9080/get | grep 429 \
-    || (echo "failed: request to route created from standalone config ($desc) - 3rd attempt (should be rate limited)"; exit 1)
+    || (echo "failed: request to route created from backup data ($desc) - 3rd attempt (should be rate limited)"; exit 1)
+    
+    etcdctl get /apisix/consumers/foo/credentials/34010989-ce4e-4d61-9493-b54cca8edb31 | grep "XP9G5/payzd2p1MQ7SRe1g==" \
+    || (echo "failed: key stored in etcd is not encrypted testing for - ($desc)"; exit 1)
     
     echo "Verification for $desc passed."
 }
@@ -109,6 +114,7 @@ az storage blob upload \
 
 # set API7_GATEWAY_GROUP_SHORT_ID such that the prefix matches bucket name for mock-s3
 export API7_GATEWAY_GROUP_SHORT_ID="default"
+export API7_DP_MANAGER_ENDPOINT_DEBUG="http://localhost:6625"
 
 # Generate config.yaml with both S3 and Azure Blob configured
 cat > conf/config.yaml <<EOF
@@ -141,6 +147,16 @@ make run
 sleep 1
 
 # Create verify resources in APISIX
+curl -X PUT 'http://127.0.0.1:9180/apisix/admin/ssls/9d069297-01eb-42b2-bbb9-957d49c75efb' \
+-H 'X-API-KEY: edd1c9f034335f136f87ad84b625c8f1' \
+-H 'Content-Type: application/json' \
+-d '{
+    "cert": "-----BEGIN CERTIFICATE-----\nMIIC9jCCAd6gAwIBAgIUYgK2JiHvwnf9XxxCoIAGJiap1f0wDQYJKoZIhvcNAQEL\nBQAwETEPMA0GA1UEAwwGUk9PVENBMCAXDTI0MDYxODA0NDUwNloYDzIxMjQwNTI1\nMDQ0NTA2WjATMREwDwYDVQQDDAh0ZXN0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD\nggEPADCCAQoCggEBAMdQPrVinfB7CLWYxWRQqVOwrRf8go9UiSXaQpN8sX2g1ZbS\n/I1FkK98rNivRbAPb2dVcQjR87en1iG5UKgzsburZkpqprn8kBLmzGbd/SNHh7iD\n3OgklFAFK6kdwjE/fNQ81HN/IdONs7jMQ14/yoNnzMd2mayrdLkaXnP8u+yFhhRu\nBAW+pD5GLqt5LGnTK/STKjgO+2FEaXPYWQk+tStXE+cGO3DrAj/Ovx2OoMIEWVTg\nRkVGKWUj4kPDjkqYR7/CtWsf2auHe2o2WXOAe3ssutyuAQdXWPeoXghkPRYKgGVa\n8ARAxYo79V0bFGaxwrk+qrdUS66+Hs+AptCwQ0UCAwEAAaNCMEAwHQYDVR0OBBYE\nFHXwJoWYaKOI9+Ix7LIXd7FxouwTMB8GA1UdIwQYMBaAFLP0CofIycamw4oYFoge\nqywOoMweMA0GCSqGSIb3DQEBCwUAA4IBAQCIP7qBJfCRnPdr9rfR9rEOQIv9bod7\nPz6OgZ8xCAGP5GQKzUJXEBJGvNBNXMGB3vGakMA8tny1tjbyqLCaBlgEK28jgMZI\nqQ/Muh2RQHfniHYXZRVl8MB5f6NePTxUlT6lvWap9yvQJOo9j4vB6sH92RlRLPPy\nkAXPUNNK3omny2o1t87E8yL9NibyMGvf/d6Z4PyCf9vRUCQtrU73HmjWJr3/uWID\ntL1ikrDufgNAPebS92z4ByXQE8+AoUn3LZDEEzyXQ4+YPPVjTP26HDnP1H2uoYn0\nEfHZERKvlIRHR0z8KKJcizkxVe8ew7BmFNd1Ebq3w4aVypuTZXvwfJOD\n-----END CERTIFICATE-----",
+    "key": "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",
+    "type": "server",
+    "snis": ["test.com"]
+}'
+
 curl "http://127.0.0.1:9180/apisix/admin/upstreams/1" \
 -H "X-API-KEY: edd1c9f034335f136f87ad84b625c8f1" -X PUT -d '
 {
@@ -169,13 +185,17 @@ curl "http://127.0.0.1:9180/apisix/admin/routes/1" \
 
 curl http://127.0.0.1:9180/apisix/admin/consumers -H "X-API-KEY: edd1c9f034335f136f87ad84b625c8f1" -X PUT -d '
 {
-    "username": "foo",
-    "plugins": {
-        "basic-auth": {
-            "username": "foo",
-            "password": "bar"
-        }
+    "username": "foo"
+}'
+
+curl http://127.0.0.1:9180/apisix/admin/consumers/foo/credentials/34010989-ce4e-4d61-9493-b54cca8edb31 -H "X-API-KEY: edd1c9f034335f136f87ad84b625c8f1" -X PUT -d '
+{
+  "plugins": {
+    "basic-auth": {
+      "username": "foo",
+      "password": "bar"
     }
+  }
 }'
 
 # verify that the DP is not listening to incoming requests:
@@ -187,6 +207,8 @@ make stop
 # TEST 1: Fallback from AWS S3
 echo "Testing Fallback from AWS S3..."
 cat > conf/config.yaml <<EOF
+nginx_config:
+  error_log_level: info
 apisix:
   lua_module_hook: "agent.hook"
 deployment:

@@ -234,6 +234,26 @@ start_sse_server_example() {
     popd
 }
 
+start_mock_heartbeat_server() {
+    # build mock_heartbeat_server
+    pushd t/mock_heartbeat_server
+    go build
+    ./mock_heartbeat_server 2>&1 &
+
+    for (( i = 0; i <= 10; i++ )); do
+        sleep 0.5
+        HEARTBEAT_PROC=`ps -ef | grep mock_heartbeat_server | grep -v grep || echo "none"`
+        if [[ $HEARTBEAT_PROC == "none" || "$i" -eq 10 ]]; then
+            echo "failed to start mock_heartbeat_server"
+            ss -antp | grep 6625 || echo "no proc listen port 6625"
+            exit 1
+        else
+            break
+        fi
+    done
+    popd
+}
+
 # =======================================
 # Entry
 # =======================================
@@ -255,6 +275,9 @@ install_deps)
     ;;
 start_sse_server_example)
     start_sse_server_example "$@"
+    ;;
+start_mock_heartbeat_server)
+    start_mock_heartbeat_server "$@"
     ;;
 start_openapi2mcp_service)
     start_openapi2mcp_service "$@"

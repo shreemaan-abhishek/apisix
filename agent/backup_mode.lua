@@ -104,7 +104,7 @@ function _M.backup_configuration(api7_agent)
 
         if string.find(key, prefix, 1, true) == 1 then
             local sub_key = string.sub(key, #prefix + 1)
-            local parts, err = ngx_re.split(sub_key, "/")
+            local parts, err = ngx_re.split(sub_key, "/", nil, nil, 2)
             if not parts then
                 log.error("failed to split key '", sub_key, "': ", err)
                 return
@@ -133,6 +133,7 @@ function _M.backup_configuration(api7_agent)
                         item.update_time = nil
                         item.validity_start = nil
                         item.validity_end = nil
+                        item.id = parts[2]
                         if res_type == "plugins" then
                             resources[res_type] = item
                         else
@@ -153,10 +154,22 @@ function _M.backup_configuration(api7_agent)
         return
     end
 
+    local config_payload, err = config_dict:get("config_payload")
+    if not config_payload then
+        log.error("failed to get config payload from shdict: ", err)
+        return
+    end
+
+    config_payload, err = json.decode(config_payload)
+    if not config_payload then
+        log.error("failed to decode config payload: ", err)
+        return
+    end
+
     local dp_config = {
         config = {
             config_version = config_dict:get("config_version") or 0,
-            config_payload = config_dict:get("config_payload") or {},
+            config_payload = config_payload,
         }
     }
     local dp_config_payload, err = json.encode(dp_config)
