@@ -23,6 +23,7 @@ services:
     # The latest image is the latest stable version
     image: redis:latest
     restart: unless-stopped
+    command: "--user alice on +@all ~* \\&* \\>somepassword"
     ports:
       - "6379:6379"
     networks:

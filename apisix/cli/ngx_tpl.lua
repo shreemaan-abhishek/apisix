@@ -377,6 +377,12 @@ http {
     lua_shared_dict plugin-limit-conn 10m
     {% end %}
 
+    {% if http.lua_shared_dict["plugin-limit-conn-redis-cluster-slot-lock"] then %}
+    lua_shared_dict plugin-limit-conn-redis-cluster-slot-lock {* http.lua_shared_dict["plugin-limit-conn-redis-cluster-slot-lock"] *};
+    {% else %}
+    lua_shared_dict plugin-limit-conn-redis-cluster-slot-lock 1m;
+    {% end %}
+
     {% if http.lua_shared_dict["plugin-limit-req"] then %}
     lua_shared_dict plugin-limit-req {* http.lua_shared_dict["plugin-limit-req"] *};
     {% else %}

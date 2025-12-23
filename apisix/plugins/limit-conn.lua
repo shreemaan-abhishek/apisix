@@ -49,6 +49,54 @@ local schema = {
             type = "string", minLength = 1
         },
         allow_degradation = {type = "boolean", default = false},
+        policy = {
+            type = "string",
+            enum = {"local", "redis", "redis-cluster"},
+            default = "local",
+        },
+        redis_host = {
+            type = "string", minLength = 2
+        },
+        redis_port = {
+            type = "integer", minimum = 1, default = 6379,
+        },
+        redis_username = {
+            type = "string", minLength = 1,
+        },
+        redis_password = {
+            type = "string", minLength = 0,
+        },
+        redis_database = {
+            type = "integer", minimum = 0, default = 0,
+        },
+        redis_timeout = {
+            type = "integer", minimum = 1, default = 1000,
+        },
+        redis_ssl = {
+            type = "boolean", default = false,
+        },
+        redis_ssl_verify = {
+            type = "boolean", default = false,
+        },
+        redis_prefix = {
+            type = "string", minLength = 0, default = "limit_conn", pattern = "^[0-9a-zA-Z|_]+$"
+        },
+        redis_cluster_nodes = {
+            type = "array",
+            minItems = 2,
+            items = {
+                type = "string", minLength = 2, maxLength = 100
+            },
+        },
+        redis_cluster_name = {
+            type = "string",
+        },
+        redis_cluster_ssl = {
+            type = "boolean", default = false,
+        },
+        redis_cluster_ssl_verify = {
+            type = "boolean", default = false,
+        },
         rules = {
             type = "array",
             items = {
@@ -80,6 +128,28 @@ local schema = {
             required = {"default_conn_delay", "rules"},
         }
     },
+    ["if"] = {
+        properties = {
+            policy = {
+                enum = {"redis"},
+            },
+        },
+    },
+    ["then"] = {
+        required = {"redis_host"},
+    },
+    ["else"] = {
+        ["if"] = {
+            properties = {
+                policy = {
+                    enum = {"redis-cluster"},
+                },
+            },
+        },
+        ["then"] = {
+            required = {"redis_cluster_nodes", "redis_cluster_name"},
+        },
+    }
 }
 
 local _M = {
