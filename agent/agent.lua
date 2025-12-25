@@ -13,6 +13,7 @@ local config_local = require("apisix.core.config_local")
 local resty_http    = require("resty.http")
 local discovery     = require("agent.discovery")
 local lrucache      = require("resty.lrucache")
+local gzip          = require("apisix.utils.gzip")
 
 local get_health_checkers = require("apisix.control.v1").get_health_checkers
 local plugin_decrypt_conf = plugin.decrypt_conf
@@ -341,49 +342,37 @@ function _M.heartbeat(self, start_up)
 end
 
 
-local function iterator(tab, last_index)
-    local index = 0
+local function iterator(tab, batch_size, max_size)
+    local index = 1
+    local total_size = 0
+    local last_index = #tab
+    local metrics_concat = {}
     return function()
-        ::continue::
-        index = index + 1
-        if index > (last_index + 1) then
+        if total_size >= max_size then
+            return nil, "truncated"
+        end
+        if index > last_index then
             return
         end
-
-        if index == (last_index + 1) then
-            return "0\r\n\r\n"
-        end
-
-        local metric = tab[index]
-        if not metric then
-            goto continue
-        end
-        return string.format("%x\r\n%s\r\n", #metric, metric)
-    end
-end
-
-
-local function truncate_metrics(metrics_tab, max_size)
-    local size = 0
-    local truncated = false
-    local last_index = 0
-
-    for i, metric in ipairs(metrics_tab) do
-        last_index = i
-        if truncated then
-            metrics_tab[i] = nil
-        else
-            if string.sub(metric, 1, 1) == "#" then
-                metrics_tab[i] = nil
-            else
+        core.table.clear(metrics_concat)
+        local size = 0
+        local start_index = index
+        local curr_index = index
+        for i = index, last_index do
+            curr_index = i
+            local metric = tab[i]
+            if metric and string.sub(metric, 1, 1) ~= "#" then
+                core.table.insert(metrics_concat, metric)
                 size = size + #metric
-            end
-            if size > max_size then
-                truncated = true
+                if size > batch_size or total_size + size >= max_size then
+                    break
+                end
             end
         end
+        index = curr_index + 1
+        total_size = total_size + size
+        return core.table.concat(metrics_concat)
     end
-    return truncated, last_index
 end
 
 
@@ -406,7 +395,7 @@ function _M.upload_metrics(self)
         return
     end
     self.ongoing_metrics_uploading = true
-    local ok, res_or_err, err = pcall(function ()
+    local ok, err = pcall(function ()
         -- collect nginx API related metrics by HTTP
         -- because some APIs (ngx.var and subrequest) are disabled in ngx.timer
         local res, err = utils.fetch_nginx_metrics(self.http_timeout)
@@ -421,55 +410,65 @@ function _M.upload_metrics(self)
         local metrics_tab = prom:metric_data()
 
         local metrics_headers = {
-            ["X-Is-Truncated"] = false,
-            ["X-Instance-Id"] = core.id.get(),
             [AUTH_HEADER] = control_plane_token,
-            ["Transfer-Encoding"] = "chunked",
             ["Content-Type"] = "text/plain",
+            ["Content-Encoding"] = "gzip",
         }
 
-        local truncated, last_index = truncate_metrics(metrics_tab, self.telemetry.max_metrics_size)
-        if truncated then
-            core.log.warn("metrics size is too large, truncated it to: ", self.telemetry.max_metrics_size)
-            metrics_headers["X-Is-Truncated"] = true
-        end
+        local reader = iterator(metrics_tab,
+                                self.telemetry.metrics_batch_size,
+                                self.telemetry.max_metrics_size)
 
         local http_cli = resty_http.new()
-
         http_cli:set_timeout(self.http_timeout)
-        local res, err = http_cli:request_uri(self.metrics_url, {
-            method =  "POST",
-            body = iterator(metrics_tab, last_index),
-            headers = metrics_headers,
-            keepalive = true,
-            ssl_verify = false,
-            ssl_cert_path = self.ssl_cert_path,
-            ssl_key_path = self.ssl_key_path,
-        })
-        return res, err
+
+        repeat
+            local raw, err = reader()
+            if raw == nil then
+                if err == "truncated" then
+                    core.log.error("metrics size is too large, truncated it")
+                end
+                break
+            end
+
+            local body, encode_err = gzip.deflate_gzip(raw, nil, { level = self.telemetry.compression_level })
+            if not body then
+                core.log.error("deflate gzip error: ", encode_err)
+                return
+            end
+
+            local res, err = http_cli:request_uri(self.metrics_url, {
+                method = "POST",
+                body = body,
+                headers = metrics_headers,
+                keepalive = true,
+                ssl_verify = false,
+                ssl_cert_path = self.ssl_cert_path,
+                ssl_key_path = self.ssl_key_path,
+            })
+            if not res then
+                core.log.error("failed to upload block metrics: ", err)
+            elseif res.status ~= 200 then
+                core.log.error("upload metrics block failed, status: " .. res.status .. ", body: ", res.body)
+            end
+        until raw == nil
     end)
 
-    self.ongoing_metrics_uploading = false
     if not ok then
-        core.log.error("upload metrics error: ", res_or_err)
-        return
+        core.log.error("failed to upload metrics: ", err)
     end
-    local res = res_or_err
 
+    self.ongoing_metrics_uploading = false
     self.last_metrics_uploading_time = current_time
-    if not res then
-        core.log.error("upload metrics failed ", err)
-        return
-    end
 
-    if res.status ~= 200 then
-        core.log.warn("upload metrics failed, status: " .. res.status .. ", body: ", core.json.encode(res.body))
-        return
-    end
-
-    local msg = str_format("dp instance \'%s\' upload metrics to control plane successfully", payload.instance_id)
-    core.log.info(msg)
+    core.log.info(
+        str_format(
+            "dp instance '%s' upload metrics to control plane successfully",
+            payload.instance_id
+        )
+    )
 end
+
 
 local function push_healthcheck_data(self, url, data, kind)
     if #data == 0 then

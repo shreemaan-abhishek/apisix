@@ -79,14 +79,14 @@ _EOC_
         local data = req.get_body()
         ngx.log(ngx.NOTICE, "receive data plane metrics: ", #data)
 
-        if not ngx.req.get_headers()["X-Instance-Id"] then
-            ngx.log(ngx.ERR, "missing instance_id")
-            return ngx.exit(400)
-        end
-        if ngx.req.get_headers()["Transfer-Encoding"] ~= "chunked" then
-            ngx.log(ngx.ERR, "transfer-encoding must be chunked")
-            return ngx.exit(400)
-        end
+        local content_decode = require("apisix.utils.content-decode")
+
+        local content_decoding = ngx.req.get_headers()["Content-Encoding"]
+        if content_decoding == "gzip" then
+            local decoder = content_decode.dispatch_decoder("gzip")
+            data = decoder(data)
+        end 
+
         ngx.log(ngx.NOTICE, "metrics size: ", #data)
     end
 

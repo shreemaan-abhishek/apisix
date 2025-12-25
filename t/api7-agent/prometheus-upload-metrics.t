@@ -34,6 +34,14 @@ _EOC_
     server.api_dataplane_streaming_metrics = function()
         local req = require("apisix.core.request")
         local data = req.get_body()
+        local content_decode = require("apisix.utils.content-decode")
+
+        local content_decoding = ngx.req.get_headers()["Content-Encoding"]
+        if content_decoding == "gzip" then
+            ngx.log(ngx.NOTICE, "received compressed size: ", #data)
+            local decoder = content_decode.dispatch_decoder("gzip")
+            data = decoder(data)
+        end 
 
         ngx.log(ngx.NOTICE, "last metric: ", data)
     end
@@ -87,4 +95,27 @@ api7ee:
     }
 --- wait: 2
 --- error_log
-apisix_etcd_modify_indexes{key="last_line_metric"} 222
+apisix_bandwidth{type="egress",route="",service="",consumer="",node=""} 8417apisix_bandwidth{type="egress",route="1",service="",consumer="",node="127.0.0.1"} 1420apisix_etcd_modify_indexes{key="consumers"} 0apisix_etcd_modify_indexes{key="global_rules"} 0apisix_etcd_modify_indexes{key="last_line_metric"} 222apisix_bandwidth{type="egress",route="",service="",consumer="",node=""} 8417apisix_bandwidth{type="egress",route="1",service="",consumer="",node="127.0.0.1"} 1420apisix_etcd_modify_indexes{key="consumers"} 0apisix_etcd_modify_indexes{key="global_rules"} 0apisix_etcd_modify_indexes{key="last_line_metric"} 222
+
+
+
+=== TEST 2: check multiple metrics upload
+--- yaml_config
+plugin_attr:
+  prometheus:
+    export_addr:
+      port: 1980
+api7ee:
+  telemetry:
+    interval: 1
+    metrics_batch_size: 100
+--- config
+    location /t {
+        content_by_lua_block {
+            ngx.say("ok")
+        }
+    }
+--- wait: 2
+--- error_log
+last metric: apisix_bandwidth
+last metric: apisix_etcd_modify_indexes

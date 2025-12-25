@@ -54,6 +54,10 @@ _EOC_
         ngx.say(core.json.encode(resp_payload))
     end
 
+    server.api_dataplane_streaming_metrics = function()
+        return ngx.exit(200)
+    end
+
     server.apisix_collect_nginx_status = function()
         local prometheus = require("apisix.plugins.prometheus.exporter")
         prometheus.collect_api_specific_metrics()

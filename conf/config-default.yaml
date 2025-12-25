@@ -726,6 +726,9 @@ api7ee:
     enable: true # enable telemetry data report to the control plane
     interval: 15 # interval in seconds to send telemetry data to the control plane
     max_metrics_size: 33554432 # max size in bytes(32M) of the metrics data sent to the control plane, if the size exceeds, the data will be truncated
+    metrics_batch_size: 4194304 # Max batch size before compression (bytes, 4 MiB).
+    compression_level: -1    # gzip compression level. -1 uses library default (usually 6). 
+                             # Range 0-9; 1 fastest, 9 highest compression. Gzip is enabled by default.
   healthcheck_report_interval: 120 # healthcheck data report interval in seconds
   http_timeout: 30s # http timeout used while sending healthcheck and telemetry data to the control plane
   consumer_proxy:

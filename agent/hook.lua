@@ -248,6 +248,9 @@ local function hook()
     if telemetry.max_metrics_size == nil then
         telemetry.max_metrics_size = 1024 * 1024 * 32
     end
+    if telemetry.metrics_batch_size == nil then
+        telemetry.metrics_batch_size = 1024 * 1024 * 4
+    end
 
     api7_agent = agent.new({
         name = "api7",

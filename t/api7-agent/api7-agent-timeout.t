@@ -53,6 +53,6 @@ GET /t
 --- wait: 30
 --- error_log
 heartbeat failed timeout
-upload metrics failed timeout
+failed to upload block metrics: timeout
 previous heartbeat request not finished yet
 previous metrics upload request not finished yet

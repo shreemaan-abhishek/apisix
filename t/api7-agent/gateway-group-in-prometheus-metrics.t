@@ -63,6 +63,9 @@ _EOC_
         ngx.say(core.json.encode(resp_payload))
     end
 
+    server.api_dataplane_streaming_metrics = function()
+        return ngx.exit(200)
+    end
 
 _EOC_
 

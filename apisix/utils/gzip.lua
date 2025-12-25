@@ -14,44 +14,12 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
-local pcall = pcall
-local inflate_gzip = require("apisix.utils.gzip").inflate_gzip
+local zlib = require("ffi-zlib")
 local str_buffer = require("string.buffer")
-local is_br_libs_loaded, brotli = pcall(require, "brotli")
-local content_decode_funcs = {
-    gzip = inflate_gzip,
-}
 local _M = {}
 
 
-local function brotli_stream_decode(read_inputs, write_outputs)
-    -- read 64k data per times
-    local read_size = 64 * 1024
-    local decompressor = brotli.decompressor:new()
-
-    local chunk, ok, res
-    repeat
-        chunk = read_inputs(read_size)
-        if chunk then
-            ok, res = pcall(function()
-                return decompressor:decompress(chunk)
-            end)
-        else
-            ok, res = pcall(function()
-                return decompressor:finish()
-            end)
-        end
-        if not ok then
-            return false, res
-        end
-        write_outputs(res)
-    until not chunk
-
-    return true, nil
-end
-
-
-local function brotli_decode(data)
+function _M.inflate_gzip(data, buf_size, opts)
     local inputs = str_buffer.new():set(data)
     local outputs = str_buffer.new()
 
@@ -67,22 +35,37 @@ local function brotli_decode(data)
         return outputs:put(data)
     end
 
-    local ok, err = brotli_stream_decode(read_inputs, write_outputs)
+    local ok, err = zlib.inflateGzip(read_inputs, write_outputs, buf_size, opts)
     if not ok then
-        return nil, "brotli decode err: " .. err
+        return nil, "inflate gzip err: " .. err
     end
 
     return outputs:get()
 end
 
-if is_br_libs_loaded then
-    content_decode_funcs.br = brotli_decode
+
+function _M.deflate_gzip(data, buf_size, opts)
+    local inputs = str_buffer.new():set(data)
+    local outputs = str_buffer.new()
+
+    local read_inputs = function(size)
+        local data = inputs:get(size)
+        if data == "" then
+            return nil
+        end
+        return data
+    end
+
+    local write_outputs = function(data)
+        return outputs:put(data)
+    end
+
+    local ok, err = zlib.deflateGzip(read_inputs, write_outputs, buf_size, opts)
+    if not ok then
+        return nil, "deflate gzip err: " .. err
+    end
+
+    return outputs:get()
 end
-
-
-function _M.dispatch_decoder(response_encoding)
-    return content_decode_funcs[response_encoding]
-end
-
 
 return _M

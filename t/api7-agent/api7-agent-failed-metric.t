@@ -115,5 +115,5 @@ plugin_attr:
     }
 --- wait: 17
 --- error_log
-upload metrics error
+failed to upload metrics:
 test panic
