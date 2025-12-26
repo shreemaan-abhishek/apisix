@@ -376,6 +376,16 @@ qr/x-openapi2mcp-header-authorization/
                                 "Authorization": "test-api-key"
                             },
                             "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json"
+                        },
+                        "serverless-post-function": {
+                            "phase": "access",
+                            "functions": [
+                                "return function(conf, ctx)
+                                    local core = require(\"apisix.core\")
+                                    local headers = ngx.req.get_headers()
+                                    core.log.error(\"[upstream headers] \", core.json.encode(headers))
+                                end"
+                            ]
                         }
                     },
                     "upstream": {
@@ -405,7 +415,7 @@ timeout 1 curl -X GET -N -sS http://localhost:1984/mcp \
 event:\s*endpoint
 data:\s*/mcp\?sessionId=.*
 --- error_log eval
-qr/\?base_url=http:\/\/petstore.local:8281\/api\/v3/
+qr/"x-openapi2mcp-base-url":\s*"http:\/\/petstore\.local:8281\/api\/v3"/
 
 
 
@@ -442,7 +452,7 @@ done
 
 
 
-=== TEST 18: flatten_parameters should be passed to MCP server via query parameter in sse transport
+=== TEST 18: flatten_parameters should be passed to MCP server via header in sse transport
 --- config
     location /t {
         content_by_lua_block {
@@ -456,6 +466,16 @@ done
                             "base_url": "http://petstore3.local:8281/api/v3",
                             "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json",
                             "flatten_parameters": true
+                        },
+                        "serverless-post-function": {
+                            "phase": "access",
+                            "functions": [
+                                "return function(conf, ctx)
+                                    local core = require(\"apisix.core\")
+                                    local headers = ngx.req.get_headers()
+                                    core.log.error(\"[upstream headers] \", core.json.encode(headers))
+                                end"
+                            ]
                         }
                     },
                     "upstream": {
@@ -475,7 +495,7 @@ passed
 
 
 
-=== TEST 19: verify flatten_parameters in sse transport query parameter
+=== TEST 19: verify flatten_parameters in sse transport header
 --- log_level: debug
 --- exec
 timeout 1 curl -X GET -N -sS http://localhost:1984/mcp 2>&1 | cat
@@ -483,7 +503,7 @@ timeout 1 curl -X GET -N -sS http://localhost:1984/mcp 2>&1 | cat
 event:\s*endpoint
 data:\s*/mcp\?sessionId=.*
 --- error_log eval
-qr/&flatten_parameters=true/
+qr/"x-openapi2mcp-flatten-parameters":\s*"true"/
 
 
 
@@ -501,6 +521,16 @@ qr/&flatten_parameters=true/
                             "base_url": "http://petstore3.local:8281/api/v3",
                             "openapi_url": "http://petstore3.local:8281/api/v3/openapi.json",
                             "flatten_parameters": false
+                        },
+                        "serverless-post-function": {
+                            "phase": "access",
+                            "functions": [
+                                "return function(conf, ctx)
+                                    local core = require(\"apisix.core\")
+                                    local headers = ngx.req.get_headers()
+                                    core.log.error(\"[upstream headers] \", core.json.encode(headers))
+                                end"
+                            ]
                         }
                     },
                     "upstream": {
@@ -520,15 +550,15 @@ passed
 
 
 
-=== TEST 21: verify flatten_parameters false in sse transport query parameter
+=== TEST 21: verify flatten_parameters false in sse transport header
 --- log_level: debug
 --- exec
 timeout 1 curl -X GET -N -sS http://localhost:1984/mcp 2>&1 | cat
 --- response_body_like
 event:\s*endpoint
 data:\s*/mcp\?sessionId=.*
---- error_log_like
-qr/&flatten_parameters=false/
+--- error_log eval
+qr/"x-openapi2mcp-flatten-parameters":\s*"false"/
 
 
 

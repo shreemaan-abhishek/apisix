@@ -104,6 +104,43 @@ function _M.init()
 end
 
 
+-- Set common headers for MCP server communication
+local function set_mcp_headers(ctx, conf, extra_headers)
+    extra_headers = extra_headers or {}
+
+    -- Set common headers
+    local base_url, err = core.utils.resolve_var(conf.base_url, ctx.var)
+    if err then
+        core.log.error("failed to resolve variable for base_url: ",
+                       conf.base_url, ", error: ", err)
+        base_url = conf.base_url
+    end
+
+    core.request.set_header(ctx, "x-openapi2mcp-base-url", base_url)
+    core.request.set_header(ctx, "x-openapi2mcp-openapi-spec", conf.openapi_url)
+
+    -- Set extra headers (e.g., message-path for SSE)
+    for key, value in pairs(extra_headers) do
+        core.request.set_header(ctx, key, value)
+    end
+
+    -- Set custom headers from plugin config
+    for key, value in pairs(conf.headers or {}) do
+        local resolved_value, err = core.utils.resolve_var(value, ctx.var)
+        if err then
+            core.log.error("failed to resolve variable for header, key: ", key,
+                                ", value: ", value, ", error: ", err)
+            resolved_value = value
+        end
+        core.request.set_header(ctx, str_format("x-openapi2mcp-header-%s", key), resolved_value)
+    end
+
+    -- Set flatten_parameters header
+    core.request.set_header(ctx, "x-openapi2mcp-flatten-parameters",
+                            tostring(conf.flatten_parameters))
+end
+
+
 function _M.access(conf, ctx)
     local plugin_attr = plugin.plugin_attr(plugin_name)
 
@@ -130,8 +167,6 @@ function _M.access(conf, ctx)
     ctx.var.upstream_port = mcp_server_node.port
     upstream.set(ctx, upstream_key, ctx.conf_version, up_conf)
 
-    local base_url = core.utils.resolve_var(conf.base_url, ctx.var)
-
     if conf.transport == "sse" then
         -- for message endpoint we just pass the request as is
         if ctx.var.method ~= "GET" then
@@ -145,47 +180,15 @@ function _M.access(conf, ctx)
             return
         end
 
-        -- for sse endpoint, we need to rewrite the request to /sse with query parameters
+        -- for sse endpoint, we need to rewrite the request to /sse with headers
         ngx.ctx.disable_proxy_buffering = true
-        local query = str_format("base_url=%s&openapi_spec=%s&message_path=%s",
-            core.utils.uri_safe_encode(base_url),
-            core.utils.uri_safe_encode(conf.openapi_url),
-            core.utils.uri_safe_encode(ctx.curr_req_matched._path)
-        )
-        for key, value in pairs(conf.headers or {}) do
-            local resolved_value, err = core.utils.resolve_var(value, ctx.var)
-            if err then
-                core.log.warn("failed to resolve variable for header, key: ", key,
-                                    ", value: ", value, ", error: ", err)
-                resolved_value = value
-            end
-            query = str_format("%s&headers.%s=%s", query,
-                            core.utils.uri_safe_encode(key),
-                            core.utils.uri_safe_encode(resolved_value))
-        end
-
-        query = str_format("%s&flatten_parameters=%s", query,
-                        tostring(conf.flatten_parameters))
-
-        ctx.var.upstream_uri = "/.api7_mcp/sse?" .. query
+        set_mcp_headers(ctx, conf, {
+            ["x-openapi2mcp-message-path"] = ctx.curr_req_matched._path
+        })
+        ctx.var.upstream_uri = "/.api7_mcp/sse"
 
     elseif conf.transport == "streamable_http" then
-        ngx.ctx.disable_proxy_buffering = true
-        core.request.set_header(ctx, "x-openapi2mcp-base-url", base_url)
-        core.request.set_header(ctx, "x-openapi2mcp-openapi-spec", conf.openapi_url)
-        for key, value in pairs(conf.headers or {}) do
-            local resolved_value, err = core.utils.resolve_var(value, ctx.var)
-            if err then
-                core.log.warn("failed to resolve variable for header, key: ", key,
-                                    ", value: ", value, ", error: ", err)
-                resolved_value = value
-            end
-            core.request.set_header(ctx, str_format("x-openapi2mcp-header-%s", key), resolved_value)
-        end
-
-        core.request.set_header(ctx, "x-openapi2mcp-flatten-parameters",
-                                tostring(conf.flatten_parameters))
-
+        set_mcp_headers(ctx, conf)
         ctx.var.upstream_uri = "/.api7_mcp/mcp_stateless"
 
     else
