@@ -51,7 +51,8 @@ __DATA__
 === TEST 1: can't use service_name with nodes
 --- apisix_yaml
 routes:
-  - uris:
+  -
+    uris:
         - /hello
     upstream_id: 1
 upstreams:
@@ -130,6 +131,7 @@ routes:
             table.sort(ports_arr, cmd)
 
             ngx.say(require("toolkit.json").encode(ports_arr))
+            ngx.sleep(2.5)
             ngx.exit(200)
         }
     }
@@ -256,6 +258,7 @@ routes:
 --- config
     location /t {
         content_by_lua_block {
+            ngx.sleep(3)
             local http = require "resty.http"
             local uri = "http://127.0.0.1:" .. ngx.var.server_port
                         .. "/server_port"
@@ -264,14 +267,19 @@ routes:
                 local httpc = http.new()
                 local res, err = httpc:request_uri(uri, {method = "GET", keepalive = false})
             end
-
-            ngx.sleep(1)
+            ngx.sleep(3)
+            --- active health check is created async after at least 1 second so it will take effect
+            --- from next request. And first request will just trigger it.
+            do
+                local httpc = http.new()
+                local res, err = httpc:request_uri(uri, {method = "GET", keepalive = false})
+            end
+            ngx.sleep(3)
         }
     }
---- no_error_log
-client request host: localhost
 --- error_log
 client request host: 127.0.0.1
+--- timeout: 10
 
 
 
@@ -308,12 +316,19 @@ routes:
                 local res, err = httpc:request_uri(uri, {method = "GET", keepalive = false})
             end
 
-            ngx.sleep(1)
+            --- active health check is created async after at least 1 second so it will take effect
+            --- from next request. And first request will just trigger it.
+            do
+                local httpc = http.new()
+                local res, err = httpc:request_uri(uri, {method = "GET", keepalive = false})
+            end
+            ngx.sleep(3)
         }
     }
 --- error_log
 client request host: localhost
 client request host: 127.0.0.1
+--- timeout: 10
 
 
 
@@ -350,8 +365,13 @@ routes:
                 local httpc = http.new()
                 local res, err = httpc:request_uri(uri, {method = "GET", keepalive = false})
             end
-
-            ngx.sleep(1)
+            --- active health check is created async after at least 1 second so it will take effect
+            --- from next request. And first request will just trigger it.
+            do
+                local httpc = http.new()
+                local res, err = httpc:request_uri(uri, {method = "GET", keepalive = false})
+            end
+            ngx.sleep(3)
         }
     }
 --- no_error_log
@@ -359,3 +379,4 @@ client request host: localhost
 client request host: 127.0.0.1
 --- error_log
 client request host: foo.com
+--- timeout: 10

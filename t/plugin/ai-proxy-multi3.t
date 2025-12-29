@@ -295,7 +295,7 @@ passed
             test_dict:set("/status/gpt4#total", 0)
             -- trigger the health check
             send_request()
-            ngx.sleep(1)
+            ngx.sleep(2)
 
             local instances_count = {
                 ["gpt-4"] = 0,
@@ -341,7 +341,7 @@ passed
 --- response_body
 passed
 --- error_log
-ai-proxy-multi#/apisix/routes/1#openai-gpt4
+/apisix/routes/1#plugins['ai-proxy-multi'].instances[0]
 
 
 
@@ -525,7 +525,7 @@ passed
 --- response_body
 passed
 --- error_log
-ai-proxy-multi#/apisix/services/1#openai-gpt4
+/apisix/services/1#plugins['ai-proxy-multi'].instances[0]
 
 
 
@@ -1207,6 +1207,7 @@ probe body: {"model":"gpt-4o-mini","messages":[{"role":"user","content":"write a
             -- Restore original function
             resolver.parse_domain = original_parse_domain
             
+            ngx.sleep(1.5)
             ngx.say("passed")
         }
     }
@@ -1216,4 +1217,4 @@ passed
 --- no_error_log
 failed to get health check target status
 --- error_log
-clearing checker for openai-test
+releasing existing checker:

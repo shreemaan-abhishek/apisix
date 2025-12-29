@@ -196,18 +196,18 @@ local function sync_data(self)
 
         local err
         for i, item in ipairs(items) do
-            local id = tostring(i)
+            local idx = tostring(i)
             local data_valid = true
             if type(item) ~= "table" then
                 data_valid = false
-                log.error("invalid item data of [", self.key .. "/" .. id,
+                log.error("invalid item data of [", self.key .. "/" .. idx,
                           "], val: ", json.delay_encode(item),
                           ", it should be an object")
             end
 
-            local key = item.id or "arr_" .. i
+            local id = item.id or "arr_" .. idx
             local conf_item = {value = item, modifiedIndex = apisix_yaml_ctime,
-                            key = "/" .. self.key .. "/" .. key}
+                            key = "/" .. self.key .. "/" .. id}
 
             if data_valid and self.item_schema then
                 data_valid, err = check_schema(self.item_schema, item)
@@ -228,7 +228,7 @@ local function sync_data(self)
 
             if data_valid then
                 insert_tab(self.values, conf_item)
-                local item_id = conf_item.value.id or self.key .. "#" .. id
+                local item_id = tostring(id)
                 item_id = tostring(item_id)
                 self.values_hash[item_id] = #self.values
                 conf_item.value.id = item_id

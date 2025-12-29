@@ -28,7 +28,7 @@ local setmetatable = setmetatable
 local tostring = tostring
 local type = type
 local re_find = ngx.re.find
-
+local ngx_re = require('ngx.re')
 
 local _M = {}
 
@@ -227,6 +227,14 @@ function _M.parse_time_unit(s)
     end
 
     return size
+end
+
+
+function _M.parse_path(resource_full_path)
+    local resource_path_parts = ngx_re.split(resource_full_path, "#")
+    local resource_path = resource_path_parts[1] or resource_full_path
+    local resource_sub_path = resource_path_parts[2] or ""
+    return resource_path, resource_sub_path
 end
 
 

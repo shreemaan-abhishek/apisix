@@ -111,7 +111,7 @@ passed
             end
 
             -- wait for checker to release
-            ngx.sleep(1)
+            ngx.sleep(5)
 
             ngx.say("passed")
         }
@@ -196,15 +196,24 @@ passed
 --- config
     location /t {
         content_by_lua_block {
-            local sock = ngx.socket.tcp()
-            local ok, err = sock:connect("127.0.0.1", 1985)
-            if not ok then
-                ngx.say("failed to connect: ", err)
-                return
+            local failed_check = function()
+                local sock = ngx.socket.tcp()
+                local ok, err = sock:connect("127.0.0.1", 1985)
+                if not ok then
+                    ngx.say("failed to connect: ", err)
+                    return
+                end
+                local data, _ = sock:receive()
+                assert(data == nil, "first request should fail")
+                sock:close()
             end
-            local data, _ = sock:receive()
-            assert(data == nil, "first request should fail")
-            sock:close()
+            -- starting health check
+            failed_check()
+
+            -- trigger passive health check
+            -- starting will send an active health check once
+            ngx.sleep(1.2)
+            failed_check()
 
             for i = 1, 3 do
                 local sock = ngx.socket.tcp()
@@ -242,7 +251,8 @@ passed
 proxy request to 127.0.0.1:9995 while connecting to upstream
 connect() failed (111: Connection refused) while connecting to upstream, client: 127.0.0.1, server: 0.0.0.0:1985, upstream: "127.0.0.1:9995"
 enabled healthcheck passive while connecting to upstream, client: 127.0.0.1, server: 0.0.0.0:1985, upstream: "127.0.0.1:9995",
-unhealthy TCP increment (1/1) for '(127.0.0.1:9995)' while connecting to upstream, client: 127.0.0.1, server: 0.0.0.0:1985, upstream: "127.0.0.1:9995",
+unhealthy TCP increment (2/1) for '(127.0.0.1:9995)' while connecting to upstream, client: 127.0.0.1, server: 0.0.0.0:1985, upstream: "127.0.0.1:9995",
 proxy request to 127.0.0.1:1995 while connecting to upstream
 proxy request to 127.0.0.1:1995 while connecting to upstream
 proxy request to 127.0.0.1:1995 while connecting to upstream
+--- timeout: 3

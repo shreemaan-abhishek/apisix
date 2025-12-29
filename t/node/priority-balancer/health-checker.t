@@ -44,7 +44,7 @@ _EOC_
 routes:
   - upstream_id: 1
     uris:
-        - /hello
+      - /hello
 #END
 _EOC_
 
@@ -94,6 +94,7 @@ upstreams:
             ngx.sleep(2.5)
             -- still use all nodes
             httpc:request_uri(uri, {method = "GET"})
+            ngx.sleep(2.5)
         }
     }
 --- request
@@ -109,6 +110,7 @@ proxy request to 127.0.0.1:1979
 proxy request to 127.0.0.2:1979
 proxy request to 127.0.0.1:1979
 proxy request to 127.0.0.2:1979
+--- timeout: 8
 
 
 
@@ -167,8 +169,9 @@ passed
                         .. "/hello"
             local httpc = http.new()
             httpc:request_uri(uri, {method = "GET"})
-            ngx.sleep(2.5)
+            ngx.sleep(1)
             httpc:request_uri(uri, {method = "GET"})
+            ngx.sleep(2.5)
         }
     }
 --- request
@@ -181,4 +184,6 @@ qr/proxy request to \S+/
 --- grep_error_log_out
 proxy request to 127.0.0.1:1979
 proxy request to 127.0.0.1:1980
+proxy request to 127.0.0.1:1979
 proxy request to 127.0.0.1:1980
+--- timeout: 8

@@ -46,6 +46,7 @@ local ctxdump         = require("resty.ctxdump")
 local debug           = require("apisix.debug")
 local pubsub_kafka    = require("apisix.pubsub.kafka")
 local etcd_util       = require("apisix.utils.etcd")
+local resource        = require("apisix.resource")
 
 local ngx             = ngx
 local get_method      = ngx.req.get_method
@@ -286,13 +287,13 @@ end
 
 
 local function parse_domain_in_route(route)
-    local nodes = route.value.upstream.nodes
+    local nodes = route.value.upstream.dns_nodes
     local new_nodes, err = upstream_util.parse_domain_for_nodes(nodes)
     if not new_nodes then
         return nil, err
     end
 
-    local up_conf = route.dns_value and route.dns_value.upstream
+    local up_conf = route.value.upstream
     local ok = upstream_util.compare_upstream_node(up_conf, new_nodes)
     if ok then
         return route
@@ -301,14 +302,19 @@ local function parse_domain_in_route(route)
     -- don't modify the modifiedIndex to avoid plugin cache miss because of DNS resolve result
     -- has changed
 
-    route.dns_value = core.table.deepcopy(route.value, { shallows = { "self.upstream.parent"}})
-    route.dns_value.upstream.nodes = new_nodes
+    local nodes_ver = resource.get_nodes_ver(route.value.upstream.resource_key)
+    if not nodes_ver then
+        nodes_ver = 0
+    end
+    nodes_ver = nodes_ver + 1
+    route.value._nodes_ver = nodes_ver
+    route.value.upstream.nodes = new_nodes
+    resource.set_nodes_ver_and_nodes(route.value.upstream.resource_key,
+                                                    nodes_ver, new_nodes)
     -- remove plugin before logging to avoid logging sensitive info
     local route_log = core.table.deepcopy(route)
     route_log.value.plugins = nil
     route_log.value.auth_conf = nil
-    route_log.dns_value.plugins = nil
-    route_log.dns_value.auth_conf = nil
     core.log.info("parse route which contain domain: ",
                 core.json.delay_encode(route_log, true))
     return route
@@ -574,9 +580,7 @@ function _M.handle_upstream(api_ctx, route, enable_websocket)
 
         local route_val = route.value
 
-        api_ctx.matched_upstream = (route.dns_value and
-                                    route.dns_value.upstream)
-                                   or route_val.upstream
+        api_ctx.matched_upstream = route_val.upstream
     end
 
     if api_ctx.matched_upstream and api_ctx.matched_upstream.tls and
@@ -911,7 +915,7 @@ local function healthcheck_passive(api_ctx)
     end
 
     local up_conf = api_ctx.upstream_conf
-    local passive = up_conf.checks.passive
+    local passive = up_conf.checks.passive and up_conf.checks.passive
     if not passive then
         return
     end
@@ -1217,9 +1221,7 @@ function _M.stream_preread_phase()
         end
 
         local route_val = matched_route.value
-        api_ctx.matched_upstream = (matched_route.dns_value and
-                                    matched_route.dns_value.upstream)
-                                   or route_val.upstream
+        api_ctx.matched_upstream = route_val.upstream
     end
 
     local plugins = core.tablepool.fetch("plugins", 32, 0)

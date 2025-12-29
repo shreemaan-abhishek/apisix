@@ -110,7 +110,7 @@ qr/^.*?\[error\](?!.*process exiting).*/
             for i, th in ipairs(t) do
                 ngx.thread.wait(th)
             end
-
+            ngx.sleep(2)
             ngx.exit(200)
         }
     }

@@ -14,10 +14,12 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
+local require = require
 local core = require("apisix.core")
 local plugin = require("apisix.plugin")
 local get_routes = require("apisix.router").http_routes
 local get_services = require("apisix.http.service").services
+local healthcheck_manager = require("apisix.healthcheck_manager")
 local upstream_mod = require("apisix.upstream")
 local get_upstreams = upstream_mod.upstreams
 local collectgarbage = collectgarbage
@@ -25,7 +27,6 @@ local ipairs = ipairs
 local str_format = string.format
 local ngx = ngx
 local ngx_var = ngx.var
-local require = require
 local events
 
 local _M = {}
@@ -75,39 +76,49 @@ function _M.post_reload_plugins()
 end
 
 
-local function extra_checker_info(value, src_type)
-    local checker = value.checker
-    local upstream = value.checker_upstream
-    local host = upstream.checks and upstream.checks.active and upstream.checks.active.host
-    local port = upstream.checks and upstream.checks.active and upstream.checks.active.port
-    local nodes = upstream.nodes
-    local healthy_nodes = core.table.new(#nodes, 0)
-    for _, node in ipairs(nodes) do
-        local ok = checker:get_target_status(node.host, port or node.port, host)
-        if ok then
-            core.table.insert(healthy_nodes, node)
-        end
+local function get_checker_type(checks)
+    if checks.active and checks.active.type then
+        return checks.active.type
+    elseif checks.passive and checks.passive.type then
+        return checks.passive.type
     end
+end
 
-    local conf = value.value
+
+local function extra_checker_info(value, checks)
+    if not checks then
+        return
+    end
+    local nodes, err = healthcheck_manager.get_target_list(value.value)
+    if not nodes then
+        if err then
+            core.log.error("healthcheck.get_target_list failed: ", err)
+        end
+        return
+    end
     return {
-        name = upstream_mod.get_healthchecker_name(value),
-        src_id = conf.id,
-        src_type = src_type,
+        name = value.key,
+        type = get_checker_type(checks),
         nodes = nodes,
-        healthy_nodes = healthy_nodes,
     }
 end
 
 
-local function iter_and_add_healthcheck_info(infos, values, src_type)
+local function iter_and_add_healthcheck_info(infos, values)
     if not values then
         return
     end
+    local local_conf = core.config.local_conf()
+    if local_conf and local_conf.apisix and local_conf.apisix.disable_upstream_healthcheck then
+          core.log.info("skip adding healthcheck info: disabled upstream healthcheck")
+          return
+     end
 
     for _, value in core.config_util.iterate_values(values) do
-        if value.checker then
-            core.table.insert(infos, extra_checker_info(value, src_type))
+        local checks = value.value.checks or (value.value.upstream and value.value.upstream.checks)
+        if checks then
+            local info = extra_checker_info(value, checks)
+            core.table.insert(infos, info)
         end
     end
 end
@@ -116,11 +127,11 @@ end
 function _M.get_health_checkers()
     local infos = {}
     local routes = get_routes()
-    iter_and_add_healthcheck_info(infos, routes, "routes")
+    iter_and_add_healthcheck_info(infos, routes)
     local services = get_services()
-    iter_and_add_healthcheck_info(infos, services, "services")
+    iter_and_add_healthcheck_info(infos, services)
     local upstreams = get_upstreams()
-    iter_and_add_healthcheck_info(infos, upstreams, "upstreams")
+    iter_and_add_healthcheck_info(infos, upstreams)
     return 200, infos
 end
 
@@ -132,11 +143,13 @@ local function iter_and_find_healthcheck_info(values, src_type, src_id)
 
     for _, value in core.config_util.iterate_values(values) do
         if value.value.id == src_id then
-            if not value.checker then
+            local checks = value.value.checks or
+                (value.value.upstream and value.value.upstream.checks)
+            local info = extra_checker_info(value, checks)
+            if not info then
                 return nil, str_format("no checker for %s[%s]", src_type, src_id)
             end
-
-            return extra_checker_info(value, src_type)
+            return info
         end
     end
 

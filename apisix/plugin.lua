@@ -667,7 +667,7 @@ end
 
 
 local function merge_service_route(service_conf, route_conf)
-    local new_conf = core.table.deepcopy(service_conf, { shallows = {"self.value.upstream.parent"}})
+    local new_conf = core.table.deepcopy(service_conf)
     new_conf.value.service_id = new_conf.value.id
     new_conf.value.id = route_conf.value.id
     new_conf.modifiedIndex = route_conf.modifiedIndex
@@ -741,7 +741,7 @@ end
 local function merge_service_stream_route(service_conf, route_conf)
     -- because many fields in Service are not supported by stream route,
     -- so we copy the stream route as base object
-    local new_conf = core.table.deepcopy(route_conf, { shallows = {"self.value.upstream.parent"}})
+    local new_conf = core.table.deepcopy(route_conf)
     if service_conf.value.plugins then
         for name, conf in pairs(service_conf.value.plugins) do
             if not new_conf.value.plugins then
@@ -790,7 +790,7 @@ local function merge_consumer_route(route_conf, consumer_conf, consumer_group_co
     end
 
     local new_route_conf = core.table.deepcopy(route_conf,
-        { shallows = {"self.value.upstream.parent"}, shallow_prefix = "self.value.plugins" })
+        { shallow_prefix = "self.value.plugins" })
 
     if consumer_group_conf then
         for name, conf in pairs(consumer_group_conf.value.plugins) do
@@ -1242,12 +1242,16 @@ function _M.set_plugins_meta_parent(plugins, parent)
             plugin_conf._meta = {}
         end
         if not plugin_conf._meta.parent then
+            local parent_info = {
+                resource_key = parent.key,
+                resource_version = tostring(parent.modifiedIndex)
+            }
             local mt_table = getmetatable(plugin_conf._meta)
             if mt_table then
-                mt_table.parent = parent
+                mt_table.parent = parent_info
             else
                 plugin_conf._meta = setmetatable(plugin_conf._meta,
-                                                    { __index = {parent = parent} })
+                                                    { __index = {parent = parent_info} })
             end
         end
     end

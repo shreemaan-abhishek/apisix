@@ -360,6 +360,6 @@ passed
 --- response_body
 passed
 --- grep_error_log eval
-qr/create new healthcheck instance/
+qr/creating healthchecker/
 --- grep_error_log_out
-create new healthcheck instance
+creating healthchecker

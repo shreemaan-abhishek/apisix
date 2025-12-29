@@ -74,13 +74,16 @@ upstreams:
             local httpc = http.new()
             local res, err = httpc:request_uri(uri, {method = "GET"})
 
-            ngx.sleep(2.2)
+            ngx.sleep(4)
 
             local code, body, res = t.test('/v1/healthcheck',
                 ngx.HTTP_GET)
+            ngx.log(ngx.WARN, "res: ", res)
             res = json.decode(res)
+            assert(#res == 1, "invalid number of results")
+            ngx.log(ngx.WARN, "res[1].nodes: ", json.encode(res[1].nodes))
             table.sort(res[1].nodes, function(a, b)
-                return a.host < b.host
+                return a.ip < b.ip
             end)
             ngx.say(json.encode(res))
 
@@ -88,7 +91,7 @@ upstreams:
                 ngx.HTTP_GET)
             res = json.decode(res)
             table.sort(res.nodes, function(a, b)
-                return a.host < b.host
+                return a.ip < b.ip
             end)
             ngx.say(json.encode(res))
         }
@@ -99,8 +102,9 @@ qr/unhealthy TCP increment \(.+\) for '[^']+'/
 unhealthy TCP increment (1/2) for '(127.0.0.2:1988)'
 unhealthy TCP increment (2/2) for '(127.0.0.2:1988)'
 --- response_body
-[{"healthy_nodes":[{"host":"127.0.0.1","port":1980,"priority":0,"weight":1}],"name":"upstream#/upstreams/1","nodes":[{"host":"127.0.0.1","port":1980,"priority":0,"weight":1},{"host":"127.0.0.2","port":1988,"priority":0,"weight":1}],"src_id":"1","src_type":"upstreams"}]
-{"healthy_nodes":[{"host":"127.0.0.1","port":1980,"priority":0,"weight":1}],"name":"upstream#/upstreams/1","nodes":[{"host":"127.0.0.1","port":1980,"priority":0,"weight":1},{"host":"127.0.0.2","port":1988,"priority":0,"weight":1}],"src_id":"1","src_type":"upstreams"}
+[{"name":"/upstreams/1","nodes":[{"counter":{"http_failure":0,"success":0,"tcp_failure":0,"timeout_failure":0},"ip":"127.0.0.1","port":1980,"status":"healthy"},{"counter":{"http_failure":0,"success":0,"tcp_failure":2,"timeout_failure":0},"ip":"127.0.0.2","port":1988,"status":"unhealthy"}],"type":"http"}]
+{"name":"/upstreams/1","nodes":[{"counter":{"http_failure":0,"success":0,"tcp_failure":0,"timeout_failure":0},"ip":"127.0.0.1","port":1980,"status":"healthy"},{"counter":{"http_failure":0,"success":0,"tcp_failure":2,"timeout_failure":0},"ip":"127.0.0.2","port":1988,"status":"unhealthy"}],"type":"http"}
+--- timeout: 10
 
 
 
@@ -144,7 +148,7 @@ routes:
             local httpc = http.new()
             local res, err = httpc:request_uri(uri, {method = "GET"})
 
-            ngx.sleep(2.2)
+            ngx.sleep(4)
 
             local code, body, res = t.test('/v1/healthcheck',
                 ngx.HTTP_GET)
@@ -169,8 +173,9 @@ qr/unhealthy TCP increment \(.+\) for '[^']+'/
 unhealthy TCP increment (1/2) for '127.0.0.1(127.0.0.1:1988)'
 unhealthy TCP increment (2/2) for '127.0.0.1(127.0.0.1:1988)'
 --- response_body
-[{"healthy_nodes":[{"host":"127.0.0.1","port":1980,"priority":0,"weight":1}],"name":"upstream#/routes/1","nodes":[{"host":"127.0.0.1","port":1980,"priority":0,"weight":1},{"host":"127.0.0.1","port":1988,"priority":0,"weight":1}],"src_id":"1","src_type":"routes"}]
-{"healthy_nodes":[{"host":"127.0.0.1","port":1980,"priority":0,"weight":1}],"name":"upstream#/routes/1","nodes":[{"host":"127.0.0.1","port":1980,"priority":0,"weight":1},{"host":"127.0.0.1","port":1988,"priority":0,"weight":1}],"src_id":"1","src_type":"routes"}
+[{"name":"/routes/1","nodes":[{"counter":{"http_failure":0,"success":0,"tcp_failure":0,"timeout_failure":0},"hostname":"127.0.0.1","ip":"127.0.0.1","port":1980,"status":"healthy"},{"counter":{"http_failure":0,"success":0,"tcp_failure":2,"timeout_failure":0},"hostname":"127.0.0.1","ip":"127.0.0.1","port":1988,"status":"unhealthy"}],"type":"http"}]
+{"name":"/routes/1","nodes":[{"counter":{"http_failure":0,"success":0,"tcp_failure":0,"timeout_failure":0},"hostname":"127.0.0.1","ip":"127.0.0.1","port":1980,"status":"healthy"},{"counter":{"http_failure":0,"success":0,"tcp_failure":2,"timeout_failure":0},"hostname":"127.0.0.1","ip":"127.0.0.1","port":1988,"status":"unhealthy"}],"type":"http"}
+--- timeout: 10
 
 
 
@@ -219,7 +224,7 @@ services:
             local httpc = http.new()
             local res, err = httpc:request_uri(uri, {method = "GET"})
 
-            ngx.sleep(2.2)
+            ngx.sleep(4)
 
             local code, body, res = t.test('/v1/healthcheck',
                 ngx.HTTP_GET)
@@ -244,8 +249,9 @@ qr/unhealthy TCP increment \(.+\) for '[^']+'/
 unhealthy TCP increment (1/2) for '127.0.0.1(127.0.0.1:1988)'
 unhealthy TCP increment (2/2) for '127.0.0.1(127.0.0.1:1988)'
 --- response_body
-[{"healthy_nodes":{},"name":"upstream#/services/1","nodes":[{"host":"127.0.0.1","port":1980,"priority":0,"weight":1},{"host":"127.0.0.1","port":1988,"priority":0,"weight":1}],"src_id":"1","src_type":"services"}]
-{"healthy_nodes":{},"name":"upstream#/services/1","nodes":[{"host":"127.0.0.1","port":1980,"priority":0,"weight":1},{"host":"127.0.0.1","port":1988,"priority":0,"weight":1}],"src_id":"1","src_type":"services"}
+[{"name":"/services/1","nodes":[{"counter":{"http_failure":0,"success":0,"tcp_failure":2,"timeout_failure":0},"hostname":"127.0.0.1","ip":"127.0.0.1","port":1988,"status":"unhealthy"}],"type":"http"}]
+{"name":"/services/1","nodes":[{"counter":{"http_failure":0,"success":0,"tcp_failure":2,"timeout_failure":0},"hostname":"127.0.0.1","ip":"127.0.0.1","port":1988,"status":"unhealthy"}],"type":"http"}
+--- timeout: 10
 
 
 
@@ -254,6 +260,7 @@ unhealthy TCP increment (2/2) for '127.0.0.1(127.0.0.1:1988)'
     location /t {
         content_by_lua_block {
             local t = require("lib.test_admin")
+            ngx.sleep(4)
             local code, body, res = t.test('/v1/healthcheck',
                 ngx.HTTP_GET)
             ngx.print(res)
@@ -261,6 +268,7 @@ unhealthy TCP increment (2/2) for '127.0.0.1(127.0.0.1:1988)'
     }
 --- response_body
 {}
+--- timeout: 10
 
 
 
@@ -279,69 +287,3 @@ GET /v1/healthcheck/route/1
 --- error_code: 400
 --- response_body
 {"error_msg":"invalid src type route"}
-
-
-
-=== TEST 7: default health status
---- yaml_config
-apisix:
-    node_listen: 1984
-deployment:
-    role: data_plane
-    role_data_plane:
-        config_provider: yaml
---- apisix_yaml
-routes:
-  -
-    uris:
-        - /hello
-    upstream_id: 1
-upstreams:
-    - nodes:
-        "127.0.0.1:1988": 1
-        "127.0.0.2:1980": 1
-      type: chash
-      id: 1
-      key: "uri"
-      checks:
-        active:
-            http_path: "/status"
-            healthy:
-                interval: 1
-                successes: 1
-            unhealthy:
-                interval: 1
-                http_failures: 1
-#END
---- config
-    location /t {
-        content_by_lua_block {
-            local json = require("toolkit.json")
-            local t = require("lib.test_admin")
-
-            -- not hit
-            local code, body, res = t.test('/v1/healthcheck',
-                ngx.HTTP_GET)
-            ngx.print(res)
-
-            -- hit, but no enough to mark node to unhealthy
-            local http = require "resty.http"
-            local uri = "http://127.0.0.1:" .. ngx.var.server_port .. "/hello"
-            local httpc = http.new()
-            local res, err = httpc:request_uri(uri, {method = "GET"})
-            local code, body, res = t.test('/v1/healthcheck',
-                ngx.HTTP_GET)
-            res = json.decode(res)
-            table.sort(res[1].healthy_nodes, function(a, b)
-                return a.host < b.host
-            end)
-            ngx.say(json.encode(res[1].healthy_nodes))
-        }
-    }
---- grep_error_log eval
-qr/unhealthy TCP increment \(.+\) for '[^']+'/
---- grep_error_log_out
-unhealthy TCP increment (1/2) for '(127.0.0.1:1988)'
---- response_body
-{}
-[{"host":"127.0.0.1","port":1988,"priority":0,"weight":1},{"host":"127.0.0.2","port":1980,"priority":0,"weight":1}]
