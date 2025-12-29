@@ -35,7 +35,7 @@ jobs:
           - linux_openresty
         test_dir:
           - t/plugin/[a-k]*
-          - t/plugin/[l-z]*
+          - t/stream-plugin t/plugin/[l-z]*
           - t/plugin.elasticsearch
           - t/admin t/api7-agent t/cli t/config-center-yaml t/control t/core t/debug t/discovery t/misc
           - t/node t/pubsub t/router t/script t/secret t/stream-node t/utils t/wasm t/xds-library t/xrpc

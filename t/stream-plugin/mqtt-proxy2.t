@@ -109,6 +109,7 @@ failed to parse domain: loc, error:
     }
 --- request
 GET /t
+--- error_code: 201
 --- response_body
 passed
 

@@ -60,11 +60,7 @@ end
 local function create_limit_obj(conf, rule, default_conn_delay)
     core.log.info("create new limit-conn plugin instance, rule: ", core.json.delay_encode(rule))
 
-    if conf.policy == "local" then
-        core.log.info("create new limit-conn plugin instance")
-        return limit_conn_new(shdict_name, rule.conn, rule.burst,
-                              default_conn_delay)
-    elseif conf.policy == "redis" then
+    if conf.policy == "redis" then
         core.log.info("create new limit-conn redis plugin instance")
         return redis_single_new("plugin-limit-conn", conf, rule.conn, rule.burst,
                                 default_conn_delay)
@@ -74,7 +70,9 @@ local function create_limit_obj(conf, rule, default_conn_delay)
         return redis_cluster_new("plugin-limit-conn", conf, rule.conn, rule.burst,
                                  default_conn_delay)
     else
-        return nil, "policy enum not match"
+        core.log.info("create new limit-conn plugin instance")
+        return limit_conn_new(shdict_name, rule.conn, rule.burst,
+                              default_conn_delay)
     end
 end
 
