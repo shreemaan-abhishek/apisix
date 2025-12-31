@@ -699,6 +699,23 @@ deployment:
 
     admin_api_version: v3         # The version of admin api, latest version is v3.
 
+  # fallback_cp:
+  #   mode: "write"               # "write" specifies that the dp instance will run on backup mode and not accept/proxy any requests. defaults to "write", which specifies "fallback" mode
+  #   interval: 1                 # interval in seconds for backup mode
+  #   aws_s3:                     # configuration for AWS S3 to store configuration/resources either to push (in backup mode) or pull (in fallback mode)
+  #     access_key: "just-access"
+  #     secret_key: "super-secret"
+  #     resource_bucket: "resource_bucket"
+  #     config_bucket: "config_bucket"
+  #     region: "ap-south-1"
+  #     endpoint: "http://localhost:6969"
+  #   azure_blob:                 # configuration for Azure Blob Storage to store configuration/resources either to push (in backup mode) or pull (in fallback mode)
+  #     account_name: devstoreaccount1
+  #     account_key: "Eby8vdM02xNOcqFlqUwJPLlmEtlCDXJ1OUzFT50uSRZ6IFsuFq2UVErCz4I6tq/K1SZFPTOtr/KBHBeksoGMGw=="
+  #     resource_container: yaml
+  #     config_container: config
+  #     endpoint: "http://localhost:10000/devstoreaccount1"
+
   etcd:
     host:                           # it's possible to define multiple etcd hosts addresses of the same etcd cluster.
       - "http://127.0.0.1:2379"     # multiple etcd address, if your etcd cluster enables TLS, please use https scheme,
