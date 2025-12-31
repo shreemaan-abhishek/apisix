@@ -915,7 +915,7 @@ local function healthcheck_passive(api_ctx)
     end
 
     local up_conf = api_ctx.upstream_conf
-    local passive = up_conf.checks.passive and up_conf.checks.passive
+    local passive = up_conf.checks and up_conf.checks.passive
     if not passive then
         return
     end
