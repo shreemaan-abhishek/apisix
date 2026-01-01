@@ -116,9 +116,9 @@ local metadata_schema = {
             default = {},
         },
         set_ngx_var = {
-            type = "boolean",
-            description = "set nginx variables",
-            default = false,
+          type = "boolean",
+          description = "set nginx variables",
+          default = false,
         },
     },
 }
@@ -223,7 +223,6 @@ function _M.init()
         trace_id_ratio = trace_id_ratio_sampler_new,
     }
     hostname = core.utils.gethostname()
-
 end
 
 
@@ -306,14 +305,13 @@ end
 
 
 function _M.rewrite(conf, api_ctx)
-    local vars = api_ctx.var
-
     local metadata = plugin.plugin_metadata(plugin_name)
     if metadata == nil then
         core.log.warn("plugin_metadata is required for opentelemetry plugin to working properly")
         return
     end
     core.log.info("metadata: ", core.json.delay_encode(metadata))
+    local vars = api_ctx.var
 
     local tracer, err = core.lrucache.plugin_ctx(lrucache, api_ctx, metadata.modifiedIndex,
                                                     create_tracer_obj, conf, metadata.value)
@@ -368,13 +366,13 @@ function _M.rewrite(conf, api_ctx)
     })
 
     if metadata.value.set_ngx_var then
-        local span_context = ctx:span():context()
-        ngx_var.opentelemetry_context_traceparent = string_format("00-%s-%s-%02x",
-                                                                   span_context.trace_id,
-                                                                   span_context.span_id,
-                                                                   span_context.trace_flags)
-        ngx_var.opentelemetry_trace_id = span_context.trace_id
-        ngx_var.opentelemetry_span_id = span_context.span_id
+      local span_context = ctx:span():context()
+      ngx_var.opentelemetry_context_traceparent = string_format("00-%s-%s-%02x",
+                                                                 span_context.trace_id,
+                                                                 span_context.span_id,
+                                                                 span_context.trace_flags)
+      ngx_var.opentelemetry_trace_id = span_context.trace_id
+      ngx_var.opentelemetry_span_id = span_context.span_id
     end
 
     api_ctx.otel_context_token = ctx:attach()
@@ -399,6 +397,7 @@ function _M.delayed_body_filter(conf, api_ctx)
         end
 
         span:set_attributes(attr.int("http.status_code", upstream_status))
+
         span:finish()
     end
 end

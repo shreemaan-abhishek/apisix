@@ -18,8 +18,6 @@ local core              = require("apisix.core")
 local xml2lua           = require("xml2lua")
 local xmlhandler        = require("xmlhandler.tree")
 local template          = require("resty.template")
-local multipart         = require("multipart")
-
 local ngx               = ngx
 local decode_base64     = ngx.decode_base64
 local req_set_body_data = ngx.req.set_body_data
@@ -31,16 +29,14 @@ local type              = type
 local pcall             = pcall
 local pairs             = pairs
 local next              = next
+local multipart         = require("multipart")
 local setmetatable      = setmetatable
-
 
 local transform_schema = {
     type = "object",
     properties = {
-        input_format = {
-            type = "string",
-            enum = {"xml", "json", "encoded", "args", "plain", "multipart",}
-        },
+        input_format = { type = "string",
+                         enum = {"xml", "json", "encoded", "args", "plain", "multipart",}},
         template = { type = "string" },
         template_is_base64 = { type = "boolean" },
     },
@@ -71,10 +67,10 @@ local _M = {
 
 local function escape_xml(s)
     return s:gsub("&", "&amp;")
-            :gsub("<", "&lt;")
-            :gsub(">", "&gt;")
-            :gsub("'", "&apos;")
-            :gsub('"', "&quot;")
+        :gsub("<", "&lt;")
+        :gsub(">", "&gt;")
+        :gsub("'", "&apos;")
+        :gsub('"', "&quot;")
 end
 
 
@@ -139,13 +135,11 @@ end
 local function transform(conf, body, typ, ctx, request_method)
     local out = {}
     local _multipart
-
     local format = conf[typ].input_format
     local ct = ctx.var.http_content_type
     if typ == "response" then
         ct = ngx.header.content_type
     end
-
     if (body or request_method == "GET") and format ~= "plain" then
         local err
         if format then
@@ -181,7 +175,7 @@ local function transform(conf, body, typ, ctx, request_method)
         _body = body,
         _escape_xml = escape_xml,
         _escape_json = escape_json,
-        _multipart = _multipart,
+        _multipart = _multipart
     }})
 
     local ok, render_out = pcall(render, out)
@@ -207,7 +201,7 @@ local function set_input_format(conf, typ, ct, method)
             conf[typ].input_format = "json"
         elseif str_find(ct:lower(), "application/x-www-form-urlencoded", nil, true) then
             conf[typ].input_format = "encoded"
-        elseif str_find(ct:lower(), "multipart/", nil) then
+        elseif str_find(ct:lower(), "multipart/", nil, true) then
             conf[typ].input_format = "multipart"
         end
     end

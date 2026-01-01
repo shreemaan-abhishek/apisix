@@ -48,6 +48,15 @@ local schema = {
             default = "/loki/api/v1/push"
         },
         tenant_id = {type = "string", default = "fake"},
+        headers = {
+            type = "object",
+            patternProperties = {
+                [".*"] = {
+                    type = "string",
+                    minLength = 1,
+                },
+            },
+        },
         log_labels = {
             type = "object",
             patternProperties = {
@@ -144,11 +153,13 @@ end
 
 
 local function send_http_data(conf, log)
+    local headers = conf.headers or {}
+    headers = core.table.clone(headers)
+    headers["X-Scope-OrgID"] = conf.tenant_id
+    headers["Content-Type"] = "application/json"
+
     local params = {
-        headers = {
-            ["Content-Type"] = "application/json",
-            ["X-Scope-OrgID"] = conf.tenant_id,
-        },
+        headers = headers,
         keepalive = conf.keepalive,
         ssl_verify = conf.ssl_verify,
         method = "POST",

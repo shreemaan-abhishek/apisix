@@ -14,9 +14,8 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
-local plugin      = require("apisix.plugin")
-local ipairs      = ipairs
 local core         = require("apisix.core")
+local plugin       = require("apisix.plugin")
 local expr         = require("resty.expr.v1")
 local ipairs       = ipairs
 local setmetatable = setmetatable
@@ -55,7 +54,8 @@ local schema = {
                 required = {"actions"}
             }
         }
-    }
+    },
+    required = {"rules"}
 }
 
 local plugin_name = "workflow"
@@ -95,11 +95,12 @@ local function exit(conf)
 end
 
 
+
 local support_action = {
     ["return"] = {
         handler        = exit,
         check_schema   = check_return_schema,
-    },
+    }
 }
 
 
@@ -132,6 +133,7 @@ function _M.check_schema(conf)
             end
             mt.__expr = expr
         end
+
         local actions = rule.actions
         for _, action in ipairs(actions) do
 

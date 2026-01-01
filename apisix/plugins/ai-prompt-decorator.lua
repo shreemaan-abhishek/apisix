@@ -81,11 +81,12 @@ end
 
 
 local function decorate(conf, body_tab)
-    local new_messages
+    local new_messages = {}
+
     if conf.prepend then
-        new_messages = core.table.clone(conf.prepend)
-    else
-        new_messages = {}
+        for i = 1, #conf.prepend do
+            new_messages[i] = conf.prepend[i]
+        end
     end
 
     for _, message in pairs(body_tab.messages) do

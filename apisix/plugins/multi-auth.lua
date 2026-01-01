@@ -18,7 +18,6 @@ local core = require("apisix.core")
 local require = require
 local pairs = pairs
 local type = type
-local ipairs = ipairs
 local plugin = require("apisix.plugin")
 
 local schema = {
@@ -53,14 +52,14 @@ function _M.check_schema(conf)
             local auth = plugin.get(auth_plugin_name)
             if auth == nil then
                 return false, auth_plugin_name .. " plugin did not found"
-            end
-            if auth.type ~= 'auth' then
-                return false, auth_plugin_name .. " plugin is not supported"
-            end
-            local ok, err = auth.check_schema(auth_plugin_conf)
-            if not ok then
-                return false, "multi-auth plugin failed to check the configuration of plugin "
-                    .. auth_plugin_name .. " err: " .. err
+            else
+                if auth.type ~= 'auth' then
+                    return false, auth_plugin_name .. " plugin is not supported"
+                end
+                local ok, err = auth.check_schema(auth_plugin_conf, auth.schema)
+                if not ok then
+                    return false, "plugin " .. auth_plugin_name .. " check schema failed: " .. err
+                end
             end
         end
     end
@@ -72,6 +71,7 @@ function _M.rewrite(conf, ctx)
     local auth_plugins = conf.auth_plugins
     local status_code
     local errors = {}
+
     for k, auth_plugin in pairs(auth_plugins) do
         for auth_plugin_name, auth_plugin_conf in pairs(auth_plugin) do
             local auth = plugin.get(auth_plugin_name)
@@ -95,7 +95,7 @@ function _M.rewrite(conf, ctx)
 
     :: authenticated ::
     if status_code ~= nil then
-        for _, error in ipairs(errors) do
+        for _, error in pairs(errors) do
             core.log.warn(error)
         end
         return 401, { message = "Authorization Failed" }
