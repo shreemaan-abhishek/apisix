@@ -45,6 +45,7 @@ dependencies = {
     "api7-lua-resty-jwt = 0.2.6",
     "lua-resty-hmac-ffi = 0.05",
     "lua-resty-cookie = 0.1.0",
+    "lua-resty-ksuid = 1.0.1",
     "lua-resty-session = 3.10",
     "lua-resty-saml = 0.2.3",
     "opentracing-openresty = 0.1",
