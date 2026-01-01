@@ -14,10 +14,9 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
-local redis         = require("apisix.utils.redis")
-local core          = require("apisix.core")
-local util          = require("apisix.plugins.limit-conn.util")
-local ngx_timer_at  = ngx.timer.at
+local redis             = require("apisix.utils.redis")
+local setmetatable      = setmetatable
+local util              = require("apisix.plugins.limit-req.util")
 
 local setmetatable  = setmetatable
 
@@ -29,14 +28,13 @@ local mt = {
     __index = _M
 }
 
-function _M.new(plugin_name, conf, max, burst, default_conn_delay)
 
+function _M.new(plugin_name, conf, rate, burst)
     local self = {
         conf = conf,
         plugin_name = plugin_name,
-        burst = burst,
-        max = max + 0,    -- just to ensure the param is good
-        unit_delay = default_conn_delay,
+        burst = burst * 1000,
+        rate = rate * 1000,
     }
     return setmetatable(self, mt)
 end
@@ -48,38 +46,9 @@ function _M.incoming(self, key, commit)
     if not red then
         return red, err
     end
+
     return util.incoming(self, red, key, commit)
 end
-
-
-function _M.is_committed(self)
-    return self.committed
-end
-
-
-local function leaving_thread(premature, self, key, req_latency)
-
-    local conf = self.conf
-    local red, err = redis.new(conf)
-    if not red then
-        return red, err
-    end
-    return util.leaving(self, red, key, req_latency)
-end
-
-
-function _M.leaving(self, key, req_latency)
-    -- log_by_lua can't use cosocket
-    local ok, err = ngx_timer_at(0, leaving_thread, self, key, req_latency)
-    if not ok then
-        core.log.error("failed to create timer: ", err)
-        return nil, err
-    end
-
-    return ok
-
-end
-
 
 
 return _M

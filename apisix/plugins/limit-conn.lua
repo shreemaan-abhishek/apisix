@@ -14,9 +14,11 @@
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
 --
-local core                              = require("apisix.core")
-local limit_conn                        = require("apisix.plugins.limit-conn.init")
-local workflow                           = require("apisix.plugins.workflow")
+local core                            = require("apisix.core")
+local limit_conn                      = require("apisix.plugins.limit-conn.init")
+local redis_schema                    = require("apisix.utils.redis-schema")
+local policy_to_additional_properties = redis_schema.schema
+local workflow                        = require("apisix.plugins.workflow")
 
 
 local plugin_name = "limit-conn"
@@ -25,21 +27,22 @@ local schema = {
     properties = {
         conn = {
             oneOf = {
-                {type = "integer", exclusiveMinimum = 0},
-                {type = "string"},
+                { type = "integer", exclusiveMinimum = 0 },
+                { type = "string" },
             },
         },
         burst = {
             oneOf = {
-                {type = "integer", minimum = 0},
-                {type = "string"},
+                { type = "integer", minimum = 0 },
+                { type = "string" },
             },
         },
-        default_conn_delay = {type = "number", exclusiveMinimum = 0},
-        only_use_default_delay = {type = "boolean", default = false},
-        key = {type = "string"},
-        key_type = {type = "string",
-            enum = {"var", "var_combination"},
+        default_conn_delay = { type = "number", exclusiveMinimum = 0 },
+        only_use_default_delay = { type = "boolean", default = false },
+        key = { type = "string" },
+        key_type = {
+            type = "string",
+            enum = { "var", "var_combination" },
             default = "var",
         },
         rejected_code = {
@@ -48,54 +51,11 @@ local schema = {
         rejected_msg = {
             type = "string", minLength = 1
         },
-        allow_degradation = {type = "boolean", default = false},
+        allow_degradation = { type = "boolean", default = false },
         policy = {
             type = "string",
-            enum = {"local", "redis", "redis-cluster"},
+            enum = { "local", "redis", "redis-cluster" },
             default = "local",
-        },
-        redis_host = {
-            type = "string", minLength = 2
-        },
-        redis_port = {
-            type = "integer", minimum = 1, default = 6379,
-        },
-        redis_username = {
-            type = "string", minLength = 1,
-        },
-        redis_password = {
-            type = "string", minLength = 0,
-        },
-        redis_database = {
-            type = "integer", minimum = 0, default = 0,
-        },
-        redis_timeout = {
-            type = "integer", minimum = 1, default = 1000,
-        },
-        redis_ssl = {
-            type = "boolean", default = false,
-        },
-        redis_ssl_verify = {
-            type = "boolean", default = false,
-        },
-        redis_prefix = {
-            type = "string", minLength = 0, default = "limit_conn", pattern = "^[0-9a-zA-Z|_]+$"
-        },
-        redis_cluster_nodes = {
-            type = "array",
-            minItems = 2,
-            items = {
-                type = "string", minLength = 2, maxLength = 100
-            },
-        },
-        redis_cluster_name = {
-            type = "string",
-        },
-        redis_cluster_ssl = {
-            type = "boolean", default = false,
-        },
-        redis_cluster_ssl_verify = {
-            type = "boolean", default = false,
         },
         rules = {
             type = "array",
@@ -104,51 +64,47 @@ local schema = {
                 properties = {
                     conn = {
                         oneOf = {
-                            {type = "integer", exclusiveMinimum = 0},
-                            {type = "string"},
+                            { type = "integer", exclusiveMinimum = 0 },
+                            { type = "string" },
                         },
                     },
                     burst = {
                         oneOf = {
-                            {type = "integer", minimum = 0},
-                            {type = "string"},
+                            { type = "integer", minimum = 0 },
+                            { type = "string" },
                         },
                     },
-                    key = {type = "string"},
+                    key = { type = "string" },
                 },
-                required = {"conn", "burst", "key"},
+                required = { "conn", "burst", "key" },
             },
         },
     },
     oneOf = {
         {
-            required = {"conn", "burst", "default_conn_delay", "key"},
+            required = { "conn", "burst", "default_conn_delay", "key" },
         },
         {
-            required = {"default_conn_delay", "rules"},
+            required = { "default_conn_delay", "rules" },
         }
     },
     ["if"] = {
         properties = {
             policy = {
-                enum = {"redis"},
+                enum = { "redis" },
             },
         },
     },
-    ["then"] = {
-        required = {"redis_host"},
-    },
+    ["then"] = policy_to_additional_properties.redis,
     ["else"] = {
         ["if"] = {
             properties = {
                 policy = {
-                    enum = {"redis-cluster"},
+                    enum = { "redis-cluster" },
                 },
             },
         },
-        ["then"] = {
-            required = {"redis_cluster_nodes", "redis_cluster_name"},
-        },
+        ["then"] = policy_to_additional_properties["redis-cluster"],
     }
 }
 
@@ -164,11 +120,9 @@ function _M.check_schema(conf)
     return core.schema.check(schema, conf)
 end
 
-
 function _M.access(conf, ctx)
     return limit_conn.increase(conf, ctx)
 end
-
 
 function _M.log(conf, ctx)
     return limit_conn.decrease(conf, ctx)
@@ -176,15 +130,15 @@ end
 
 function _M.workflow_handler()
     workflow.register(plugin_name,
-    function (conf) -- schema validation
-        return core.schema.check(schema, conf)
-    end,
-    function (conf, ctx) -- handler run in access phase
-        return limit_conn.increase(conf, ctx, plugin_name, 1)
-    end,
-    function (conf, ctx) -- log_handler run in log phase
-        return limit_conn.decrease(conf, ctx, plugin_name, 1)
-    end)
+        function(conf) -- schema validation
+            return core.schema.check(schema, conf)
+        end,
+        function(conf, ctx) -- handler run in access phase
+            return limit_conn.increase(conf, ctx, plugin_name, 1)
+        end,
+        function(conf, ctx) -- log_handler run in log phase
+            return limit_conn.decrease(conf, ctx, plugin_name, 1)
+        end)
 end
 
 return _M

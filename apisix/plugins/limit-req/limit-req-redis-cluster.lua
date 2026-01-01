@@ -15,10 +15,8 @@
 -- limitations under the License.
 --
 local redis_cluster     = require("apisix.utils.rediscluster")
-local core              = require("apisix.core")
-local util              = require("apisix.plugins.limit-conn.util")
 local setmetatable      = setmetatable
-local ngx_timer_at      = ngx.timer.at
+local util              = require("apisix.plugins.limit-req.util")
 
 local _M = {version = 0.1}
 
@@ -28,18 +26,16 @@ local mt = {
 }
 
 
-function _M.new(plugin_name, conf, max, burst, default_conn_delay)
-
-    local red_cli, err = redis_cluster.new(conf, "plugin-limit-conn-redis-cluster-slot-lock")
+function _M.new(plugin_name, conf, rate, burst)
+    local red_cli, err = redis_cluster.new(conf, "plugin-limit-req-redis-cluster-slot-lock")
     if not red_cli then
         return nil, err
     end
     local self = {
         conf = conf,
         plugin_name = plugin_name,
-        burst = burst,
-        max = max + 0,    -- just to ensure the param is good
-        unit_delay = default_conn_delay,
+        burst = burst * 1000,
+        rate = rate * 1000,
         red_cli = red_cli,
     }
     return setmetatable(self, mt)
@@ -49,30 +45,6 @@ end
 function _M.incoming(self, key, commit)
     return util.incoming(self, self.red_cli, key, commit)
 end
-
-
-function _M.is_committed(self)
-    return self.committed
-end
-
-
-local function leaving_thread(premature, self, key, req_latency)
-    return util.leaving(self, self.red_cli, key, req_latency)
-end
-
-
-function _M.leaving(self, key, req_latency)
-    -- log_by_lua can't use cosocket
-    local ok, err = ngx_timer_at(0, leaving_thread, self, key, req_latency)
-    if not ok then
-        core.log.error("failed to create timer: ", err)
-        return nil, err
-    end
-
-    return ok
-
-end
-
 
 
 return _M
