@@ -90,11 +90,6 @@ jobs:
           sudo --preserve-env=OPENRESTY_VERSION \
           ./ci/${{ matrix.os_name }}_runner.sh do_install
 
-      - name: Linux launch common services
-        run: |
-          make ci-env-up project_compose_ci=ci/pod/docker-compose.common.yml
-          sudo ./ci/init-common-test-service.sh
-
       - name: Cache images
         id: cache-images
         uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5
@@ -104,65 +99,6 @@ jobs:
           path: docker-images-backup
           key: ${{ runner.os }}-${{ env.cache-name }}-${{ steps.test_env.outputs.type }}-${{ hashFiles(format('./ci/pod/docker-compose.{0}.yml', steps.test_env.outputs.type )) }}
 
-      - if: ${{ steps.cache-images.outputs.cache-hit == 'true' }}
-        name: Load saved docker images
-        run: |
-          if [[ -f docker-images-backup/apisix-images.tar ]]; then
-            [[ ${{ steps.test_env.outputs.type }} != first ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh before
-            docker load --input docker-images-backup/apisix-images.tar
-            echo "loaded docker images"
-
-            # preserve storage space
-            rm docker-images-backup/apisix-images.tar
-
-            make ci-env-up project_compose_ci=ci/pod/docker-compose.${{ steps.test_env.outputs.type }}.yml
-            if [[ ${{ steps.test_env.outputs.type }} != first ]]; then
-              sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh after
-            fi
-          fi
-      - if: ${{ steps.cache-images.outputs.cache-hit != 'true' }}
-        name: Linux launch services
-        run: |
-          [[ ${{ steps.test_env.outputs.type }} != first ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh before
-          [[ ${{ steps.test_env.outputs.type }} == plugin ]] && ./ci/pod/openfunction/build-function-image.sh
-          make ci-env-up project_compose_ci=ci/pod/docker-compose.${{ steps.test_env.outputs.type }}.yml
-          [[ ${{ steps.test_env.outputs.type }} != first ]] && sudo ./ci/init-${{ steps.test_env.outputs.type }}-test-service.sh after
-          echo "Linux launch services, done."
-      - name: Start Dubbo Backend
-        if: matrix.os_name == 'linux_openresty' && (steps.test_env.outputs.type == 'plugin' || steps.test_env.outputs.type == 'last')
-        run: |
-          cur_dir=$(pwd)
-          sudo apt update
-          sudo apt install -y maven openjdk-8-jdk
-          sudo update-java-alternatives --set java-1.8.0-openjdk-amd64
-          export JAVA_HOME=/usr/lib/jvm/java-8-openjdk-amd64
-          export PATH=$JAVA_HOME/bin:$PATH
-          cd t/lib/dubbo-backend
-          mvn package
-          cd dubbo-backend-provider/target
-          java \
-            -Djava.net.preferIPv4Stack=true \
-            -jar dubbo-demo-provider.one-jar.jar > /tmp/java.log &
-          cd $cur_dir/t/lib/dubbo-serialization-backend
-          mvn package
-          cd dubbo-serialization-backend-provider/target
-          java \
-            -Djava.net.preferIPv4Stack=true \
-            -jar dubbo-demo-provider.one-jar.jar > /tmp/java2.log &
-
-      - name: Build xDS library
-        if: steps.test_env.outputs.type == 'last'
-        run: |
-          cd t/xds-library
-          go build -o libxds.so -buildmode=c-shared main.go export.go
-
-      - name: Build wasm code
-        if: matrix.os_name == 'linux_openresty' && steps.test_env.outputs.type == 'last'
-        run: |
-          export TINYGO_VER=0.20.0
-          wget https://github.com/tinygo-org/tinygo/releases/download/v${TINYGO_VER}/tinygo_${TINYGO_VER}_amd64.deb 2>/dev/null
-          sudo dpkg -i tinygo_${TINYGO_VER}_amd64.deb
-          cd t/wasm && find . -type f -name "*.go" | xargs -Ip tinygo build -o p.wasm -scheduler=none -target=wasi p
 
       - name: Linux Script
         env:
