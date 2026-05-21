@@ -577,8 +577,10 @@ local function evaluate_permissions(conf, ctx, token)
             return 503, err
         end
     else
-        -- Use statically configured permissions.
-        permission = conf.permissions
+        -- Use a copy of the statically configured permissions, so the
+        -- per-request method scope appended below is not written back
+        -- into the reused plugin configuration.
+        permission = core.table.clone(conf.permissions)
     end
 
     -- Return 403 or 307 if permission is empty and enforcement mode is "ENFORCING".
