@@ -104,8 +104,18 @@ __DATA__
                     method = "GET",
                     headers = { ["Authorization"] = "Bearer dummy-user-token" },
                 })
-                if not res then return "ERR:" .. tostring(err) end
-                return res.status
+                if not res then
+                    ngx.say("request error: ", tostring(err))
+                    return
+                end
+                if res.status ~= 200 then
+                    ngx.say("unexpected status: ", res.status)
+                    return
+                end
+                if res.body ~= "UPSTREAM-REACHED" then
+                    ngx.say("unexpected body: ", tostring(res.body))
+                    return
+                end
             end
 
             -- two identical GET requests share the cached route conf;
